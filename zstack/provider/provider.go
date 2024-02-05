@@ -236,11 +236,27 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"host":            schema.StringAttribute{Optional: true},
-			"accountname":     schema.StringAttribute{Optional: true},
-			"accountpassword": schema.StringAttribute{Optional: true, Sensitive: true},
-			"accesskeyid":     schema.StringAttribute{Optional: true},
-			"accesskeysecret": schema.StringAttribute{Optional: true, Sensitive: true},
+			"host": schema.StringAttribute{
+				Description: "ZStack Cloud MN HOST ip address. May also be provided via ZSTACK_HOST environment variable.",
+				Optional:    true,
+			},
+			"accountname": schema.StringAttribute{
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUNTNAME environment variable.",
+				Optional:    true,
+			},
+			"accountpassword": schema.StringAttribute{
+				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNTPASSWORD environment variable.",
+				Optional:    true,
+				Sensitive:   true,
+			},
+			"accesskeyid": schema.StringAttribute{
+				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESSKEYID environment variable.",
+				Optional:    true,
+			},
+			"accesskeysecret": schema.StringAttribute{
+				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESSKEYSECRET environment variable.",
+				Optional:    true, Sensitive: true,
+			},
 		},
 	}
 }

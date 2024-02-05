@@ -35,8 +35,8 @@ type imagesModel struct {
 }
 
 type imagesDataSourceModel struct {
-	Name_regx types.String  `tfsdk:"name_regx"`
-	Images    []imagesModel `tfsdk:"images"`
+	Name_regex types.String  `tfsdk:"name_regex"`
+	Images     []imagesModel `tfsdk:"images"`
 }
 
 func ZStackImageDataSource() datasource.DataSource {
@@ -53,7 +53,7 @@ func (d *imageDataSource) Configure(_ context.Context, req datasource.ConfigureR
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the Provider developer. jiajian.chi@zstack.io", req.ProviderData),
+			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the ZStack Provider developer. ", req.ProviderData),
 		)
 
 		return
@@ -78,7 +78,7 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	name_regex := state.Name_regx
+	name_regex := state.Name_regex
 
 	if !name_regex.IsNull() {
 		params := param.NewQueryParam()
@@ -151,37 +151,47 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"name_regx": schema.StringAttribute{
-				Optional: true,
+			"name_regex": schema.StringAttribute{
+				Description: "name_regex for Search and filter images",
+				Optional:    true,
 			},
 			"images": schema.ListNestedAttribute{
-				Computed: true,
+				Description: "List of Images",
+				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Computed: true,
+							Description: "Image name of the vm template",
+							Computed:    true,
 						},
 
 						"uuid": schema.StringAttribute{
-							Computed: true,
+							Description: "uuid identifier of the image",
+							Computed:    true,
 						},
 						"state": schema.StringAttribute{
-							Computed: true,
+							Description: "Enabled or Disabled state of the image",
+							Computed:    true,
 						},
 						"status": schema.StringAttribute{
-							Computed: true,
+							Description: "Ready or not of the image",
+							Computed:    true,
 						},
 						"guestostype": schema.StringAttribute{
-							Computed: true,
+							Description: "OS type of the image",
+							Computed:    true,
 						},
 						"format": schema.StringAttribute{
-							Computed: true,
+							Description: "Format of the image. The value of one qcow2|iso|vmdk|raw",
+							Computed:    true,
 						},
 						"platform": schema.StringAttribute{
-							Computed: true,
+							Description: "Platform of the image. The value of one Linux|Windows|other",
+							Computed:    true,
 						},
 						"architecture": schema.StringAttribute{
-							Computed: true,
+							Description: "CPU Architecture of the image. The value of one x86_64|aarch64|mips64|longarch64",
+							Computed:    true,
 						},
 					},
 				},
