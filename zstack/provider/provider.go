@@ -210,6 +210,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		zstack.ZStackImageDataSource,
+		zstack.ZStackl3NetworkDataSource,
 		//zstack.ZStackvmsDataSource,
 		//zstack.ZStackImgDataSource,
 		//zstack.NewExampleDataSource,

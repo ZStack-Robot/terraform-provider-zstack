@@ -28,6 +28,17 @@ func TestZSClient_PageL3Network(t *testing.T) {
 	golog.Infof("data: %v, total: %v", network, total)
 }
 
+func TestGetL3NetworkByName(t *testing.T) {
+	queryParam := param.NewQueryParam()
+
+	queryParam.AddQ("name=public")
+	network, err := accountLoginCli.QueryL3Network(queryParam)
+	if err != nil {
+		golog.Errorf("TestGetL3NetworkByName %v: %v", network, err)
+	}
+	golog.Infof("data: %v", network)
+}
+
 func TestGetL3Network(t *testing.T) {
 	network, err := accountLoginCli.GetL3Network("de7f26a7304d45aea9e9871a1ba7dbae")
 	if err != nil {
