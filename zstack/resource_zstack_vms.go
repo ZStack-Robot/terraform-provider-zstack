@@ -81,19 +81,10 @@ func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest,
 // Create implements resource.Resource.
 func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var createvmplan vmDataSourceModel
-	//var vmItem view.VmInstanceInventoryView
+
 	diags := req.Plan.Get(ctx, &createvmplan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	network, err := r.client.QueryL3Network(param.NewQueryParam())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"",
-			"",
-		)
 		return
 	}
 
@@ -107,7 +98,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			Name: createvmplan.Name.ValueString(),
 			//InstanceOfferingUUID:            "",
 			ImageUUID:            createvmplan.ImageUuid.ValueString(), // "968e87334a12422fbe78c8b72bcfab68",
-			L3NetworkUuids:       []string{network[0].UUID},
+			L3NetworkUuids:       []string{createvmplan.L3NetworkUuids.ValueString()},
 			Type:                 "",
 			RootDiskOfferingUuid: "",
 			RootDiskSize:         createvmplan.RootDiskSize.ValueInt64Pointer(), // &rootDiskSize,
@@ -116,9 +107,9 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			ZoneUuid:                        "",
 			ClusterUUID:                     "",
 			HostUuid:                        "",
-			PrimaryStorageUuidForRootVolume: nil,                                    // createvmplan.PrimaryStorageUuidForRootVolume.ValueStringPointer(), //nil
-			Description:                     createvmplan.Description.ValueString(), //"Description",
-			DefaultL3NetworkUuid:            network[0].UUID,
+			PrimaryStorageUuidForRootVolume: nil,                                       // createvmplan.PrimaryStorageUuidForRootVolume.ValueStringPointer(), //nil
+			Description:                     createvmplan.Description.ValueString(),    //"Description",
+			DefaultL3NetworkUuid:            createvmplan.L3NetworkUuids.ValueString(), // network[0].UUID,
 			//ResourceUuid:                    createvmplan.ResourceUuid.ValueString(), // "56644230e0384ef6b84764530ef306cd",
 			TagUuids:   nil, // createvmplan.TagUuid,                    //nil
 			Strategy:   "",
@@ -200,6 +191,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.CPUNum = types.Int64Value(int64(vm.CPUNum))
 	state.IP = types.StringValue(vm.VMNics[0].IP)
 	state.L3NetworkUuids = types.StringValue(vm.DefaultL3NetworkUUID)
+
 	diags = resp.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

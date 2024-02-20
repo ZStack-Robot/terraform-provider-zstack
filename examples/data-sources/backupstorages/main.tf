@@ -14,14 +14,14 @@ provider "zstack" {
   accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
 }
 
-data "zstack_l3network" "networks" {
-  name_regex = "public"
+data "zstack_backupstorage" "imagestorage" {
+name_regex = "image"
 }
 
 
 
-output "zstack_networks" {
-   value =  data.zstack_l3network.networks.l3networks.*.uuid
+output "zstack_imagestorage" {
+   value =  data.zstack_backupstorage.imagestorage
 }
 
 

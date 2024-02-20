@@ -98,6 +98,9 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state clusterDataSourceModel
 	//var state clusterModel
+	diags := req.Config.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+
 	clusters, err := d.client.QueryCluster(param.NewQueryParam())
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -122,7 +125,7 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		state.Clusters = append(state.Clusters, clusterState)
 	}
 
-	diags := resp.State.Set(ctx, &state)
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

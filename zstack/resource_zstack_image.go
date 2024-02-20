@@ -23,12 +23,12 @@ type imageResource struct {
 }
 
 type imageResourceModel struct {
-	UUID              types.String `tfsdk:"uuid"`
-	LastUpdated       types.String `tfsdk:"last_updated"`
-	Name              types.String `tfsdk:"name"`
-	Description       types.String `tfsdk:"description"`
-	Url               types.String `tfsdk:"url"`
-	Mediatype         types.String `tfsdk:"mediatype"`
+	UUID        types.String `tfsdk:"uuid"`
+	LastUpdated types.String `tfsdk:"last_updated"`
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	Url         types.String `tfsdk:"url"`
+	//Mediatype         types.String `tfsdk:"mediatype"`
 	Guestostype       types.String `tfsdk:"guestostype"`
 	System            types.String `tfsdk:"system"`
 	Platform          types.String `tfsdk:"platform"`
@@ -38,20 +38,6 @@ type imageResourceModel struct {
 	Virtio            types.Bool   `tfsdk:"virtio"`
 	Type              types.String `tfsdk:"type"`
 }
-
-// type imageModel struct {
-// 	Name              types.String `tfsdk:"name"`
-// 	Description       types.String `tfsdk:"description"`
-// 	Url               types.String `tfsdk:"url"`
-// 	Mediatype         types.String `tfsdk:"mediatype"`
-// 	Guestostype       types.String `tfsdk:"guestostype"`
-// 	System            types.String `tfsdk:"system"`
-// 	Platform          types.String `tfsdk:"platform"`
-// 	Format            types.String `tfsdk:"format"`
-// 	Backupstorageuuid types.String `tfsdk:"backupstorageuuid"`
-// 	Architecture      types.String `tfsdk:"architecture"`
-// 	Virtio            types.String `tfsdk:"virtio"`
-// }
 
 // Configure implements resource.ResourceWithConfigure.
 func (r *imageResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -85,15 +71,6 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	storage, err := r.client.QueryBackupStorage(param.QueryParam{}) //.QueryBackupStorage(param.QueryParam{})
-
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"",
-			"",
-		)
-		return
-	}
 	tflog.Info(ctx, "Configuring ZStack client")
 	var imagesItem view.ImageView
 	imageParam := param.AddImageParam{
@@ -101,15 +78,15 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			SystemTags: []string{"bootMode::Legacy"},
 		},
 		Params: param.AddImageDetailParam{
-			Name:               imageplan.Name.ValueString(),
-			Description:        imageplan.Description.ValueString(),
-			Url:                imageplan.Url.ValueString(),
-			MediaType:          param.RootVolumeTemplate,
+			Name:        imageplan.Name.ValueString(),
+			Description: imageplan.Description.ValueString(),
+			Url:         imageplan.Url.ValueString(),
+			//MediaType:          param.RootVolumeTemplate,
 			GuestOsType:        imageplan.Guestostype.ValueString(),
 			System:             false,
-			Format:             param.Qcow2,
+			Format:             param.ImageFormat(imageplan.Format.ValueString()), // param.Qcow2,
 			Platform:           imageplan.Platform.ValueString(),
-			BackupStorageUuids: []string{storage[0].UUID},
+			BackupStorageUuids: []string{imageplan.Backupstorageuuid.ValueString()}, //[]string{storage[0].UUID},
 			Type:               imageplan.Type.ValueString(),
 			ResourceUuid:       "",
 			Architecture:       param.Architecture(imageplan.Architecture.ValueString()),
@@ -130,7 +107,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	imageplan.Name = types.StringValue(image.Name)
 	imageplan.Description = types.StringValue(image.Description)
 	imageplan.Url = types.StringValue(image.Url)
-	imageplan.Mediatype = types.StringValue(image.MediaType)
+	//imageplan.Mediatype = types.StringValue(image.MediaType)
 	imageplan.Guestostype = types.StringValue(image.GuestOsType)
 	imageplan.System = types.StringValue(image.System)
 	imageplan.Format = types.StringValue(image.Format)
@@ -173,8 +150,11 @@ func (r *imageResource) Metadata(_ context.Context, req resource.MetadataRequest
 // Read implements resource.Resource.
 func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state imageResourceModel
+	req.State.Schema.GetAttributes()
+
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -190,6 +170,12 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Name = types.StringValue(image.Name)
 	state.Url = types.StringValue(image.Url)
 	state.LastUpdated = types.StringValue(image.LastOpDate.GoString())
+	state.Format = types.StringValue(image.Format)
+	state.Description = types.StringValue(image.Description)
+	state.Architecture = types.StringValue(string(image.Architecture))
+	//state.Mediatype = types.StringValue(image.MediaType)
+	state.Virtio = types.BoolValue(image.Virtio)
+
 	//state.Description = types.StringValue(image.Description)
 
 	diags = resp.State.Get(ctx, &state)
@@ -218,17 +204,19 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"url": schema.StringAttribute{
 				Required: true,
 			},
-			"mediatype": schema.StringAttribute{
-				Optional: true,
-			},
+			/*
+				"mediatype": schema.StringAttribute{
+					Optional: true,
+				},
+			*/
 			"guestostype": schema.StringAttribute{
-				Computed: true,
+				Optional: true,
 			},
 			"system": schema.StringAttribute{
 				Computed: true,
 			},
 			"platform": schema.StringAttribute{
-				Computed: true,
+				Optional: true,
 			},
 			"format": schema.StringAttribute{
 				Optional: true,
@@ -287,7 +275,7 @@ func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	imageplan.Name = types.StringValue(image.Name)
 	imageplan.Description = types.StringValue(image.Description)
 	imageplan.Url = types.StringValue(image.Url)
-	imageplan.Mediatype = types.StringValue(image.MediaType)
+	//imageplan.Mediatype = types.StringValue(image.MediaType)
 	imageplan.Guestostype = types.StringValue(image.GuestOsType)
 	imageplan.System = types.StringValue(image.System)
 	imageplan.Format = types.StringValue(image.Format)

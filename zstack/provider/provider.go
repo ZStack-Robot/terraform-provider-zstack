@@ -211,7 +211,9 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 	return []func() datasource.DataSource{
 		zstack.ZStackImageDataSource,
 		zstack.ZStackl3NetworkDataSource,
-		//zstack.ZStackvmsDataSource,
+		zstack.ZStackvmsDataSource,
+		zstack.NewClusterDataSource,
+		zstack.ZstackBackupStorageDataSource,
 		//zstack.ZStackImgDataSource,
 		//zstack.NewExampleDataSource,
 	}
