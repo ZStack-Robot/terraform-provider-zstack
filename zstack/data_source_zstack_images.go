@@ -79,63 +79,34 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	name_regex := state.Name_regex
+	params := param.NewQueryParam()
 
 	if !name_regex.IsNull() {
-		params := param.NewQueryParam()
 		params.AddQ("name=" + name_regex.ValueString())
-		images, err := d.client.QueryImage(params)
-
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read ZStack Images ",
-				err.Error(),
-			)
-
-			return
-		}
-		for _, image := range images {
-			imageState := imagesModel{
-				Name:         types.StringValue(image.Name),
-				State:        types.StringValue(image.State),
-				Status:       types.StringValue(image.Status),
-				Uuid:         types.StringValue(image.UUID),
-				GuestOsType:  types.StringValue(image.GuestOsType),
-				Format:       types.StringValue(image.Format),
-				Platform:     types.StringValue(image.Platform),
-				Architecture: types.StringValue(string(image.Architecture)),
-			}
-
-			state.Images = append(state.Images, imageState)
-		}
-
 	}
 
-	if name_regex.IsNull() {
-		images, err := d.client.QueryImage(param.NewQueryParam())
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read ZStack Images ",
-				err.Error(),
-			)
+	images, err := d.client.QueryImage(params)
 
-			return
-		}
-		for _, image := range images {
-
-			imageState := imagesModel{
-				Name:         types.StringValue(image.Name),
-				State:        types.StringValue(image.State),
-				Status:       types.StringValue(image.Status),
-				Uuid:         types.StringValue(image.UUID),
-				GuestOsType:  types.StringValue(image.GuestOsType),
-				Format:       types.StringValue(image.Format),
-				Platform:     types.StringValue(image.Platform),
-				Architecture: types.StringValue(string(image.Architecture)),
-			}
-
-			state.Images = append(state.Images, imageState)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Read ZStack Images ",
+			err.Error(),
+		)
+		return
+	}
+	for _, image := range images {
+		imageState := imagesModel{
+			Name:         types.StringValue(image.Name),
+			State:        types.StringValue(image.State),
+			Status:       types.StringValue(image.Status),
+			Uuid:         types.StringValue(image.UUID),
+			GuestOsType:  types.StringValue(image.GuestOsType),
+			Format:       types.StringValue(image.Format),
+			Platform:     types.StringValue(image.Platform),
+			Architecture: types.StringValue(string(image.Architecture)),
 		}
 
+		state.Images = append(state.Images, imageState)
 	}
 
 	diags = resp.State.Set(ctx, state)

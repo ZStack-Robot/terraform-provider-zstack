@@ -15,7 +15,7 @@ provider "zstack" {
 }
 
 data "zstack_images" "images" {
-   name_regx = "RDS-3.13.10"
+#   name_regex = "RDS-3.13.10"
 #  images = [
 #
 #    {

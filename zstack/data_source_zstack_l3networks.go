@@ -84,7 +84,11 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 	name_regex := state.Name_regex
 	params := param.NewQueryParam()
-	params.AddQ("name=" + name_regex.ValueString())
+
+	if !name_regex.IsNull() {
+		params.AddQ("name=" + name_regex.ValueString())
+	}
+
 	l3networks, err := d.client.QueryL3Network(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
