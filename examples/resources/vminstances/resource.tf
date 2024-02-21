@@ -30,7 +30,7 @@ provider "template" {
   # Configuration options
 }
 data "zstack_images" "images" {
-    name_regx = "RDS-3.13.10"
+    name_regex = "RDS-3.13.10"
 }
 
 resource "zstack_vm" "vm" {

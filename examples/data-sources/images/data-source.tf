@@ -27,7 +27,7 @@ data "zstack_images" "images" {
 
 
 output "zstack_images" {
-   value =  data.zstack_images.images.images.0.uuid # "${data.zstack_images.images.uuid}"  # "${data.zstack_images.images.images.*.name}"    #{data.zstack_images.images.images.*.name} data.zstack_images.image
+   value =  data.zstack_images.images  # images.0.uuid # "${data.zstack_images.images.uuid}"  # "${data.zstack_images.images.images.*.name}"    #{data.zstack_images.images.images.*.name} data.zstack_images.image
 
 }
 

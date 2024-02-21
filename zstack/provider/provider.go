@@ -6,7 +6,6 @@ package provider
 import (
 	"context"
 	"os"
-	"terraform-provider-zstack/zstack"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -209,11 +208,11 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 // DataSources implements provider.Provider.
 func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		zstack.ZStackImageDataSource,
-		zstack.ZStackl3NetworkDataSource,
-		zstack.ZStackvmsDataSource,
-		zstack.NewClusterDataSource,
-		zstack.ZstackBackupStorageDataSource,
+		ZStackImageDataSource,
+		ZStackl3NetworkDataSource,
+		ZStackvmsDataSource,
+		NewClusterDataSource,
+		ZstackBackupStorageDataSource,
 		//zstack.ZStackImgDataSource,
 		//zstack.NewExampleDataSource,
 	}
@@ -229,8 +228,8 @@ func (p *ZStackProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 // Resources implements provider.Provider.
 func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		zstack.ImageResource,
-		zstack.ZStackvmResource,
+		ImageResource,
+		ZStackvmResource,
 	}
 
 }
