@@ -103,7 +103,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			//RootDiskOfferingUuid: "",
 			RootDiskSize: createvmplan.RootDiskSize.ValueInt64Pointer(), // &rootDiskSize,
 			//	DataDiskOfferingUuids:           []string{"04229f19712d41cb990ab4b9252d9f93"},
-			DataDiskSizes:                   []int64{10240},
+			//DataDiskSizes:                   []int64{10240},
 			ZoneUuid:                        "",
 			ClusterUUID:                     "",
 			HostUuid:                        "",

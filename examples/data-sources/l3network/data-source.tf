@@ -15,13 +15,13 @@ provider "zstack" {
 }
 
 data "zstack_l3network" "networks" {
-  name_regex = "public"
+#  name_regex = "public"
 }
 
 
 
 output "zstack_networks" {
-   value =  data.zstack_l3network.networks.l3networks.*.uuid
+   value =  data.zstack_l3network.networks #.l3networks.*.uuid
 }
 
 

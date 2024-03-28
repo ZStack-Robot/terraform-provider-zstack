@@ -7,11 +7,11 @@ terraform {
 }
 
 provider "zstack" {
-  host  =  "172.25.16.104"
+  host  =  "172.27.223.70"
   accountname = "admin"
   accountpassword = "password"
-  accesskeyid = "mO6W9gzCQxsfK6OsE7dg"
-  accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
+  accesskeyid = "BsKzSNdDwxgP6uTz33BB"
+  accesskeysecret = "eDDw1SeTaRSkn7OPd8H3XdD46TyIGFL27rvHGuJB"
 }
 
 provider "local" {
@@ -22,16 +22,16 @@ provider "template" {
   # Configuration options
 }
 data "zstack_images" "images" {
-    name_regex = "C79"
+    name_regex = "kylin"
 }
 
 data "zstack_l3network" "networks" {
-  name_regex = "public"
+  name_regex = "pub"
 }
 
 resource "zstack_vm" "vm" {
-  count = 1
-  name = "disk-test-${count.index + 1}"
+  count = 2
+  name = "idpdemo-${count.index + 1}"
   description = "chi test"
   imageuuid = data.zstack_images.images.images.0.uuid #"${data.zstack_images.images.images[0].uuid}" #"9b26312501614ec0b6dc731e6977dfb2"
   l3networkuuids = data.zstack_l3network.networks.l3networks.0.uuid

@@ -66,9 +66,11 @@ func (d *clusterDataSource) Metadata(_ context.Context, req datasource.MetadataR
 
 func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches the list of clusters. ",
 		Attributes: map[string]schema.Attribute{
 			"clusters": schema.ListNestedAttribute{
-				Computed: true,
+				Description: "",
+				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{

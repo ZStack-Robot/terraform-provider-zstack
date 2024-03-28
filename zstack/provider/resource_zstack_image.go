@@ -150,7 +150,7 @@ func (r *imageResource) Metadata(_ context.Context, req resource.MetadataRequest
 // Read implements resource.Resource.
 func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state imageResourceModel
-	req.State.Schema.GetAttributes()
+	//req.State.Schema.GetAttributes()
 
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
