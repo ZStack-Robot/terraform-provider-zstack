@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package jsonutils
 
 func (th *JSONString) Length() int {

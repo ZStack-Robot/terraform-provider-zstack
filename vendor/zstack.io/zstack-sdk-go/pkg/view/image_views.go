@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package view
 
 import "zstack.io/zstack-sdk-go/pkg/param"

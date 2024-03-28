@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 // Package structs contains various utilities functions to work with structs.
 package structs
 

@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 // +build solaris,!appengine
 
 package terminal

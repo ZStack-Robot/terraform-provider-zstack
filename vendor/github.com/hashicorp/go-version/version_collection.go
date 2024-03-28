@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package version
 
 // Collection is a type that implements the sort.Interface interface

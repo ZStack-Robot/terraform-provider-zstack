@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package errors
 
 import "github.com/pkg/errors"

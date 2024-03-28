@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package param
 
 type UpdateGlobalConfigParam struct {

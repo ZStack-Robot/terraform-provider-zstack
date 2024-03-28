@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package golog
 
 // ExternalLogger is a typical logger interface.

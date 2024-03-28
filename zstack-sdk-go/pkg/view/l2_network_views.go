@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package view
 
 type L2NetworkInventoryView struct {

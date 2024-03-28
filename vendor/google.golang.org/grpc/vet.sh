@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (c) HashiCorp, Inc.
+
 
 set -ex  # Exit on error; debugging enabled.
 set -o pipefail  # Fail a pipe if any sub-command fails.

@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 // Package errors provides simple error handling primitives.
 //
 // The traditional error handling idiom in Go is roughly akin to

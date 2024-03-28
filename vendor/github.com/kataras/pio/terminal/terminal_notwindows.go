@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 // +build linux darwin freebsd openbsd netbsd dragonfly
 // +build !appengine
 

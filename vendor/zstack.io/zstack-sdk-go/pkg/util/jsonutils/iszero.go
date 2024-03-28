@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package jsonutils
 
 func (th *JSONValue) IsZero() bool {

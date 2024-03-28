@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ */
+
 module.exports = {
     branch: 'master',
     plugins: [

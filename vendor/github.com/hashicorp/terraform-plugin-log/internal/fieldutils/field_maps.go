@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package fieldutils
 
 // MergeFieldMaps takes a slice of field maps,

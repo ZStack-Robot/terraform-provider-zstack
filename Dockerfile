@@ -1,3 +1,5 @@
+# Copyright (c) HashiCorp, Inc.
+
 ARG TERRAFORM_VERSION=1.5.7
 
 #

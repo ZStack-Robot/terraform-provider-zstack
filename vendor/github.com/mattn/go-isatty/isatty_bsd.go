@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 //go:build (darwin || freebsd || openbsd || netbsd || dragonfly) && !appengine
 // +build darwin freebsd openbsd netbsd dragonfly
 // +build !appengine

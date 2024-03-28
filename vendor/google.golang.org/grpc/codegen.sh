@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+
 
 # This script serves as an example to demonstrate how to generate the gRPC-Go
 # interface and the related messages from .proto file.

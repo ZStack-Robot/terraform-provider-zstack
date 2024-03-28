@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package jsonutils
 
 import "github.com/ghodss/yaml"

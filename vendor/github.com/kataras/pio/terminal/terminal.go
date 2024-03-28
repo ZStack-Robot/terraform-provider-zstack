@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package terminal
 
 // SupportColors reports whether a windows terminal platform can support 256 colors.
