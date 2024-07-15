@@ -227,10 +227,10 @@ func (r *vmResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"l3networkuuids": schema.StringAttribute{
 				Optional: true,
 			},
-			"zone_uuid": schema.StringAttribute{
+			"zoneuuid": schema.StringAttribute{
 				Optional: true,
 			},
-			"cluster_uuid": schema.StringAttribute{
+			"clusteruuid": schema.StringAttribute{
 				Optional: true,
 			},
 			"rootdiskofferinguuid": schema.StringAttribute{
@@ -247,9 +247,6 @@ func (r *vmResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				Optional: true,
 			},
 			"cupnum": schema.Int64Attribute{
-				Optional: true,
-			},
-			"clusteruuid": schema.StringAttribute{
 				Optional: true,
 			},
 		},

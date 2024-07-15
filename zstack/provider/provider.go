@@ -280,6 +280,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 // DataSources implements provider.Provider.
 func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		ZStackZoneDataSource,
 		ZStackImageDataSource,
 		ZStackl3NetworkDataSource,
 		ZStackvmsDataSource,

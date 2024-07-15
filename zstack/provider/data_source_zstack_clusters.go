@@ -33,7 +33,6 @@ type clusterDataSourceModel struct {
 }
 
 type clusterModel struct {
-	ID             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
 	HypervisorType types.String `tfsdk:"hypervisortype"`
 	State          types.String `tfsdk:"state"`
@@ -78,9 +77,6 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Computed: true,
-						},
 						"name": schema.StringAttribute{
 							Computed: true,
 						},
@@ -134,7 +130,6 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	//map query clusters body to mode
 	for _, cluster := range clusters {
 		clusterState := clusterModel{
-			ID:             types.StringValue(cluster.Uuid),
 			HypervisorType: types.StringValue(cluster.HypervisorType),
 			State:          types.StringValue(cluster.State),
 			Type:           types.StringValue(cluster.Type),

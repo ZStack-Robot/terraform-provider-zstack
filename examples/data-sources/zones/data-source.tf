@@ -15,14 +15,14 @@ provider "zstack" {
 }
 
 
-data "zstack_zsclusters" "clusters" {
-#   name_regex = "Cluster-1"
+data "zstack_zones" "zones" {
+   name_regex = "ZONE-1"
 }
 
 
 
-output "zstack_clusters" {
-  value = data.zstack_zsclusters.clusters.0.uuid
+output "zstack_zones" {
+  value = data.zstack_zones.zones
 }
 
 
