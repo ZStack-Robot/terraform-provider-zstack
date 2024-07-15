@@ -12,6 +12,7 @@ const (
 	AuthTypeAccessKey   AuthType = "AccessKey"
 	AuthTypeAccount     AuthType = "Account"
 	AuthTypeAccountUser AuthType = "AccountUser"
+	AuthTypeSession     AuthType = "Session"
 )
 
 const (
@@ -24,6 +25,8 @@ type ZSConfig struct {
 	hostname    string
 	port        int
 	contextPath string
+
+	sessionId string
 
 	accessKeyId     string
 	accessKeySecret string
@@ -60,6 +63,12 @@ func (config *ZSConfig) AccessKey(accessKeyId, accessKeySecret string) *ZSConfig
 	config.accessKeyId = accessKeyId
 	config.accessKeySecret = accessKeySecret
 	config.authType = AuthTypeAccessKey
+	return config
+}
+
+func (config *ZSConfig) Session(sessionId string) *ZSConfig {
+	config.sessionId = sessionId
+	config.authType = AuthTypeSession
 	return config
 }
 

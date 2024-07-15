@@ -9,11 +9,9 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.26.22.166"
-  accountname     = "admin"
-  accountpassword = "password"
-  accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"
-  accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
+  host            = "test-qa.zstack.io"
+  accesskeyid     = "46Ca208N3yLLn1JfkQR3"
+  accesskeysecret = "JjdhscQnoN1uqS7VmZKZGuUmYQz6rFu35fh3hvcu"
 }
 
 data "zstack_images" "images" {

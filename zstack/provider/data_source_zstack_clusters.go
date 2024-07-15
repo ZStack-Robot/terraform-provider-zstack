@@ -28,7 +28,8 @@ type clusterDataSource struct {
 }
 
 type clusterDataSourceModel struct {
-	Clusters []clusterModel `tfsdk:"clusters"`
+	Name_regex types.String   `tfsdk:"name_regex"`
+	Clusters   []clusterModel `tfsdk:"clusters"`
 }
 
 type clusterModel struct {
@@ -68,6 +69,10 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "Fetches the list of clusters. ",
 		Attributes: map[string]schema.Attribute{
+			"name_regex": schema.StringAttribute{
+				Description: "name_regex for Search and filter clusters",
+				Optional:    true,
+			},
 			"clusters": schema.ListNestedAttribute{
 				Description: "",
 				Computed:    true,
@@ -107,7 +112,16 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
-	clusters, err := d.client.QueryCluster(param.NewQueryParam())
+	name_regex := state.Name_regex
+	params := param.NewQueryParam()
+
+	if !name_regex.IsNull() {
+		params.AddQ("name=" + name_regex.ValueString())
+	}
+
+	//images, err := d.client.QueryImage(params)
+
+	clusters, err := d.client.QueryCluster(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack Clusters",

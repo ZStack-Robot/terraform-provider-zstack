@@ -32,7 +32,7 @@ data "zstack_l3network" "networks" {
 }
 
 resource "zstack_vm" "vm" {
-  count          = 1
+  count          = 2
   name           = "temp-modift-${count.index + 1}"
   description    = "chi test"
   imageuuid      = data.zstack_images.images.images.0.uuid #"${data.zstack_images.images.images[0].uuid}" #"9b26312501614ec0b6dc731e6977dfb2"

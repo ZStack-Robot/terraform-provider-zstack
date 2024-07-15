@@ -5,11 +5,11 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"zstack.io/zstack-sdk-go/pkg/client"
 	"zstack.io/zstack-sdk-go/pkg/param"
 )
@@ -37,7 +37,7 @@ type vmDataSourceModel struct {
 	RootDiskOfferingUuid types.String `tfsdk:"rootdiskofferinguuid"`
 	RootDiskSize         types.Int64  `tfsdk:"rootdisksize"`
 	// AllDataDiskSizes                []dataDiskSizes `tfsdk:"alldatadisksize"`
-	//ZoneUuid types.String `tfsdk:"zoneuuid"`
+	ZoneUuid    types.String `tfsdk:"zoneuuid"`
 	ClusterUuid types.String `tfsdk:"clusteruuid"`
 	//HostUuid                        types.String `tfsdk:"hostuuid"`
 	//PrimaryStorageUuidForRootVolume types.String `tfsdk:"pristorageuuidforrootvolume"`
@@ -106,9 +106,9 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			RootDiskSize: createvmplan.RootDiskSize.ValueInt64Pointer(), // &rootDiskSize,
 			//	DataDiskOfferingUuids:           []string{"04229f19712d41cb990ab4b9252d9f93"},
 			//DataDiskSizes:                   []int64{10240},
-			ZoneUuid:                        "",
-			ClusterUUID:                     "",
-			HostUuid:                        "",
+			ZoneUuid:                        createvmplan.ZoneUuid.ValueString(),
+			ClusterUUID:                     createvmplan.ClusterUuid.ValueString(),
+			HostUuid:                        "",                                        //createvmplan.HostUuid.ValueString(),
 			PrimaryStorageUuidForRootVolume: nil,                                       // createvmplan.PrimaryStorageUuidForRootVolume.ValueStringPointer(), //nil
 			Description:                     createvmplan.Description.ValueString(),    //"Description",
 			DefaultL3NetworkUuid:            createvmplan.L3NetworkUuids.ValueString(), // network[0].UUID,
@@ -152,13 +152,19 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
-	tflog.Info(ctx, "wo kao"+state.Uuid.String())
-
 	//Delete existing vm instance
 	err := r.client.DestroyVmInstance(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Could not destroy vm instance", "Error: "+err.Error(),
+		)
+		return
+	}
+	//Expunge vm instance
+	err = r.client.ExpungeVmInstance(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Could not Expunge vm instance", "Error: "+err.Error(),
 		)
 		return
 	}
@@ -221,6 +227,12 @@ func (r *vmResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"l3networkuuids": schema.StringAttribute{
 				Optional: true,
 			},
+			"zone_uuid": schema.StringAttribute{
+				Optional: true,
+			},
+			"cluster_uuid": schema.StringAttribute{
+				Optional: true,
+			},
 			"rootdiskofferinguuid": schema.StringAttribute{
 				Optional: true,
 			},
@@ -245,49 +257,66 @@ func (r *vmResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 
 }
 
-// Update implements resource.Resource. //error 待修复
+// Update implements resource.Resource.
 func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var state vmDataSourceModel
-	diags := req.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	var plan, state vmDataSourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 
-	tflog.Info(ctx, "wo kao"+state.Uuid.String())
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	name := state.Name
+	if state.Uuid.ValueString() == "" {
+		resp.Diagnostics.AddError("Parameter Error",
+			"uuid of vm is empty, cannot upgrade vm.")
+		return
+	}
+
 	uuid := state.Uuid.ValueString()
 
-	tflog.Info(ctx, "uuid"+uuid)
-	//tflog.Info(ctx, (memorysize))
-	//Generate vms API request body from plan
-	vminstanceparam := param.UpdateVmInstanceParam{
-		UpdateVmInstance: param.UpdateVmInstanceDetailParam{
-			Name: name.ValueString(),
-		},
+	updateVmInstanceParam := param.UpdateVmInstanceParam{}
+	updateVm := false
+
+	if plan.Name.ValueString() != state.Name.ValueString() {
+		updateVmInstanceParam.UpdateVmInstance.Name = plan.Name.ValueString()
+		updateVm = true
+	}
+	if plan.Description.ValueString() != state.Description.ValueString() {
+		updateVmInstanceParam.UpdateVmInstance.Description = plan.Description.ValueStringPointer()
+		updateVm = true
+
+	}
+	if plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
+		updateVmInstanceParam.UpdateVmInstance.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
+		updateVm = true
+	}
+	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
+		updateVmInstanceParam.UpdateVmInstance.MemorySize = utils.TfInt64ToInt64Pointer(plan.MemorySize)
+		updateVm = true
 	}
 
-	_, err := r.client.UpdateVmInstance(uuid, vminstanceparam)
-	if err != nil {
-		resp.Diagnostics.AddError("", ""+err.Error())
-		return
+	if updateVm {
+		instance, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Update VmInstance Error",
+				"failed to update vm instance, err:"+err.Error())
+			return
+		}
+
+		plan.Uuid = types.StringValue(instance.UUID)
+		plan.Name = types.StringValue(instance.Name)
+		plan.Description = types.StringValue(instance.Description)
+		plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
+		plan.MemorySize = types.Int64Value(instance.MemorySize)
+		plan.IP = types.StringValue(instance.VMNics[0].IP)
+
+		diags := resp.State.Set(ctx, &plan)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
-	vm, err := r.client.GetVmInstance(uuid)
-	if err != nil {
-		resp.Diagnostics.AddError("", "")
-		return
-	}
-
-	state.Uuid = types.StringValue(vm.UUID)
-	state.Name = types.StringValue(vm.Name)
-	//plan.MemorySize = types.Int64Value(vm.MemorySize)
-	state.IP = types.StringValue(vm.VMNics[0].IP)
-
-	diags = resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
 }

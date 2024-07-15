@@ -9,7 +9,7 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.25.16.104"
+  host            = "172.26.22.166"
   accountname     = "admin"
   accountpassword = "password"
   accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"
@@ -24,11 +24,11 @@ provider "template" {
   # Configuration options
 }
 data "zstack_images" "images" {
-  name_regex = "C79"
+  name_regex = "zstack-image-1.4"
 }
 
 data "zstack_l3network" "networks" {
-  name_regex = "public"
+  name_regex = "DPortGroup-1"
 }
 
 resource "zstack_vm" "vm" {

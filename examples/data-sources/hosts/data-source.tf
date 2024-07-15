@@ -9,11 +9,12 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.25.16.104"
+  host            = "172.20.14.21"
+  port   = "8080"
   accountname     = "admin"
   accountpassword = "password"
-  accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"
-  accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
+ # accesskeyid     = "fOrgOdYb1j871Jmn6kWf"
+ # accesskeysecret = "SOH8LzoCGEBrbyH4YTRTE8qppgqYT43XKbkjx03I"
 }
 
 data "zstack_hosts" "hosts" {
@@ -22,7 +23,7 @@ data "zstack_hosts" "hosts" {
 
 
 output "zstack_hosts" {
-value = data.zstack_hosts.hosts
+  value = data.zstack_hosts.hosts
 }
 
 

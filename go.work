@@ -5,3 +5,5 @@ toolchain go1.21.8
 use ./zstack-sdk-go
 
 use ./
+
+use ./tools

@@ -21,6 +21,7 @@ const (
 	providerConfig = `
 	provider "zstack" {
 		host = "172.25.16.104"
+		port = "8080"
 		accountname = "admin"
 		accountpassword = "password"
 		accesskeyid = "mO6W9gzCQxsfK6OsE7dg"

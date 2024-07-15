@@ -9,7 +9,7 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.25.16.104"
+  host            = "172.26.22.166"
   accountname     = "admin"
   accountpassword = "password"
   accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"

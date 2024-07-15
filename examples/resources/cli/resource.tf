@@ -9,11 +9,11 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.25.16.104"
+  host            = "172.24.248.201"
   accountname     = "admin"
   accountpassword = "password"
-  accesskeyid     = "lRfNYdPXZT29KMBUqSjt"
-  accesskeysecret = "NW456Hm9aj0v9jNZmruNZOB7CUMNWVSdoNrpyiuA"
+  accesskeyid     = "t8CRrQMcddB1jLO0l45r"
+  accesskeysecret = "DIwdwk8JjxZrDhMsRnoF5PhcgYR0mcu2841DWPSb"
 }
 
 provider "local" {
@@ -24,11 +24,11 @@ provider "template" {
   # Configuration options
 }
 data "zstack_images" "images" {
-  name_regex = "C790123newname"
+  name_regex = "centos7-test.qcow2.no-qemu-ga"
 }
 
 data "zstack_l3network" "networks" {
-  name_regex = "public"
+  name_regex = "L3-1"
 }
 
 resource "zstack_vm" "vm" {
