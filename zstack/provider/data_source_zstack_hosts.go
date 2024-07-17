@@ -27,7 +27,8 @@ type hostsDataSource struct {
 }
 
 type hostsDataSourceModel struct {
-	Hosts []hostsModel `tfsdk:"hosts"`
+	Name_regex types.String `tfsdk:"name_regex"`
+	Hosts      []hostsModel `tfsdk:"hosts"`
 }
 
 type hostsModel struct {
@@ -75,7 +76,13 @@ func (d *hostsDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	name_regex := state.Name_regex
 	params := param.NewQueryParam()
+
+	if !name_regex.IsNull() {
+		params.AddQ("name=" + name_regex.ValueString())
+	}
+
 	hosts, err := d.client.QueryHost(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -114,6 +121,10 @@ func (d *hostsDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "",
 		Attributes: map[string]schema.Attribute{
+			"name_regex": schema.StringAttribute{
+				Description: "name_regex for Search and filter clusters",
+				Optional:    true,
+			},
 			"hosts": schema.ListNestedAttribute{
 				Description: "",
 				Computed:    true,

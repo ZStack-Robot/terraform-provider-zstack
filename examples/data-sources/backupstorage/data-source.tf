@@ -9,11 +9,11 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.26.22.166"
-  accountname     = "admin"
+  host            = "172.x.x.x"  #ip address for zstack cloud api endpoint
+  accountname     = "admin"   
   accountpassword = "password"
-  accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"
-  accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
+  accesskeyid     = "accesskeyid"
+  accesskeysecret = "accesskeysecret"
 }
 
 

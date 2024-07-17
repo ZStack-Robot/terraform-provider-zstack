@@ -9,15 +9,14 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "172.20.14.21"
-  port   = "8080"
-  accountname     = "admin"
-  accountpassword = "password"
- # accesskeyid     = "fOrgOdYb1j871Jmn6kWf"
- # accesskeysecret = "SOH8LzoCGEBrbyH4YTRTE8qppgqYT43XKbkjx03I"
+  host            = "172.x.x.x"
+  port   = "8080"  #optional, default is 8080
+  accesskeyid     = "accesskeyid"
+  accesskeysecret = "accesskeysecret"
 }
 
 data "zstack_hosts" "hosts" {
+ #  name_regex = "lc-2"
 }
 
 

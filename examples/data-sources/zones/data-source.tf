@@ -9,9 +9,9 @@ terraform {
 }
 
 provider "zstack" {
-  host            = "test-qa.zstack.io"
-  accesskeyid     = "46Ca208N3yLLn1JfkQR3"
-  accesskeysecret = "JjdhscQnoN1uqS7VmZKZGuUmYQz6rFu35fh3hvcu"
+  host            = "ip"
+  accesskeyid     = "accesskeyid"
+  accesskeysecret = "accesskeysecret"
 }
 
 
