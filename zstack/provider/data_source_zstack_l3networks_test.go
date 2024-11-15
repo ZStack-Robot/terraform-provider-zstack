@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -8,7 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
+// Set environment variable TF_ACC to run acceptance tests.
+// In VSCode, edit settings.json and add:
 //   "go.testEnvVars": {
 //        "TF_ACC": "1"
 //   },
@@ -17,14 +18,14 @@ func TestAccZStackL3NetworksDataSource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_l3network" "test" {}`,
+				Config: providerConfig + `
+					data "zstack_l3network" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of l3networks returned
+					// Verify the number of l3networks returned
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.#", "2"),
 
-					// Verify the first l3networks to ensure all attributes are set
+					// Verify attributes of the first l3network
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.name", "pvcl3"),
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.category", "Private"),
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.dns.0.dnsmodel", "192.166.255.254"),
@@ -41,18 +42,20 @@ func TestAccZStackL3NetworksDataSource(t *testing.T) {
 	})
 }
 
-func TestAccZStackL3NetworksDataSourceFilterByname_regex(t *testing.T) {
+func TestAccZStackL3NetworksDataSourceFilterByNameRegex(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_l3network" "test" { name_regex="public" }`,
+				Config: providerConfig + `
+					data "zstack_l3network" "test" {
+						name_regex = "public"
+					}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of l3networks returned
+					// Verify the number of l3networks returned
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.#", "1"),
 
-					// Verify the first l3networks to ensure all attributes are set
+					// Verify attributes of the filtered l3network
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.name", "public"),
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.category", "Public"),
 					resource.TestCheckResourceAttr("data.zstack_l3network.test", "l3networks.0.dns.0.dnsmodel", "223.5.5.5"),

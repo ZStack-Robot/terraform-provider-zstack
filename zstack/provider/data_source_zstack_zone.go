@@ -1,5 +1,4 @@
 // Copyright (c) ZStack.io, Inc.
-// SPDX-License-Identifier: MPL-2.0
 
 package provider
 

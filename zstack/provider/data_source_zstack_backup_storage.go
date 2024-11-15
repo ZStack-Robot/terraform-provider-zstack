@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -116,37 +116,37 @@ func (d *backupStorageDataSource) Schema(ctx context.Context, req datasource.Sch
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter backup storage",
+				Description: "Regular expression for searching and filtering backup storagee",
 				Optional:    true,
 			},
 			"backupstorages": schema.ListNestedAttribute{
-				Description: "List of backup storages",
+				Description: "List of backup storage entries",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Description: "name of backup storage ",
+							Description: "Name of the backup storage",
 							Computed:    true,
 						},
 
 						"uuid": schema.StringAttribute{
-							Description: "uuid identifier of the backup storage",
+							Description: "UUID identifier of the backup storage",
 							Computed:    true,
 						},
 						"state": schema.StringAttribute{
-							Description: "Enabled or Disabled state of the backup storage",
+							Description: "State of the backup storage (Enabled or Disabled)",
 							Computed:    true,
 						},
 						"status": schema.StringAttribute{
-							Description: "Ready or not of the  backup storage",
+							Description: "Readiness status of the backup storage",
 							Computed:    true,
 						},
 						"totalcapacity": schema.Int64Attribute{
-							Description: "Total capacity of the backup storage",
+							Description: "Total capacity of the backup storage in bytes",
 							Computed:    true,
 						},
 						"availablecapacity": schema.Int64Attribute{
-							Description: "AvailableCapacity of the backup storage",
+							Description: "Available capacity of the backup storage in bytes",
 							Computed:    true,
 						},
 					},

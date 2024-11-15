@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -25,12 +25,12 @@ func TestAccZStackBackupStorageDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.#", "2"),
 
 					// Verify the first backupstorage to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.name", "BS-1"),
+					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.name", "192.168.254.1"),
 					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.status", "Connected"),
-					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.state", "Enabled"),
-					//resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.availablecapacity", "65421975552"),
-					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.totalcapacity", "229057531904"),
-					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.uuid", "7a912545634b4ddc86c40af82c14b452"),
+					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.state", "Disabled"),
+					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.availablecapacity", "136656785408"),
+					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.totalcapacity", "476403781632"),
+					resource.TestCheckResourceAttr("data.zstack_backupstorage.test", "backupstorages.0.uuid", "978dd1116886473c9cfb0f9210420dfa"),
 				),
 			},
 		},

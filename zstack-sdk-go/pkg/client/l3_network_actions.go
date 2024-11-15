@@ -148,3 +148,14 @@ func (cli *ZSClient) QueryIpAddress(queryParam param.QueryParam) ([]view.IpAddre
 	var resp []view.IpAddressInventoryView
 	return resp, cli.List("v1/l3-networks/ip-address", &queryParam, &resp)
 }
+
+// AddReservedIpRange 添加预留IP地址
+func (cli *ZSClient) AddReservedIpRange(l3NetworkUuid string, params param.AddReservedIpRangeParam) (view.ReservedIpRangeInventoryView, error) {
+	var resp view.ReservedIpRangeInventoryView
+	return resp, cli.Post("v1/l3-networks/"+l3NetworkUuid+"/reserved-ip-ranges", &params, &resp)
+}
+
+// DeleteReservedIpRange 删除预留IP地址
+func (cli *ZSClient) DeleteReservedIpRange(uuid string, deleteMode param.DeleteMode) error {
+	return cli.Delete("v1/l3-networks/reserved-ip-ranges", uuid, string(deleteMode))
+}

@@ -100,3 +100,13 @@ type CreateL3NetworkDetailParam struct {
 	Category      string `json:"category"`
 	System        bool   `json:"system"`
 }
+
+type AddReservedIpRangeParam struct {
+	BaseParam
+	Params AddReservedIpRangeDetailParam `json:"params"`
+}
+
+type AddReservedIpRangeDetailParam struct {
+	StartIp string `json:"startIp"`
+	EndIp   string `json:"endIp"`
+}

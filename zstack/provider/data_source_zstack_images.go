@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -27,7 +27,7 @@ type imagesModel struct {
 	State        types.String `tfsdk:"state"`
 	Status       types.String `tfsdk:"status"`
 	Uuid         types.String `tfsdk:"uuid"`
-	GuestOsType  types.String `tfsdk:"guestostype"`
+	GuestOsType  types.String `tfsdk:"guest_os_type"`
 	Format       types.String `tfsdk:"format"`
 	Platform     types.String `tfsdk:"platform"`
 	Architecture types.String `tfsdk:"architecture"`
@@ -54,7 +54,6 @@ func (d *imageDataSource) Configure(_ context.Context, req datasource.ConfigureR
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the ZStack Provider developer. ", req.ProviderData),
 		)
-
 		return
 	}
 
@@ -78,34 +77,59 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	name_regex := state.Name_regex
-	params := param.NewQueryParam()
+	//params := param.NewQueryParam()
 
 	if !name_regex.IsNull() {
+		params := param.NewQueryParam()
 		params.AddQ("name=" + name_regex.ValueString())
+		images, err := d.client.QueryImage(params)
+
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Read ZStack Images",
+				err.Error(),
+			)
+			return
+		}
+		for _, image := range images {
+			imageState := imagesModel{
+				Name:         types.StringValue(image.Name),
+				State:        types.StringValue(image.State),
+				Status:       types.StringValue(image.Status),
+				Uuid:         types.StringValue(image.UUID),
+				GuestOsType:  types.StringValue(image.GuestOsType),
+				Format:       types.StringValue(image.Format),
+				Platform:     types.StringValue(image.Platform),
+				Architecture: types.StringValue(string(image.Architecture)),
+			}
+			state.Images = append(state.Images, imageState)
+		}
 	}
 
-	images, err := d.client.QueryImage(params)
-
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read ZStack Images ",
-			err.Error(),
-		)
-		return
-	}
-	for _, image := range images {
-		imageState := imagesModel{
-			Name:         types.StringValue(image.Name),
-			State:        types.StringValue(image.State),
-			Status:       types.StringValue(image.Status),
-			Uuid:         types.StringValue(image.UUID),
-			GuestOsType:  types.StringValue(image.GuestOsType),
-			Format:       types.StringValue(image.Format),
-			Platform:     types.StringValue(image.Platform),
-			Architecture: types.StringValue(string(image.Architecture)),
+	//images, err := d.client.QueryImage(params)
+	if name_regex.IsNull() {
+		images, err := d.client.QueryImage(param.NewQueryParam())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Read ZStack Images ",
+				err.Error(),
+			)
+			return
+		}
+		for _, image := range images {
+			imageState := imagesModel{
+				Name:         types.StringValue(image.Name),
+				State:        types.StringValue(image.State),
+				Status:       types.StringValue(image.Status),
+				Uuid:         types.StringValue(image.UUID),
+				GuestOsType:  types.StringValue(image.GuestOsType),
+				Format:       types.StringValue(image.Format),
+				Platform:     types.StringValue(image.Platform),
+				Architecture: types.StringValue(string(image.Architecture)),
+			}
+			state.Images = append(state.Images, imageState)
 		}
 
-		state.Images = append(state.Images, imageState)
 	}
 
 	diags = resp.State.Set(ctx, state)
@@ -122,7 +146,7 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter images",
+				Description: "Regular expression to search and filter images by name",
 				Optional:    true,
 			},
 			"images": schema.ListNestedAttribute{
@@ -131,36 +155,36 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Description: "Image name of the vm template",
+							Description: "Name of the image",
 							Computed:    true,
 						},
 
 						"uuid": schema.StringAttribute{
-							Description: "uuid identifier of the image",
+							Description: "UUID identifier of the image",
 							Computed:    true,
 						},
 						"state": schema.StringAttribute{
-							Description: "Enabled or Disabled state of the image",
+							Description: "State of the image, indicating if it is Enabled or Disabled",
 							Computed:    true,
 						},
 						"status": schema.StringAttribute{
-							Description: "Ready or not of the image",
+							Description: "Readiness status of the image (e.g., Ready or Not Ready)",
 							Computed:    true,
 						},
-						"guestostype": schema.StringAttribute{
-							Description: "OS type of the image",
+						"guest_os_type": schema.StringAttribute{
+							Description: "Operating system type of the image (e.g., Linux, Windows)",
 							Computed:    true,
 						},
 						"format": schema.StringAttribute{
-							Description: "Format of the image. The value of one qcow2|iso|vmdk|raw",
+							Description: "Format of the image, such as qcow2, iso, vmdk, or raw",
 							Computed:    true,
 						},
 						"platform": schema.StringAttribute{
-							Description: "Platform of the image. The value of one Linux|Windows|other",
+							Description: "Platform of the image, such as Linux, Windows, or Other",
 							Computed:    true,
 						},
 						"architecture": schema.StringAttribute{
-							Description: "CPU Architecture of the image. The value of one x86_64|aarch64|mips64|longarch64",
+							Description: "CPU architecture of the image, such as x86_64, aarch64, mips64, or longarch64",
 							Computed:    true,
 						},
 					},

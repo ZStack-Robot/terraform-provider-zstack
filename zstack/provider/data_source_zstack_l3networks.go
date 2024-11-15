@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -31,20 +31,27 @@ type l3networksModel struct {
 	Uuid     types.String   `tfsdk:"uuid"`
 	Category types.String   `tfsdk:"category"`
 	Dns      []dnsModel     `tfsdk:"dns"`
-	Iprange  []iprangeModel `tfsdk:"iprange"`
+	Iprange  []ipRangeModel `tfsdk:"ip_range"`
+	FreeIps  []freeIpModel  `tfsdk:"free_ips"`
 }
 
 type dnsModel struct {
-	Dns types.String `tfsdk:"dnsmodel"`
+	Dns types.String `tfsdk:"dns_model"`
 }
 
-type iprangeModel struct {
-	Name        types.String `tfsdk:"iprangename"`
-	StartIp     types.String `tfsdk:"startip"`
-	EndIp       types.String `tfsdk:"endip"`
+type ipRangeModel struct {
+	Name        types.String `tfsdk:"ip_range_name"`
+	StartIp     types.String `tfsdk:"start_ip"`
+	EndIp       types.String `tfsdk:"end_ip"`
 	Netmask     types.String `tfsdk:"netmask"`
 	Gateway     types.String `tfsdk:"gateway"`
 	NetworkCidr types.String `tfsdk:"cidr"`
+}
+type freeIpModel struct {
+	IpRangeUuid string `tfsdk:"ip_range_uuid"`
+	Ip          string `tfsdk:"ip"`
+	Netmask     string `tfsdk:"netmask"`
+	Gateway     string `tfsdk:"gateway"`
 }
 
 func ZStackl3NetworkDataSource() datasource.DataSource {
@@ -63,7 +70,6 @@ func (d *l3NetworkDataSource) Configure(_ context.Context, req datasource.Config
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the Provider developer. ", req.ProviderData),
 		)
-
 		return
 	}
 
@@ -72,50 +78,72 @@ func (d *l3NetworkDataSource) Configure(_ context.Context, req datasource.Config
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *l3NetworkDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_l3network"
+	resp.TypeName = req.ProviderTypeName + "_l3networks"
 }
 
 // Read implements datasource.DataSourceWithConfigure.
 func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state l3NetworkDataSourceModel
+	//var L3state l3networksModel
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	name_regex := state.Name_regex
+
+	//Create query parameters based on name_regex
+	//uuid := L3state.Uuid.ValueString()
+	//name_regex := state.Name_regex
 	params := param.NewQueryParam()
 
-	if !name_regex.IsNull() {
-		params.AddQ("name=" + name_regex.ValueString())
+	if !state.Name_regex.IsNull() {
+		params.AddQ("name=" + state.Name_regex.ValueString())
 	}
 
+	//Query L3 networks with name filtering
 	l3networks, err := d.client.QueryL3Network(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack L3Networks ",
 			err.Error(),
 		)
-
 		return
 	}
+
+	// Process each L3 network in the result
+	//l3freeIps, err := d.client.GetFreeIp(uuid, param.QueryParam{})
 	for _, l3network := range l3networks {
+		// Query free IPs for the current L3 network UUID
+		l3freeIps, err := d.client.GetFreeIp(l3network.UUID, param.QueryParam{})
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Fetch Free IPs for L3 Network",
+				fmt.Sprintf("Failed to retrieve free IPs for L3 network with UUID %s: %s", l3network.UUID, err.Error()),
+			)
+			return
+		}
+
+		// Build the L3 network model with nested attributes
 		l3networkState := l3networksModel{
 			Name:     types.StringValue(l3network.Name),
 			Uuid:     types.StringValue(l3network.UUID),
 			Category: types.StringValue(l3network.Category),
 			Dns:      make([]dnsModel, len(l3network.Dns)),
-			Iprange:  make([]iprangeModel, len(l3network.IpRanges)),
+			Iprange:  make([]ipRangeModel, len(l3network.IpRanges)),
+			FreeIps:  make([]freeIpModel, len(l3freeIps)),
 		}
 
+		// Populate DNS information
 		for i, dns := range l3network.Dns {
 			l3networkState.Dns[i] = dnsModel{
 				Dns: types.StringValue(dns),
 			}
 		}
+
+		// Populate IP range information
 		for i, iprange := range l3network.IpRanges {
-			l3networkState.Iprange[i] = iprangeModel{
+			l3networkState.Iprange[i] = ipRangeModel{
 				Name:        types.StringValue(iprange.Name),
 				StartIp:     types.StringValue(iprange.StartIp),
 				EndIp:       types.StringValue(iprange.EndIp),
@@ -125,9 +153,20 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 			}
 		}
 
+		// Populate free IP information
+		for i, freeIp := range l3freeIps {
+			l3networkState.FreeIps[i] = freeIpModel{
+				IpRangeUuid: freeIp.IpRangeUuid,
+				Ip:          freeIp.Ip,
+				Netmask:     freeIp.Netmask,
+				Gateway:     freeIp.Gateway,
+			}
+		}
+
 		state.L3networks = append(state.L3networks, l3networkState)
 	}
 
+	// Set the final state
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -141,11 +180,11 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter L3 network",
+				Description: "Regex pattern to filter L3 networks by name.",
 				Optional:    true,
 			},
 			"l3networks": schema.ListNestedAttribute{
-				Description: "List of L3 networks",
+				Description: "List of L3 networks matching the specified filters.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -154,42 +193,77 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 							Computed:    true,
 						},
 						"uuid": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "UUID of the L3 network.",
 						},
 						"category": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Category of the L3 network.",
 						},
 						"dns": schema.ListNestedAttribute{
-							Computed: true,
+							Description: "List of DNS servers for the L3 network.",
+							Computed:    true,
 							NestedObject: schema.NestedAttributeObject{
 								Attributes: map[string]schema.Attribute{
-									"dnsmodel": schema.StringAttribute{
-										Computed: true,
+									"dns_model": schema.StringAttribute{
+										Description: "DNS server address.",
+										Computed:    true,
 									},
 								},
 							},
 						},
-						"iprange": schema.ListNestedAttribute{
-							Computed: true,
+						"ip_range": schema.ListNestedAttribute{
+							Description: "List of IP ranges in the L3 network.",
+							Computed:    true,
 							NestedObject: schema.NestedAttributeObject{
 								Attributes: map[string]schema.Attribute{
-									"iprangename": schema.StringAttribute{
-										Computed: true,
+									"ip_range_name": schema.StringAttribute{
+										Description: "Name of the IP range.",
+										Computed:    true,
 									},
-									"startip": schema.StringAttribute{
-										Computed: true,
+									"start_ip": schema.StringAttribute{
+										Description: "Starting IP address in the range.",
+										Computed:    true,
 									},
-									"endip": schema.StringAttribute{
-										Computed: true,
+									"end_ip": schema.StringAttribute{
+										Description: "Ending IP address in the range.",
+										Computed:    true,
 									},
 									"netmask": schema.StringAttribute{
-										Computed: true,
+										Description: "Netmask of the IP range.",
+										Computed:    true,
 									},
 									"gateway": schema.StringAttribute{
-										Computed: true,
+										Description: "Gateway for the IP range.",
+										Computed:    true,
 									},
 									"cidr": schema.StringAttribute{
-										Computed: true,
+										Description: "CIDR notation for the IP range.",
+										Computed:    true,
+									},
+								},
+							},
+						},
+						"free_ips": schema.ListNestedAttribute{
+							Description: "List of free IPs available in the L3 network.",
+							Computed:    true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"ip_range_uuid": schema.StringAttribute{
+										Description: "UUID of the IP range containing the free IP.",
+										Computed:    true,
+									},
+									"ip": schema.StringAttribute{
+										Description: "Free IP address.",
+										Computed:    true,
+									},
+									"netmask": schema.StringAttribute{
+										Description: "Netmask for the free IP.",
+										Computed:    true,
+									},
+									"gateway": schema.StringAttribute{
+										Description: "Gateway for the free IP.",
+										Computed:    true,
 									},
 								},
 							},

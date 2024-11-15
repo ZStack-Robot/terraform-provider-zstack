@@ -1,5 +1,4 @@
 // Copyright (c) ZStack.io, Inc.
-// SPDX-License-Identifier: MPL-2.0
 
 package provider
 
@@ -19,7 +18,7 @@ var (
 	_ datasource.DataSourceWithConfigure = &clusterDataSource{}
 )
 
-func NewClusterDataSource() datasource.DataSource {
+func ZStackClusterDataSource() datasource.DataSource {
 	return &clusterDataSource{}
 }
 
@@ -38,7 +37,7 @@ type clusterModel struct {
 	State          types.String `tfsdk:"state"`
 	Type           types.String `tfsdk:"type"`
 	Uuid           types.String `tfsdk:"uuid"`
-	ZoneUuid       types.String `tfsdk:"zoneuuid"`
+	ZoneUuid       types.String `tfsdk:"zone_uuid"`
 }
 
 // Configure implements datasource.DataSourceWithConfigure.
@@ -61,39 +60,45 @@ func (d *clusterDataSource) Configure(_ context.Context, req datasource.Configur
 }
 
 func (d *clusterDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_zsclusters"
+	resp.TypeName = req.ProviderTypeName + "_clusters"
 }
 
 func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches the list of clusters. ",
+		Description: "Fetches a list of clusters and their associated attributes.",
 		Attributes: map[string]schema.Attribute{
 			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter clusters",
+				Description: "Regular expression to search and filter clusters by name",
 				Optional:    true,
 			},
 			"clusters": schema.ListNestedAttribute{
-				Description: "",
+				Description: "List of clusters matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Name of the cluster",
 						},
 						"uuid": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "UUID identifier of the cluster",
 						},
-						"zoneuuid": schema.StringAttribute{
-							Computed: true,
+						"zone_uuid": schema.StringAttribute{
+							Computed:    true,
+							Description: "UUID of the zone to which the cluster belongs",
 						},
 						"hypervisortype": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Type of hypervisor used by the cluster (e.g., KVM, ESXi)",
 						},
 						"type": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "ype of the cluster",
 						},
 						"state": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "State of the cluster (e.g., Enabled, Disabled)",
 						},
 					},
 				},
@@ -123,7 +128,6 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			"Unable to Read ZStack Clusters",
 			err.Error(),
 		)
-
 		return
 	}
 

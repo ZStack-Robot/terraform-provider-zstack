@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -19,18 +19,18 @@ func TestAccZStackClusterDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: providerConfig + `data "zstack_zsclusters" "test" {}`,
+				Config: providerConfig + `data "zstack_clusters" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Verify number of clusters returned
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.#", "1"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", "8"),
 
 					// Verify the first Cluster to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.hypervisortype", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.name", "Cluster-1"),
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.type", "zstack"),
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.zoneuuid", "4981061bd27c42c7bc063c4c4529518a"),
-					resource.TestCheckResourceAttr("data.zstack_zsclusters.test", "clusters.0.uuid", "b286789480254a208e6327136bb3dcb3"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisortype", "baremetal"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", "信创"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", "Enabled"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", "baremetal"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zoneuuid", "8aa8ddb83f2c47088791478dfbbe5f65"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", "70b8ae9c48d4494593af4efe3b23f7f7"),
 				),
 			},
 		},

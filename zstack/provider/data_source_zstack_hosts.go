@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -37,10 +37,10 @@ type hostsModel struct {
 	State        types.String `tfsdk:"state"`
 	Status       types.String `tfsdk:"status"`
 	Type         types.String `tfsdk:"type"`
-	Uuid         types.String `tfsdk:"id"`
-	ZoneUuid     types.String `tfsdk:"zoneuuid"`
-	ClusterUuid  types.String `tfsdk:"clusteruuid"`
-	ManagementIp types.String `tfsdk:"managementop"`
+	Uuid         types.String `tfsdk:"uuid"`
+	ZoneUuid     types.String `tfsdk:"zone_uuid"`
+	ClusterUuid  types.String `tfsdk:"cluster_uuid"`
+	ManagementIp types.String `tfsdk:"managementip"`
 }
 
 // Configure implements datasource.DataSourceWithConfigure.
@@ -119,43 +119,52 @@ func (d *hostsDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *hostsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "",
+		Description: "Fetches a list of hosts and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter clusters",
+				Description: "Regular expression to search and filter hosts by name",
 				Optional:    true,
 			},
 			"hosts": schema.ListNestedAttribute{
-				Description: "",
+				Description: "List of host entries matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Computed: true,
+						"uuid": schema.StringAttribute{
+							Computed:    true,
+							Description: "UUID Unique identifier of the host",
 						},
 						"name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Name of the host",
 						},
 						"architecture": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "CPU architecture of the host (e.g., x86_64, arm64)",
 						},
 						"state": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "State of the host (e.g., Enabled, Disabled)",
 						},
 						"status": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Operational status of the host (e.g., Connected, Disconnected)",
 						},
 						"type": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Type of the host (e.g., bare metal, virtualized)",
 						},
-						"zoneuuid": schema.StringAttribute{
-							Computed: true,
+						"zone_uuid": schema.StringAttribute{
+							Computed:    true,
+							Description: "UUID of the zone to which the host belongs",
 						},
-						"clusteruuid": schema.StringAttribute{
-							Computed: true,
+						"cluster_uuid": schema.StringAttribute{
+							Computed:    true,
+							Description: "UUID of the cluster to which the host belongs",
 						},
-						"managementop": schema.StringAttribute{
-							Computed: true,
+						"managementip": schema.StringAttribute{
+							Computed:    true,
+							Description: "Current management operation status on the host (e.g., Pending, Completed)",
 						},
 					},
 				},

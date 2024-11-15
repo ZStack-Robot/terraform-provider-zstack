@@ -142,3 +142,12 @@ type IpAddressInventoryView struct {
 	IpInLong      float64 `json:"ipInLong"`
 	VmNicUuid     string  `json:"vmNicUuid"`
 }
+
+type ReservedIpRangeInventoryView struct {
+	Uuid          string `json:"uuid"`
+	L3NetworkUuid string `json:"l3NetworkUuid"`
+	Name          string `json:"name"`      // max length of 255 characters
+	StartIp       string `json:"startIp"`   // start IP address, in IPv4
+	EndIp         string `json:"endIp"`     // end IP address, in IPv4
+	IpVersion     int    `json:"ipVersion"` // IP version (e.g., 4 for IPv4)
+}

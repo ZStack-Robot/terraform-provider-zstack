@@ -1,5 +1,4 @@
 // Copyright (c) ZStack.io, Inc.
-// SPDX-License-Identifier: MPL-2.0
 
 package provider
 
@@ -31,11 +30,11 @@ type ZStackProvider struct {
 type ZStackProviderModel struct {
 	Host            types.String `tfsdk:"host"`
 	Port            types.Int64  `tfsdk:"port"`
-	AccountName     types.String `tfsdk:"accountname"`
-	AccountPassword types.String `tfsdk:"accountpassword"`
-	AccessKeyId     types.String `tfsdk:"accesskeyid"`
-	AccessKeySecret types.String `tfsdk:"accesskeysecret"`
-	//SessionId       types.String `tfsdk:"sessionid"`
+	AccountName     types.String `tfsdk:"account_name"`
+	AccountPassword types.String `tfsdk:"account_password"`
+	AccessKeyId     types.String `tfsdk:"access_key_id"`
+	AccessKeySecret types.String `tfsdk:"access_key_secret"`
+	SessionId       types.String `tfsdk:"session_id"`
 }
 
 // Configure implements provider.Provider.
@@ -71,33 +70,33 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 	if config.AccountName.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
-			path.Root("accountname"),
+			path.Root("account_name"),
 			"Unknown ZStack API account Username",
-			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCOUNTNAME environment variable.",
+			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCOUNT_NAME environment variable.",
 		)
 	}
 
 	if config.AccountPassword.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
-			path.Root("accountpassword"),
+			path.Root("account_password"),
 			"Unknown ZStack API account password",
-			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCOUNTPASSWORD environment variable.",
+			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCOUNT_PASSWORD environment variable.",
 		)
 	}
 
 	if config.AccessKeyId.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
-			path.Root("accesskeyid"),
-			"Unknown ZStack  accessKeyId",
-			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCESSKEYID environment variable.",
+			path.Root("access_key_id"),
+			"Unknown ZStack  access_key_id",
+			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCESS_KEY_ID environment variable.",
 		)
 	}
 
 	if config.AccessKeySecret.IsUnknown() {
 		resp.Diagnostics.AddAttributeError(
-			path.Root("accesskeysecret"),
+			path.Root("access_key_secret"),
 			"Unknown ZStack accessKeySecret",
-			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCESSKEYSECRET environment variable.",
+			"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_ACCESS_KEY_SECRET environment variable.",
 		)
 	}
 
@@ -109,12 +108,14 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	//with Terraform configuration value if set.
 
 	port := 8080
+	sessionId := ""
+
 	host := os.Getenv("ZSTACK_HOST")
 	portstr := os.Getenv("ZSTACK_PORT")
-	accountname := os.Getenv("ZSTACK_ACCOUNTNAME")
-	accountpassword := os.Getenv("ZSTACK_ACCOUNTPASSWORD")
-	accesskeyid := os.Getenv("ZSTACK_ACCESSKEYID")
-	accesskeysecret := os.Getenv("ZSTACK_ACCESSKEYSECRET")
+	account_name := os.Getenv("ZSTACK_ACCOUNT_NAME")
+	account_password := os.Getenv("ZSTACK_ACCOUNT_PASSWORD")
+	access_key_id := os.Getenv("ZSTACK_ACCESS_KEY_ID")
+	access_key_secret := os.Getenv("ZSTACK_ACCESS_KEY_SECRET")
 
 	if portstr != "" {
 		if portInt, err := strconv.Atoi(portstr); err == nil {
@@ -131,19 +132,23 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	if !config.AccountName.IsNull() {
-		accountname = config.AccountName.ValueString()
+		account_name = config.AccountName.ValueString()
 	}
 
 	if !config.AccountPassword.IsNull() {
-		accountpassword = config.AccountPassword.ValueString()
+		account_password = config.AccountPassword.ValueString()
 	}
 
 	if !config.AccessKeyId.IsNull() {
-		accesskeyid = config.AccessKeyId.ValueString()
+		access_key_id = config.AccessKeyId.ValueString()
 	}
 
 	if !config.AccessKeySecret.IsNull() {
-		accesskeysecret = config.AccessKeySecret.ValueString()
+		access_key_secret = config.AccessKeySecret.ValueString()
+	}
+
+	if !config.SessionId.IsNull() {
+		sessionId = config.SessionId.ValueString()
 	}
 
 	// If any of the expected configuration are missing, return
@@ -159,17 +164,31 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		)
 	}
 
-	if (accountname == "" || accountpassword == "") && (accesskeyid == "" || accesskeysecret == "") {
+	//session id is just used for marketplace-server. Don't expose to user!
+	if sessionId == "" && (account_name == "" || account_password == "") && (access_key_id == "" || access_key_secret == "") {
 		resp.Diagnostics.AddError(
 			"Missing ZStack Authorization",
 			"The provider cannot create the ZStack API client as there is no zstack authorization. \n"+
 				"Please set at least one authorization method: account_name + account_password OR access_key_id + access_key_secret.\n\n"+
-				"account_name value can be set in the configuration or use the ZSTACK_ACCOUNTNAME environment variable\n"+
-				"account_password value in the configuration or use the ZSTACK_ACCOUNTPASSWORD environment variable\n"+
-				"access_key_id value in the configuration or use the ZSTACK_ACCESSKEYID environment variable\n"+
-				"access_key_secret value in the configuration or use the ZSTACK_ACCESSKEYSECRET environment variable\n",
-		)
+				"account_name value can be set in the configuration or use the ZSTACK_ACCOUNT_NAME environment variable\n"+
+				"account_password value in the configuration or use the ZSTACK_ACCOUNT_PASSWORD environment variable\n"+
+				"access_key_id value in the configuration or use the ZSTACK_ACCESS_KEY_ID environment variable\n"+
+				"access_key_secret value in the configuration or use the ZSTACK_ACCESS_KEY_SECRET environment variable\n")
 	}
+
+	/*
+		if (account_name == "" || account_password == "") && (access_key_id == "" || access_key_secret == "") {
+			resp.Diagnostics.AddError(
+				"Missing ZStack Authorization",
+				"The provider cannot create the ZStack API client as there is no zstack authorization. \n"+
+					"Please set at least one authorization method: account_name + account_password OR access_key_id + access_key_secret.\n\n"+
+					"account_name value can be set in the configuration or use the ZSTACK_account_name environment variable\n"+
+					"account_password value in the configuration or use the ZSTACK_ACCOUNTPASSWORD environment variable\n"+
+					"access_key_id value in the configuration or use the ZSTACK_ACCESSKEYID environment variable\n"+
+					"access_key_secret value in the configuration or use the ZSTACK_ACCESSKEYSECRET environment variable\n",
+			)
+		}
+	*/
 
 	if resp.Diagnostics.HasError() {
 		return
@@ -178,14 +197,35 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	var cli *client.ZSClient
 
 	ctx = tflog.SetField(ctx, "ZStack_host", host)
+	ctx = tflog.SetField(ctx, "ZStack_port", port)
 
-	if accountname != "" && accountpassword != "" {
-		ctx = tflog.SetField(ctx, "ZStack_accountName", accountname)
-		ctx = tflog.SetField(ctx, "ZStack_accountPassword", accountpassword)
+	zsConfig := client.NewZSConfig(host, port, "zstack").RetryTimes(900).ReadOnly(false).Debug(true)
+	//Create a new ZStack client using the configuration values
+
+	if sessionId != "" {
+		ctx = tflog.SetField(ctx, "ZStack_sessionId", sessionId)
+		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_sessionId")
+
+		tflog.Debug(ctx, "Creating ZStack client with session id")
+		cli = client.NewZSClient(zsConfig.Session(sessionId))
+		_, err := cli.ValidateSession()
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Create ZStack API Client",
+				"An unexpected error occurred when creating the ZStack API client."+
+					"It might be due to an incorrect session id being set, or the session has expired.\""+
+					"If the error is not clear, please contact the provider developers.\n\n"+
+					"ZStack Client Error: "+err.Error(),
+			)
+			return
+		}
+	} else if account_name != "" && account_password != "" {
+		ctx = tflog.SetField(ctx, "ZStack_accountName", account_name)
+		ctx = tflog.SetField(ctx, "ZStack_accountPassword", account_password)
 		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accountPassword")
 
 		tflog.Debug(ctx, "Creating ZStack client with account")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(accountname, accountpassword).ReadOnly(false).Debug(true))
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(account_name, account_password).ReadOnly(false).Debug(true))
 		_, err := cli.Login()
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -197,13 +237,13 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 			)
 			return
 		}
-	} else if accesskeyid != "" && accesskeysecret != "" {
-		ctx = tflog.SetField(ctx, "ZStack_accessKeyId", accesskeyid)
-		ctx = tflog.SetField(ctx, "ZStack_accessKeySecret", accesskeysecret)
+	} else if access_key_id != "" && access_key_secret != "" {
+		ctx = tflog.SetField(ctx, "ZStack_accessKeyId", access_key_id)
+		ctx = tflog.SetField(ctx, "ZStack_accessKeySecret", access_key_secret)
 		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accessKeySecret")
 
 		tflog.Debug(ctx, "Creating ZStack client with access key")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(accesskeyid, accesskeysecret).ReadOnly(false).Debug(true))
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(access_key_id, access_key_secret).ReadOnly(false).Debug(true))
 		// no authorization validation! this access key may be invalid！
 	}
 	resp.DataSourceData = cli
@@ -212,6 +252,42 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	tflog.Info(ctx, "Configured ZStack client", map[string]any{"success": true})
 }
 
+/*
+	if account_name != "" && account_password != "" {
+		ctx = tflog.SetField(ctx, "ZStack_accountName", account_name)
+		ctx = tflog.SetField(ctx, "ZStack_accountPassword", account_password)
+		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accountPassword")
+
+		tflog.Debug(ctx, "Creating ZStack client with account")
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(account_name, account_password).ReadOnly(false).Debug(true))
+		_, err := cli.Login()
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Create ZStack API Client",
+				"An unexpected error occurred when creating the ZStack API client. "+
+					"It might be due to an incorrect account name and password being set"+
+					"If the error is not clear, please contact the provider developers.\n\n"+
+					"ZStack Client Error: "+err.Error(),
+			)
+			return
+		}
+	} else if access_key_id != "" && access_key_secret != "" {
+		ctx = tflog.SetField(ctx, "ZStack_accessKeyId", access_key_id)
+		ctx = tflog.SetField(ctx, "ZStack_accessKeySecret", access_key_secret)
+		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accessKeySecret")
+
+		tflog.Debug(ctx, "Creating ZStack client with access key")
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(access_key_id, access_key_secret).ReadOnly(false).Debug(true))
+		// no authorization validation! this access key may be invalid！
+	}
+	resp.DataSourceData = cli
+	resp.ResourceData = cli
+
+	tflog.Info(ctx, "Configured ZStack client", map[string]any{"success": true})
+
+}
+*/
+
 // DataSources implements provider.Provider.
 func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
@@ -219,9 +295,10 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackImageDataSource,
 		ZStackl3NetworkDataSource,
 		ZStackvmsDataSource,
-		NewClusterDataSource,
+		ZStackClusterDataSource,
 		ZstackBackupStorageDataSource,
 		ZStackHostsDataSource,
+		ZStackmnNodeDataSource,
 	}
 
 }
@@ -250,24 +327,28 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Optional:    true,
 			},
 			"port": schema.Int64Attribute{
-				Description: "Stack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",
+				Description: "ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",
 				Optional:    true,
 			},
-			"accountname": schema.StringAttribute{
-				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUNTNAME environment variable.",
+			"session_id": schema.StringAttribute{
+				Description: "ZStack Cloud Session id.",
 				Optional:    true,
 			},
-			"accountpassword": schema.StringAttribute{
-				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNTPASSWORD environment variable.",
+			"account_name": schema.StringAttribute{
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.",
+				Optional:    true,
+			},
+			"account_password": schema.StringAttribute{
+				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.",
 				Optional:    true,
 				Sensitive:   true,
 			},
-			"accesskeyid": schema.StringAttribute{
-				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESSKEYID environment variable.",
+			"access_key_id": schema.StringAttribute{
+				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable.",
 				Optional:    true,
 			},
-			"accesskeysecret": schema.StringAttribute{
-				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESSKEYSECRET environment variable.",
+			"access_key_secret": schema.StringAttribute{
+				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable.",
 				Optional:    true,
 				Sensitive:   true,
 			},
