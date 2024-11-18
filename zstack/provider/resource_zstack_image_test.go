@@ -1,5 +1,3 @@
-// Copyright (c) ZStack.io, Inc.
-
 package provider
 
 import (
@@ -8,62 +6,39 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// 本测试没通过，image能正确创建，测试报错api返回503
-func TestAccImageResource(t *testing.T) {
+func TestAccCreateImageResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
+			// Test creating a single image resource
 			{
 				Config: providerConfig + `
 				resource "zstack_image" "test" {
-					count = 1
-					name = "imagenametest-${count.index + 1}"
-					description = "chi test-${count.index + 1}"
-					url = "file:///opt/zstack-dvd/zstack-image-1.4.qcow2"
-					guestostype = "Linux"
-					platform = "Linux"
-					format = "qcow2"
+					name        = "example-image"
+					description = "A test image for creation"
+					url         = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+					guest_os_type = "Centos 7"
+					platform    = "Linux"
+					format      = "qcow2"
 					architecture = "x86_64"
-					virtio = false
-					backupstorageuuid = "936d51b80fdb4a0ea9c742bcecab56e0"
+					virtio      = true
+					backup_storage_uuids = ["530c16460d974b8da73edae3d7b7ac41"]
+					boot_mode   = "legacy"
 				}`,
 
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of vm instances returned
-					resource.TestCheckResourceAttr("zstack_image.test", "zstack_image.0.uuid", "3"),
-				/*
-					// Verify the first vm instances to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.architecture", "x86_64"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.clusteruuid", "b286789480254a208e6327136bb3dcb3"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.cupnum", "8"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.hostuuid", "818c9469d7ae4cab9bb7516753543d3f"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.hypervisortype", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.imageuuid", "ffd420a9259645c7a3ef8594d2d1f56e"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.memorysize", "34359738368"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.name", "Zaku"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.platform", "Linux"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.state", "Running"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.type", "UserVm"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.uuid", "07d7f69688f24099b0e569dfdbb15121"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.zoneuuid", "4981061bd27c42c7bc063c4c4529518a"),
-
-					// Verify the first volume of vm instance to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumeactualsize", "28502401024"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumedescription", "Root volume for VM[uuid:07d7f69688f24099b0e569dfdbb15121]"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumeformat", "qcow2"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumesize", "515396075520"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumestate", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumestatus", "Ready"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumetype", "Root"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.allvolumes.0.volumeuuid", "498398ac73d14f14a0bfca1be6d32c90"),
-
-					// Verify the first nic of vm instance to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.vmnics.0.ip", "172.25.126.218"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.vmnics.0.mac", "fa:6d:c8:20:fe:00"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.vmnics.0.netmask", "255.255.0.0"),
-					resource.TestCheckResourceAttr("data.zstack_vminstances.test", "vminstances.0.vmnics.0.gateway", "172.25.0.1"),
-				*/
+					// Verify the resource attributes
+					resource.TestCheckResourceAttr("zstack_image.test", "name", "example-image"),
+					resource.TestCheckResourceAttr("zstack_image.test", "description", "A test image for creation"),
+					resource.TestCheckResourceAttr("zstack_image.test", "url", "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"),
+					resource.TestCheckResourceAttr("zstack_image.test", "guest_os_type", "Centos 7"),
+					resource.TestCheckResourceAttr("zstack_image.test", "platform", "Linux"),
+					resource.TestCheckResourceAttr("zstack_image.test", "format", "qcow2"),
+					resource.TestCheckResourceAttr("zstack_image.test", "architecture", "x86_64"),
+					resource.TestCheckResourceAttr("zstack_image.test", "virtio", "true"),
+					resource.TestCheckResourceAttr("zstack_image.test", "boot_mode", "legacy"),
+					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.#", "1"),
+					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.0", "530c16460d974b8da73edae3d7b7ac41"),
 				),
 			},
 		},

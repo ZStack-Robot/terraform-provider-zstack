@@ -34,6 +34,9 @@ const (
 	Legacy      BootMode = "Legacy"
 	UEFI        BootMode = "UEFI"
 	UEFIWITHCSM BootMode = "UEFI_WITH_CSM"
+
+	SystemTagBootModeUEFI   = "bootMode::UEFI"
+	SystemTagBootModeLegacy = "bootMode::Legacy"
 )
 
 type AddImageParam struct {

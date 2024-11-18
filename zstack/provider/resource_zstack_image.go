@@ -1,10 +1,10 @@
-// Copyright (c) ZStack.io, Inc.
-
 package provider
 
 import (
 	"context"
 	"fmt"
+
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"zstack.io/zstack-sdk-go/pkg/client"
 	"zstack.io/zstack-sdk-go/pkg/param"
-	"zstack.io/zstack-sdk-go/pkg/view"
 )
 
 var (
@@ -25,20 +24,22 @@ type imageResource struct {
 }
 
 type imageResourceModel struct {
-	UUID        types.String `tfsdk:"uuid"`
-	LastUpdated types.String `tfsdk:"last_updated"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Url         types.String `tfsdk:"url"`
-	//Mediatype         types.String `tfsdk:"mediatype"`
-	Guestostype       types.String `tfsdk:"guestostype"`
-	System            types.String `tfsdk:"system"`
-	Platform          types.String `tfsdk:"platform"`
-	Format            types.String `tfsdk:"format"`
-	Backupstorageuuid types.String `tfsdk:"backupstorageuuid"`
-	Architecture      types.String `tfsdk:"architecture"`
-	Virtio            types.Bool   `tfsdk:"virtio"`
-	Type              types.String `tfsdk:"type"`
+	Uuid               types.String `tfsdk:"uuid"`
+	LastUpdated        types.String `tfsdk:"last_updated"`
+	Name               types.String `tfsdk:"name"`
+	Description        types.String `tfsdk:"description"`
+	Url                types.String `tfsdk:"url"`
+	MediaType          types.String `tfsdk:"media_type"`
+	GuestOsType        types.String `tfsdk:"guest_os_type"`
+	System             types.String `tfsdk:"system"`
+	Platform           types.String `tfsdk:"platform"`
+	Format             types.String `tfsdk:"format"`
+	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
+	Architecture       types.String `tfsdk:"architecture"`
+	Virtio             types.Bool   `tfsdk:"virtio"`
+	Type               types.String `tfsdk:"type"`
+	Marketplace        types.Bool   `tfsdk:"marketplace"`
+	BootMode           types.String `tfsdk:"boot_mode"`
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -66,37 +67,125 @@ func ImageResource() resource.Resource {
 
 // Create implements resource.Resource.
 func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var imageplan imageResourceModel
-	diags := req.Plan.Get(ctx, &imageplan)
+	var imagePlan imageResourceModel
+	diags := req.Plan.Get(ctx, &imagePlan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	var backupStorageUuids []string
+	if imagePlan.BackupStorageUuids.IsNull() {
+		storage, err := r.client.QueryBackupStorage(param.QueryParam{})
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"fail to get backup storage",
+				fmt.Sprintf("fail to get backup storage, err: %v", err),
+			)
+			return
+		}
+		backupStorageUuids = []string{storage[0].UUID}
+	} else {
+		imagePlan.BackupStorageUuids.ElementsAs(ctx, &backupStorageUuids, false)
+	}
+
+	var systemTags []string
+
+	if imagePlan.BootMode.IsNull() || imagePlan.BootMode.ValueString() == "" {
+		// if boot mode not set, use uefi in aarch64 and legacy in x86_64
+		if imagePlan.Architecture.ValueString() == "aarch64" {
+			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+		} else {
+			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+		}
+	} else {
+		bootMode := strings.ToLower(imagePlan.BootMode.ValueString())
+
+		switch bootMode {
+		case "uefi":
+			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+		case "legacy":
+			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+		default:
+			resp.Diagnostics.AddError(
+				"invalid boot mode",
+				fmt.Sprintf("invalid boot mode: %s", bootMode),
+			)
+			return
+		}
+	}
+
+	if imagePlan.Marketplace.ValueBool() {
+
+		// for marketplace image, if the image with same name status is Ready and state is Enabled, then skip add it.
+		qparam := param.NewQueryParam()
+		qparam.AddQ("name=" + imagePlan.Name.ValueString())
+		//qparam.AddQ("url=" + imagePlan.Url.ValueString())
+		qparam.AddQ("architecture=" + imagePlan.Architecture.ValueString())
+		qparam.AddQ("status=Ready")
+		qparam.AddQ("state=Enabled")
+
+		images, err := r.client.QueryImage(qparam)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"fail to get image",
+				fmt.Sprintf("fail to get image: %v", err),
+			)
+			return
+		}
+
+		tflog.Info(ctx, fmt.Sprintf("find %d images", len(images)))
+		for _, image := range images {
+			for _, backupStorageRef := range image.BackupStorageRefs {
+				backupStorageUuids = removeStringFromSlice(backupStorageUuids, backupStorageRef.BackupStorageUuid)
+			}
+
+			if len(backupStorageUuids) == 0 {
+				tflog.Info(ctx, "image has been imported to all backup storage")
+
+				imagePlan.Uuid = types.StringValue(image.UUID)
+				imagePlan.Name = types.StringValue(image.Name)
+				imagePlan.Description = types.StringValue(image.Description)
+				imagePlan.Url = types.StringValue(image.Url)
+				imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
+				imagePlan.System = types.StringValue(image.System)
+				imagePlan.Platform = types.StringValue(image.Platform)
+				imagePlan.Type = types.StringValue(image.Type)
+				imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
+				ctx = tflog.SetField(ctx, "url", image.Url)
+				diags = resp.State.Set(ctx, imagePlan)
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+		}
+
+		tflog.Info(ctx, fmt.Sprintf("unimported backupStorageUuids: %v", backupStorageUuids))
+		systemTags = append(systemTags, "marketplace::true")
+	}
+
 	tflog.Info(ctx, "Configuring ZStack client")
-	var imagesItem view.ImageView
 	imageParam := param.AddImageParam{
 		BaseParam: param.BaseParam{
-			SystemTags: []string{"bootMode::Legacy"},
+			SystemTags: systemTags,
 		},
 		Params: param.AddImageDetailParam{
-			Name:        imageplan.Name.ValueString(),
-			Description: imageplan.Description.ValueString(),
-			Url:         imageplan.Url.ValueString(),
-			//MediaType:          param.RootVolumeTemplate,
-			GuestOsType:        imageplan.Guestostype.ValueString(),
+			Name:               imagePlan.Name.ValueString(),
+			Description:        imagePlan.Description.ValueString(),
+			Url:                imagePlan.Url.ValueString(),
+			MediaType:          param.RootVolumeTemplate,
+			GuestOsType:        imagePlan.GuestOsType.ValueString(),
 			System:             false,
-			Format:             param.ImageFormat(imageplan.Format.ValueString()), // param.Qcow2,
-			Platform:           imageplan.Platform.ValueString(),
-			BackupStorageUuids: []string{imageplan.Backupstorageuuid.ValueString()}, //[]string{storage[0].UUID},
-			Type:               imageplan.Type.ValueString(),
+			Format:             param.Qcow2,
+			Platform:           imagePlan.Platform.ValueString(),
+			BackupStorageUuids: backupStorageUuids,
+			Type:               imagePlan.Type.ValueString(),
 			ResourceUuid:       "",
-			Architecture:       param.Architecture(imageplan.Architecture.ValueString()),
-			Virtio:             imageplan.Virtio.ValueBool(),
+			Architecture:       param.Architecture(imagePlan.Architecture.ValueString()),
+			Virtio:             imagePlan.Virtio.ValueBool(),
 		},
 	}
 
-	ctx = tflog.SetField(ctx, "url", imagesItem.Url)
+	ctx = tflog.SetField(ctx, "url", imagePlan.Url)
 	image, err := r.client.AddImage(imageParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -105,22 +194,17 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	imageplan.UUID = types.StringValue(image.UUID)
-	imageplan.Name = types.StringValue(image.Name)
-	imageplan.Description = types.StringValue(image.Description)
-	imageplan.Url = types.StringValue(image.Url)
-	//imageplan.Mediatype = types.StringValue(image.MediaType)
-	imageplan.Guestostype = types.StringValue(image.GuestOsType)
-	imageplan.System = types.StringValue(image.System)
-	imageplan.Format = types.StringValue(image.Format)
-	imageplan.Platform = types.StringValue(image.Platform)
-	imageplan.Type = types.StringValue(image.Type)
-	imageplan.Architecture = types.StringValue(string(image.Architecture))
-	imageplan.Virtio = types.BoolValue(image.Virtio)
-	imageplan.Backupstorageuuid = types.StringValue(string(image.BackupStorageRefs[0].BackupStorageUuid))
-	imageplan.LastUpdated = types.StringValue(image.LastOpDate.String())
-	ctx = tflog.SetField(ctx, "url", imagesItem.Url)
-	diags = resp.State.Set(ctx, imageplan)
+	imagePlan.Uuid = types.StringValue(image.UUID)
+	imagePlan.Name = types.StringValue(image.Name)
+	imagePlan.Description = types.StringValue(image.Description)
+	imagePlan.Url = types.StringValue(image.Url)
+	imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
+	imagePlan.System = types.StringValue(image.System)
+	imagePlan.Platform = types.StringValue(image.Platform)
+	imagePlan.Type = types.StringValue(image.Type)
+	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
+	ctx = tflog.SetField(ctx, "url", image.Url)
+	diags = resp.State.Set(ctx, imagePlan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -136,10 +220,15 @@ func (r *imageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
-	err := r.client.DeleteImage(state.UUID.String(), param.DeleteModeEnforcing)
+	if state.Uuid == types.StringValue("") {
+		tflog.Warn(ctx, "image uuid is empty, so nothing to delete, skip it")
+		return
+	}
+
+	err := r.client.DeleteImage(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 
 	if err != nil {
-		resp.Diagnostics.AddError("", ""+err.Error())
+		resp.Diagnostics.AddError("fail to delete image", ""+err.Error())
 		return
 	}
 }
@@ -152,32 +241,23 @@ func (r *imageResource) Metadata(_ context.Context, req resource.MetadataRequest
 // Read implements resource.Resource.
 func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state imageResourceModel
-	//req.State.Schema.GetAttributes()
-
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	image, err := r.client.GetImage(state.UUID.ValueString())
+	image, err := r.client.GetImage(state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error Geting ZStack Image uiid", "Could not read image uuid"+image.Name+": "+err.Error(),
+			"Error getting ZStack Image uuid", "Could not read image uuid"+image.Name+": "+err.Error(),
 		)
 		return
 	}
 
-	state.UUID = types.StringValue(image.UUID)
+	state.Uuid = types.StringValue(image.UUID)
 	state.Name = types.StringValue(image.Name)
 	state.Url = types.StringValue(image.Url)
 	state.LastUpdated = types.StringValue(image.LastOpDate.GoString())
-	state.Format = types.StringValue(image.Format)
-	state.Description = types.StringValue(image.Description)
-	state.Architecture = types.StringValue(string(image.Architecture))
-	//state.Mediatype = types.StringValue(image.MediaType)
-	state.Virtio = types.BoolValue(image.Virtio)
-
 	//state.Description = types.StringValue(image.Description)
 
 	diags = resp.State.Get(ctx, &state)
@@ -192,106 +272,133 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The unique identifier of the image. Automatically generated by ZStack.",
 			},
 			"last_updated": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The timestamp of the last update to the image resource.",
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The name of the image. This is a mandatory field.",
 			},
 			"description": schema.StringAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "A description of the image, providing additional context or details.",
 			},
 			"url": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The URL where the image is located. This can be a file path or an HTTP link.",
 			},
-			/*
-				"mediatype": schema.StringAttribute{
-					Optional: true,
-				},
-			*/
-			"guestostype": schema.StringAttribute{
-				Optional: true,
+			"media_type": schema.StringAttribute{
+				Optional:    true,
+				Description: "The type of media for the image. Examples include 'ISO' or 'Template'.",
+			},
+			"guest_os_type": schema.StringAttribute{
+				Optional:    true,
+				Description: "The guest operating system type that the image is optimized for.",
 			},
 			"system": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "Indicates if the image is a system image. Set automatically by ZStack.",
 			},
 			"platform": schema.StringAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "The platform that the image is intended for, such as 'Linux', 'Windows', or others.",
 			},
 			"format": schema.StringAttribute{
-				Optional: true,
+				Required:    true,
+				Description: "The format of the image file, such as 'qcow2', 'raw', or 'vmdk'.",
 			},
-			"backupstorageuuid": schema.StringAttribute{
-				Optional: true,
+			"backup_storage_uuids": schema.ListAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "A list of UUIDs for the backup storages where the image is stored.",
 			},
 			"architecture": schema.StringAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "The architecture of the image, such as 'x86_64' or 'arm64'.",
 			},
 			"type": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The type of the image, for example, 'ISO' or 'RootVolumeTemplate'.",
 			},
 			"virtio": schema.BoolAttribute{
-				Optional: true,
+				Optional:    true,
+				Description: "Indicates if the VirtIO drivers are required for the image.",
+			},
+			"marketplace": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Specifies whether the image is from a marketplace.",
+			},
+			"boot_mode": schema.StringAttribute{
+				Optional:    true,
+				Description: "The boot mode supported by the image, such as 'Legacy' or 'UEFI'.",
 			},
 		},
 	}
 }
 
-// Update implements resource.Resource. //有问题，报PUT http://172.25.16.104:8080/zstack/v1/images {"updateImage":{"description":"test test","name":"C790123newname"}}:
-// {"error":{"causes":null,"class":"","code":400,"data":{"fields":null,"id":""},"details":"the body doesn't contain action mapping to the URL[/v1/images]","request":{"body":{"updateImage":{"description":"test
-// test","name":"C790123newname"}},"headers":{"Authorization":"*","Content-Length":"67","Content-Type":"application/json;
-// charset=utf-8","User-Agent":"zstack-sdk-go/202206","X-Session-Id":"bacd061493b54ac9948b55bd6c31f5c9"},"method":"PUT","url":"http://172.25.16.104:8080/zstack/v1/images"}}}
-
 func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var imageplan imageResourceModel
-	diags := req.Plan.Get(ctx, &imageplan)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	/*
+		var imageplan imageResourceModel
+		diags := req.Plan.Get(ctx, &imageplan)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 
-	desc := "test test"
-	uuid := imageplan.UUID.ValueString()
-	params := param.UpdateImageParam{
-		UpdateImage: param.UpdateImageDetailParam{
-			Name:        imageplan.Name.ValueString(), // "image4chenjtest",
-			Description: &desc,                        //imageplan.Description.ValueStringPointer(),
-		},
-	}
-	_, err := r.client.UpdateImage(uuid, params)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"", ""+err.Error(),
-		)
-		return
-	}
+		//uuid := imageplan.UUID.ValueString()
+		//params := param.UpdateImageParam{
+		//	UpdateImage: param.UpdateImageDetailParam{
+		//		Name:        imageplan.Name.ValueString(), // "image4chenjtest",
+		//		Description: &desc,                        //imageplan.Description.ValueStringPointer(),
+		//	},
+		//}
+		//_, err := r.client.UpdateImage(uuid, params)
+		//if err != nil {
+		//	resp.Diagnostics.AddError(
+		//		"", ""+err.Error(),
+		//	)
+		//	return
+		//}
+		//
+		//image, err := r.client.GetImage(imageplan.UUID.ValueString())
+		//if err != nil {
+		//	resp.Diagnostics.AddError("", ""+err.Error())
+		//	return
+		//}
+		//imageplan.UUID = types.StringValue(image.UUID)
+		//imageplan.Name = types.StringValue(image.Name)
+		//imageplan.Description = types.StringValue(image.Description)
+		//imageplan.url = types.StringValue(image.Url)
+		//imageplan.MediaType = types.StringValue(image.MediaType)
+		//imageplan.GuestOsType = types.StringValue(image.GuestOsType)
+		//imageplan.System = types.StringValue(image.System)
+		////in ceph backup storage, the image format is always raw
+		////imageplan.Format = types.StringValue(image.Format)
+		//imageplan.Platform = types.StringValue(image.Platform)
+		//imageplan.Type = types.StringValue(image.Type)
+		//imageplan.Architecture = types.StringValue(string(image.Architecture))
+		//imageplan.Virtio = types.BoolValue(image.Virtio)
+		//imageplan.BackupStorageUuid = types.StringValue(string(image.BackupStorageRefs[0].BackupStorageUuid))
+		//imageplan.LastUpdated = types.StringValue(image.LastOpDate.String())
+		//
+		//diags = resp.State.Set(ctx, imageplan)
+		//resp.Diagnostics.Append(diags...)
+		//if resp.Diagnostics.HasError() {
+		//	return
+		//}
+	*/
+}
 
-	image, err := r.client.GetImage(imageplan.UUID.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("", ""+err.Error())
-		return
+func removeStringFromSlice(slice []string, s string) []string {
+	for i, v := range slice {
+		if v == s {
+			slice = append(slice[:i], slice[i+1:]...)
+			break
+		}
 	}
-	imageplan.UUID = types.StringValue(image.UUID)
-	imageplan.Name = types.StringValue(image.Name)
-	imageplan.Description = types.StringValue(image.Description)
-	imageplan.Url = types.StringValue(image.Url)
-	//imageplan.Mediatype = types.StringValue(image.MediaType)
-	imageplan.Guestostype = types.StringValue(image.GuestOsType)
-	imageplan.System = types.StringValue(image.System)
-	imageplan.Format = types.StringValue(image.Format)
-	imageplan.Platform = types.StringValue(image.Platform)
-	imageplan.Type = types.StringValue(image.Type)
-	imageplan.Architecture = types.StringValue(string(image.Architecture))
-	imageplan.Virtio = types.BoolValue(image.Virtio)
-	imageplan.Backupstorageuuid = types.StringValue(string(image.BackupStorageRefs[0].BackupStorageUuid))
-	imageplan.LastUpdated = types.StringValue(image.LastOpDate.String())
-
-	diags = resp.State.Set(ctx, imageplan)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
+	return slice
 }

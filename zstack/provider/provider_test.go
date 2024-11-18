@@ -20,10 +20,10 @@ const (
 
 	providerConfig = `
 	provider "zstack" {
-		host = "172.26.100.254"
+		host = "172.26.195.168"
 		port = "8080"
-		access_key_id = "SnnwJG2wyKm6A7IUTPIX"
-		access_key_secret = "tHJqNgvCNyfvwtgEQxxdzfE4gVsxqDvVlMDsA4Sq"		
+		access_key_id = "0HgooM23adqrFENc95ab"
+		access_key_secret = "Mp8c7S9vVL7CqFqexCMMqaABfNIfhZH0kv2a3Hta"		
 	}
 	`
 )
