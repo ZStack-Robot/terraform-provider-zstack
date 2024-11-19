@@ -62,19 +62,24 @@ func (r *reservedIpResource) Schema(_ context.Context, request resource.SchemaRe
 	response.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The UUID of the reserved ip range.",
 			},
 			"l3_network_uuid": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The UUID of the L3 network where the ip range will be reserved.",
 			},
 			"start_ip": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The start IP address of the reserved range.",
 			},
 			"end_ip": schema.StringAttribute{
-				Required: true,
+				Required:    true,
+				Description: "The end IP address of the reserved range.",
 			},
 			"ip_version": schema.Int64Attribute{
-				Computed: true,
+				Computed:    true,
+				Description: "The IP version (e.g., 4 for IPv4 or 6 for IPv6) of the reserved range.",
 			},
 		},
 	}
@@ -89,7 +94,7 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 	}
 
 	if r.client == nil {
-		response.Diagnostics.AddWarning("WHY!", "W")
+		response.Diagnostics.AddWarning("Client Not Configured", "The client was not properly configured.")
 		return
 	}
 
@@ -104,7 +109,7 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 	ipRange, err := r.client.AddReservedIpRange(reservedIpPlan.L3NetworkUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to l3 network",
+			"Fail to add reserved ip range to L3 network",
 			"Error "+err.Error(),
 		)
 		return
@@ -158,7 +163,7 @@ func (r *reservedIpResource) Delete(ctx context.Context, request resource.Delete
 	}
 
 	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "reserved ip uuid is empty, so nothing to delete, skip it")
+		tflog.Warn(ctx, "reserved ip UUID is empty, skipping delete.")
 		return
 	}
 

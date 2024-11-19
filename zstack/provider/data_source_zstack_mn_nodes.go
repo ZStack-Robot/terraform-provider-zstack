@@ -61,14 +61,17 @@ func (d *mnNodeDataSource) Schema(_ context.Context, req datasource.SchemaReques
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"mn_nodes": schema.ListNestedAttribute{
-				Computed: true,
+				Description: "Fetches a list of Management Nodes and their associated attributes from the ZStack environment",
+				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"uuid": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "UUID of the Management Node.",
 						},
 						"host_name": schema.StringAttribute{
-							Computed: true,
+							Computed:    true,
+							Description: "Name of the Management Node",
 						},
 					},
 				},
