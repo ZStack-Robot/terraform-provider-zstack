@@ -1,28 +1,10 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright (c) ZStack.io, Inc.
 
-terraform {
-  required_providers {
-    zstack = {
-      source = "zstack.io/terraform-provider-zstack/zstack"
-    }
-  }
+data "zstack_hosts" "example" {
+ #  name = "hostname"
+ #   name_pattern = "hostname%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 }
-
-provider "zstack" {
-  host            = "172.x.x.x"
-  port   = "8080"  #optional, default is 8080
-  accesskeyid     = "accesskeyid"
-  accesskeysecret = "accesskeysecret"
-}
-
-data "zstack_hosts" "hosts" {
- #  name_regex = "lc-2"
-}
-
-
 
 output "zstack_hosts" {
-  value = data.zstack_hosts.hosts
+  value = data.zstack_hosts.example
 }
-
-

@@ -25,10 +25,10 @@ func TestAccZStackmnNodeDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.#", "2"),
 
 					// Verify the first image to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.host_name", "192.168.251.81"),
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.uuid", "94210bf4590538f3bcd8b6012a1280d5"),
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.1.host_name", "192.168.251.103"),
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.1.uuid", "d8d7697f72083481a6a45976b075dcdf"),
+					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.host_name", "172.26.107.217"),
+					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.uuid", "5f46f797e5ed3ab6950b5e55e786c7af"),
+					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.1.host_name", "172.26.100.198"),
+					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.1.uuid", "932ba6b5d8fb3506b7c23506e7317942"),
 				),
 			},
 		},

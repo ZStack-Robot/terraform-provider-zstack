@@ -23,8 +23,9 @@ type l3NetworkDataSource struct {
 }
 
 type l3NetworkDataSourceModel struct {
-	Name_regex types.String      `tfsdk:"name_regex"`
-	L3networks []l3networksModel `tfsdk:"l3networks"`
+	Name        types.String      `tfsdk:"name"`
+	NamePattern types.String      `tfsdk:"name_pattern"`
+	L3networks  []l3networksModel `tfsdk:"l3networks"`
 }
 type l3networksModel struct {
 	Name     types.String   `tfsdk:"name"`
@@ -72,7 +73,6 @@ func (d *l3NetworkDataSource) Configure(_ context.Context, req datasource.Config
 		)
 		return
 	}
-
 	d.client = client
 }
 
@@ -92,13 +92,14 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	//Create query parameters based on name_regex
-	//uuid := L3state.Uuid.ValueString()
-	//name_regex := state.Name_regex
+	//Create query parameters based on name
+
 	params := param.NewQueryParam()
 
-	if !state.Name_regex.IsNull() {
-		params.AddQ("name=" + state.Name_regex.ValueString())
+	if !state.Name.IsNull() {
+		params.AddQ("name=" + state.Name.ValueString())
+	} else if !state.NamePattern.IsNull() {
+		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
 	//Query L3 networks with name filtering
@@ -179,8 +180,12 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"name_regex": schema.StringAttribute{
-				Description: "Regex pattern to filter L3 networks by name.",
+			"name": schema.StringAttribute{
+				Description: "Exact name for searching L3 Network.",
+				Optional:    true,
+			},
+			"name_pattern": schema.StringAttribute{
+				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
 			"l3networks": schema.ListNestedAttribute{

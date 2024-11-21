@@ -27,8 +27,9 @@ type hostsDataSource struct {
 }
 
 type hostsDataSourceModel struct {
-	Name_regex types.String `tfsdk:"name_regex"`
-	Hosts      []hostsModel `tfsdk:"hosts"`
+	Name        types.String `tfsdk:"name"`
+	NamePattern types.String `tfsdk:"name_pattern"`
+	Hosts       []hostsModel `tfsdk:"hosts"`
 }
 
 type hostsModel struct {
@@ -55,7 +56,6 @@ func (d *hostsDataSource) Configure(_ context.Context, req datasource.ConfigureR
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the Provider developer. ", req.ProviderData),
 		)
-
 		return
 	}
 
@@ -76,11 +76,13 @@ func (d *hostsDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	name_regex := state.Name_regex
+	//name_regex := state.Name
 	params := param.NewQueryParam()
 
-	if !name_regex.IsNull() {
-		params.AddQ("name=" + name_regex.ValueString())
+	if !state.Name.IsNull() {
+		params.AddQ("name=" + state.Name.ValueString())
+	} else if !state.NamePattern.IsNull() {
+		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
 	hosts, err := d.client.QueryHost(params)
@@ -121,8 +123,12 @@ func (d *hostsDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of hosts and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
-			"name_regex": schema.StringAttribute{
-				Description: "Regular expression to search and filter hosts by name",
+			"name": schema.StringAttribute{
+				Description: "Exact name for searching hosts",
+				Optional:    true,
+			},
+			"name_pattern": schema.StringAttribute{
+				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
 			"hosts": schema.ListNestedAttribute{

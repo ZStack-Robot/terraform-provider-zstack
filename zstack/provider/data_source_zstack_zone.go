@@ -27,8 +27,8 @@ type zoneDataSource struct {
 }
 
 type zoneDataSourceModel struct {
-	Name_regex types.String `tfsdk:"name_regex"`
-	Zones      []zoneModel  `tfsdk:"zones"`
+	Name  types.String `tfsdk:"name"`
+	Zones []zoneModel  `tfsdk:"zones"`
 }
 
 type zoneModel struct {
@@ -65,8 +65,8 @@ func (d *zoneDataSource) Schema(_ context.Context, req datasource.SchemaRequest,
 	resp.Schema = schema.Schema{
 		Description: "Fetches the list of zones. ",
 		Attributes: map[string]schema.Attribute{
-			"name_regex": schema.StringAttribute{
-				Description: "name_regex for Search and filter zones",
+			"name": schema.StringAttribute{
+				Description: "Exact name for Searching  zones",
 				Optional:    true,
 			},
 			"zones": schema.ListNestedAttribute{
@@ -99,11 +99,11 @@ func (d *zoneDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
-	name_regex := state.Name_regex
+	name := state.Name
 	params := param.NewQueryParam()
 
-	if !name_regex.IsNull() {
-		params.AddQ("name=" + name_regex.ValueString())
+	if !name.IsNull() {
+		params.AddQ("name=" + name.ValueString())
 	}
 
 	//images, err := d.client.QueryImage(params)

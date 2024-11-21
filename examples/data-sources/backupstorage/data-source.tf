@@ -1,30 +1,13 @@
-# Copyright (c) HashiCorp, Inc.
-
-terraform {
-  required_providers {
-    zstack = {
-      source = "zstack.io/terraform-provider-zstack/zstack"
-    }
-  }
-}
-
-provider "zstack" {
-  host            = "172.x.x.x"  #ip address for zstack cloud api endpoint
-  accountname     = "admin"   
-  accountpassword = "password"
-  accesskeyid     = "accesskeyid"
-  accesskeysecret = "accesskeysecret"
-}
+# Copyright (c) ZStack.io, Inc.
 
 
-data "zstack_backupstorage" "imagestorage" {
-  #  name_regex = "image"
-}
+data "zstack_backupstorages" "example" {
+ #   name  = "backupstorage name"
+ #   name_pattern = "image%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+}   
 
-
-
-output "zstack_imagestorage" {
-  value = data.zstack_backupstorage.imagestorage
+output "zstack_imagestorages" {
+  value = data.zstack_backupstorage.example
 }
 
 

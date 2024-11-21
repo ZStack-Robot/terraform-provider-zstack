@@ -296,7 +296,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackl3NetworkDataSource,
 		ZStackvmsDataSource,
 		ZStackClusterDataSource,
-		ZstackBackupStorageDataSource,
+		ZStackBackupStorageDataSource,
 		ZStackHostsDataSource,
 		ZStackmnNodeDataSource,
 	}
@@ -313,7 +313,7 @@ func (p *ZStackProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		ImageResource,
-		ZStackvmResource,
+		InstanceResource,
 		ReservedIpResource,
 	}
 

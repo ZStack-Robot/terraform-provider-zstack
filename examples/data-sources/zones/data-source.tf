@@ -1,19 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
-
-terraform {
-  required_providers {
-    zstack = {
-      source = "zstack.io/terraform-provider-zstack/zstack"
-    }
-  }
-}
-
-provider "zstack" {
-  host            = "ip"
-  accesskeyid     = "accesskeyid"
-  accesskeysecret = "accesskeysecret"
-}
-
+# Copyright (c) ZStack.io Inc.
 
 data "zstack_zones" "zones" {
    name_regex = "ZONE-1"

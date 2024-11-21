@@ -27,8 +27,9 @@ type clusterDataSource struct {
 }
 
 type clusterDataSourceModel struct {
-	Name_regex types.String   `tfsdk:"name_regex"`
-	Clusters   []clusterModel `tfsdk:"clusters"`
+	Name        types.String   `tfsdk:"name"`
+	NamePattern types.String   `tfsdk:"name_pattern"`
+	Clusters    []clusterModel `tfsdk:"clusters"`
 }
 
 type clusterModel struct {
@@ -52,10 +53,8 @@ func (d *clusterDataSource) Configure(_ context.Context, req datasource.Configur
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the Provider developer. ", req.ProviderData),
 		)
-
 		return
 	}
-
 	d.client = client
 }
 
@@ -67,8 +66,12 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of clusters and their associated attributes.",
 		Attributes: map[string]schema.Attribute{
-			"name_regex": schema.StringAttribute{
-				Description: "Regular expression to search and filter clusters by name",
+			"name": schema.StringAttribute{
+				Description: "Exact name for searching Cluster",
+				Optional:    true,
+			},
+			"name_pattern": schema.StringAttribute{
+				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
 			"clusters": schema.ListNestedAttribute{
@@ -113,11 +116,14 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
-	name_regex := state.Name_regex
+	//name_regex := state.Name_pattern
 	params := param.NewQueryParam()
 
-	if !name_regex.IsNull() {
-		params.AddQ("name=" + name_regex.ValueString())
+	// 优先检查 `name` 精确查询
+	if !state.Name.IsNull() {
+		params.AddQ("name=" + state.Name.ValueString())
+	} else if !state.NamePattern.IsNull() {
+		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
 	//images, err := d.client.QueryImage(params)

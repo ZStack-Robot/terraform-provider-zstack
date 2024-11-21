@@ -34,8 +34,9 @@ type imagesModel struct {
 }
 
 type imagesDataSourceModel struct {
-	Name_regex types.String  `tfsdk:"name_regex"`
-	Images     []imagesModel `tfsdk:"images"`
+	Name        types.String  `tfsdk:"name"`
+	NamePattern types.String  `tfsdk:"name_pattern"`
+	Images      []imagesModel `tfsdk:"images"`
 }
 
 func ZStackImageDataSource() datasource.DataSource {
@@ -76,60 +77,37 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	name_regex := state.Name_regex
-	//params := param.NewQueryParam()
+	//name_regex := state.Name
+	params := param.NewQueryParam()
 
-	if !name_regex.IsNull() {
-		params := param.NewQueryParam()
-		params.AddQ("name=" + name_regex.ValueString())
-		images, err := d.client.QueryImage(params)
-
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read ZStack Images",
-				err.Error(),
-			)
-			return
-		}
-		for _, image := range images {
-			imageState := imagesModel{
-				Name:         types.StringValue(image.Name),
-				State:        types.StringValue(image.State),
-				Status:       types.StringValue(image.Status),
-				Uuid:         types.StringValue(image.UUID),
-				GuestOsType:  types.StringValue(image.GuestOsType),
-				Format:       types.StringValue(image.Format),
-				Platform:     types.StringValue(image.Platform),
-				Architecture: types.StringValue(string(image.Architecture)),
-			}
-			state.Images = append(state.Images, imageState)
-		}
+	if !state.Name.IsNull() {
+		params.AddQ("name=" + state.Name.ValueString())
+	} else if !state.NamePattern.IsNull() {
+		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	//images, err := d.client.QueryImage(params)
-	if name_regex.IsNull() {
-		images, err := d.client.QueryImage(param.NewQueryParam())
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Read ZStack Images ",
-				err.Error(),
-			)
-			return
-		}
-		for _, image := range images {
-			imageState := imagesModel{
-				Name:         types.StringValue(image.Name),
-				State:        types.StringValue(image.State),
-				Status:       types.StringValue(image.Status),
-				Uuid:         types.StringValue(image.UUID),
-				GuestOsType:  types.StringValue(image.GuestOsType),
-				Format:       types.StringValue(image.Format),
-				Platform:     types.StringValue(image.Platform),
-				Architecture: types.StringValue(string(image.Architecture)),
-			}
-			state.Images = append(state.Images, imageState)
-		}
+	images, err := d.client.QueryImage(params)
 
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Read ZStack Images",
+			err.Error(),
+		)
+		return
+	}
+
+	for _, image := range images {
+		imageState := imagesModel{
+			Name:         types.StringValue(image.Name),
+			State:        types.StringValue(image.State),
+			Status:       types.StringValue(image.Status),
+			Uuid:         types.StringValue(image.UUID),
+			GuestOsType:  types.StringValue(image.GuestOsType),
+			Format:       types.StringValue(image.Format),
+			Platform:     types.StringValue(image.Platform),
+			Architecture: types.StringValue(string(image.Architecture)),
+		}
+		state.Images = append(state.Images, imageState)
 	}
 
 	diags = resp.State.Set(ctx, state)
@@ -145,8 +123,12 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"name_regex": schema.StringAttribute{
-				Description: "Regular expression to search and filter images by name",
+			"name": schema.StringAttribute{
+				Description: "Exact name for searching images",
+				Optional:    true,
+			},
+			"name_pattern": schema.StringAttribute{
+				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
 			"images": schema.ListNestedAttribute{
