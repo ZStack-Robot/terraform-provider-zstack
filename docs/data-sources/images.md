@@ -17,7 +17,8 @@ description: |-
 
 ### Optional
 
-- `name_regex` (String) name_regex for Search and filter images
+- `name` (String) Exact name for searching images
+- `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
@@ -28,11 +29,11 @@ description: |-
 
 Read-Only:
 
-- `architecture` (String) CPU Architecture of the image. The value of one x86_64|aarch64|mips64|longarch64
-- `format` (String) Format of the image. The value of one qcow2|iso|vmdk|raw
-- `guestostype` (String) OS type of the image
-- `name` (String) Image name of the vm template
-- `platform` (String) Platform of the image. The value of one Linux|Windows|other
-- `state` (String) Enabled or Disabled state of the image
-- `status` (String) Ready or not of the image
-- `uuid` (String) uuid identifier of the image
+- `architecture` (String) CPU architecture of the image, such as x86_64, aarch64, mips64, or longarch64
+- `format` (String) Format of the image, such as qcow2, iso, vmdk, or raw
+- `guest_os_type` (String) Operating system type of the image (e.g., Linux, Windows)
+- `name` (String) Name of the image
+- `platform` (String) Platform of the image, such as Linux, Windows, or Other
+- `state` (String) State of the image, indicating if it is Enabled or Disabled
+- `status` (String) Readiness status of the image (e.g., Ready or Not Ready)
+- `uuid` (String) UUID identifier of the image

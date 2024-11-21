@@ -65,10 +65,10 @@ You can run them by entering the following instructions in a terminal:
 ```
 cd $GOPATH/src/xxxx/zstack/terraform-provider-zstack
 export ZSTACK_HOST=xxx
-export ZSTACK_ACCOUNTNAME=xxx
-export ZSTACK_ACCOUNTPASSWORD=xxx
-export ZSTACK_ACCESSKEYID=xxx
-export ZSTACK_ACCESSKEYSECRET=xxx
+export ZSTACK_ACCOUNT_NAME=xxx
+export ZSTACK_ACCOUNTP_ASSWORD=xxx
+export ZSTACK_ACCESS_KEY_ID=xxx
+export ZSTACK_ACCESS_KEY_SECRET=xxx
 export outfile=gotest.out
 
 

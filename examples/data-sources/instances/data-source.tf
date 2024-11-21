@@ -2,8 +2,8 @@
 
 
 data "zstack_instances" "vminstances" {
- #   name = "name of vm instance"
- #    name_pattern = "L3 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  #   name = "name of vm instance"
+  #    name_pattern = "L3 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 }
 
 

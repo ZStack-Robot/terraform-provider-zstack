@@ -17,8 +17,10 @@ description: |-
 
 ### Optional
 
-- `accesskeyid` (String) AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESSKEYID environment variable.
-- `accesskeysecret` (String, Sensitive) AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESSKEYSECRET environment variable.
-- `accountname` (String) Username for ZStack API. May also be provided via ZSTACK_ACCOUNTNAME environment variable.
-- `accountpassword` (String, Sensitive) Password for ZStack API. May also be provided via ZSTACK_ACCOUNTPASSWORD environment variable.
+- `access_key_id` (String) AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable.
+- `access_key_secret` (String, Sensitive) AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable.
+- `account_name` (String) Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.
+- `account_password` (String, Sensitive) Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.
 - `host` (String) ZStack Cloud MN HOST ip address. May also be provided via ZSTACK_HOST environment variable.
+- `port` (Number) ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.
+- `session_id` (String) ZStack Cloud Session id.
