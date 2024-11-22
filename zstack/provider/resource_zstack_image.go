@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -56,7 +56,6 @@ func (r *imageResource) Configure(ctx context.Context, req resource.ConfigureReq
 			"Unexpected Data Source Configure Type",
 			fmt.Sprintf("Expected *client.ZSClient, got: %T. Please report this issue to the Provider developer. ", req.ProviderData),
 		)
-
 		return
 	}
 
@@ -177,7 +176,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			MediaType:          param.RootVolumeTemplate,
 			GuestOsType:        imagePlan.GuestOsType.ValueString(),
 			System:             false,
-			Format:             param.Qcow2,
+			Format:             param.ImageFormat(imagePlan.Format.ValueString()), // param.Qcow2,
 			Platform:           imagePlan.Platform.ValueString(),
 			BackupStorageUuids: backupStorageUuids,
 			Type:               imagePlan.Type.ValueString(),

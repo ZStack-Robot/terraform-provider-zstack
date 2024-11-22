@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -20,10 +20,10 @@ const (
 
 	providerConfig = `
 	provider "zstack" {
-		host = "172.26.195.168"
-		port = "8080"
-		access_key_id = "0HgooM23adqrFENc95ab"
-		access_key_secret = "Mp8c7S9vVL7CqFqexCMMqaABfNIfhZH0kv2a3Hta"		
+        host              = "172.30.3.3"
+		port              = "8080"
+        access_key_id     = "RB6frcmLjORqMyM5jhBz"
+        access_key_secret = "qdt6QI9TUr7PxT3F8UU1BSrvfjryiRxSbrLWrzZ2"	
 	}
 	`
 )

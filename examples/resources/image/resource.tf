@@ -1,44 +1,24 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright (c) ZStack.io, Inc.
 
-terraform {
-  required_providers {
-    zstack = {
-      source = "zstack.io/terraform-provider-zstack/zstack"
-    }
-  }
-}
-
-provider "zstack" {
-  host            = "172.25.16.104"
-  accountname     = "admin"
-  accountpassword = "password"
-  accesskeyid     = "mO6W9gzCQxsfK6OsE7dg"
-  accesskeysecret = "Z1B3KVQlGqeaxcpeP55M3WxpRPDUyLqsppp1aLms"
-}
-
-data "zstack_backupstorage" "imagestorage" {
-  name_regex = "image"
+data "zstack_backupstorages" "example" {
+  name  = "bs"
 }
 
 resource "zstack_image" "image" {
   count       = 3
-  name        = "C790123newname"
-  description = "chi test"
+  name        = "name of image"
+  description = "description of image"
   url         = "file:///opt/zstack-dvd/zstack-image-1.4.qcow2"
-  #url = "http://172.20.1.130:8001/imagestore/download/C79-image-a1c72a746afa809ff4a2214b6a5595f4da59ce97.raw"
-  # url = "http://storage.zstack.io/mirror/nightly/diskimages/CentOS7.9.qcow2"
-  guestostype = "Linux"
+  #url = "http://url/image.raw"
+  # url = "http://url/image.qcow2"
+  guest_os_type = "Linux"
   platform    = "Linux"
   format      = "qcow2"
-  #  type = ""
-  #  architecture = "x86_64"
+  architecture = "x86_64"
   virtio            = false
-  backupstorageuuid = data.zstack_backupstorage.imagestorage.backupstorages.0.uuid
+  backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
+  boot_mode = "legacy"
 }
-
-#data "zstack_images" "images" {}
-
-
 
 output "zstack_image" {
   value = zstack_image.image

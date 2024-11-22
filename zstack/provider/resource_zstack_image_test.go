@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package provider
 
@@ -24,7 +24,7 @@ func TestAccCreateImageResource(t *testing.T) {
 					format      = "qcow2"
 					architecture = "x86_64"
 					virtio      = true
-					backup_storage_uuids = ["530c16460d974b8da73edae3d7b7ac41"]
+					backup_storage_uuids = ["5565902ddccc4aada737e0ca6b844ff4"]
 					boot_mode   = "legacy"
 				}`,
 
@@ -40,7 +40,7 @@ func TestAccCreateImageResource(t *testing.T) {
 					resource.TestCheckResourceAttr("zstack_image.test", "virtio", "true"),
 					resource.TestCheckResourceAttr("zstack_image.test", "boot_mode", "legacy"),
 					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.#", "1"),
-					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.0", "530c16460d974b8da73edae3d7b7ac41"),
+					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.0", "5565902ddccc4aada737e0ca6b844ff4"),
 				),
 			},
 		},
