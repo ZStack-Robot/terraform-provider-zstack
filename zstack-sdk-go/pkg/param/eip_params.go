@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -9,30 +9,30 @@ type CreateEipParam struct {
 }
 
 type CreateEipDetailParam struct {
-	Name         string `json:"name"`                  //资源名称
-	Description  string `json:"description,omitempty"` //详细描述
+	Name         string `json:"name"`                  // Resource name
+	Description  string `json:"description,omitempty"` // Detailed description
 	VipUuid      string `json:"vipUuid"`
 	VmNicUuid    string `json:"vmNicUuid,omitempty"`
-	UsedIpUuid   *int   `json:"usedIpUuid,omitempty"`   //亲和组策略
-	ResourceUuid string `json:"resourceUuid,omitempty"` //资源UUID。若指定，镜像会使用该字段值作为UUID。
+	UsedIpUuid   *int   `json:"usedIpUuid,omitempty"`   // Affinity group policy
+	ResourceUuid string `json:"resourceUuid,omitempty"` // Resource UUID. If specified, the image will use this value as the UUID.
 }
 
 type UpdateEipParam struct {
 	BaseParam
 
-	UUID      string               `json:"uuid"` //资源的UUID，唯一标示该资源
+	UUID      string               `json:"uuid"` // Resource UUID, uniquely identifies the resource
 	UpdateEip UpdateEipDetailParam `json:"updateEip"`
 }
 
 type UpdateEipDetailParam struct {
-	Name        string `json:"name,omitempty"`        //资源名称
-	Description string `json:"description,omitempty"` //详细描述
+	Name        string `json:"name,omitempty"`        // Resource name
+	Description string `json:"description,omitempty"` // Detailed description
 }
 
 type ChangeEipStateParam struct {
 	BaseParam
 
-	UUID           string                    `json:"uuid"` //资源的UUID，唯一标示该资源
+	UUID           string                    `json:"uuid"` // Resource UUID, uniquely identifies the resource
 	ChangeEipState ChangeEipStateDetailParam `json:"changeEipState"`
 }
 
@@ -43,8 +43,8 @@ type ChangeEipStateDetailParam struct {
 type GetEipAttachableVmNicsParam struct {
 	BaseParam
 
-	EipUuid string `json:"eipUuid,omitempty"` //弹性IP UUID
-	VipUuid string `json:"vipUuid,omitempty"` //VIP UUID
+	EipUuid string `json:"eipUuid,omitempty"` // Elastic IP UUID
+	VipUuid string `json:"vipUuid,omitempty"` // VIP UUID
 }
 
 type GetVmNicAttachableEipsParam struct {

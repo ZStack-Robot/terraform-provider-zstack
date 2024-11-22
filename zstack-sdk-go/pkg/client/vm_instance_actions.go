@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package client
 
@@ -9,7 +9,7 @@ import (
 	"zstack.io/zstack-sdk-go/pkg/view"
 )
 
-// CreateVmInstance 创建云主机
+// CreateVmInstance Create a VM instance
 func (cli *ZSClient) CreateVmInstance(params param.CreateVmInstanceParam) (*view.VmInstanceInventoryView, error) {
 	resp := view.VmInstanceInventoryView{}
 	if err := cli.Post("v1/vm-instances", params, &resp); err != nil {
@@ -18,7 +18,7 @@ func (cli *ZSClient) CreateVmInstance(params param.CreateVmInstanceParam) (*view
 	return &resp, nil
 }
 
-// CreateVmInstanceFromVolume 从云盘创建云主机
+// CreateVmInstanceFromVolume Create a VM instance from a volume
 func (cli *ZSClient) CreateVmInstanceFromVolume(params param.CreateVmFromVolumeParam) (*view.VmInstanceInventoryView, error) {
 	resp := view.VmInstanceInventoryView{}
 	if err := cli.Post("v1/vm-instances/from/volume", params, &resp); err != nil {
@@ -27,12 +27,12 @@ func (cli *ZSClient) CreateVmInstanceFromVolume(params param.CreateVmFromVolumeP
 	return &resp, nil
 }
 
-// DestroyVmInstance 删除云主机
+// DestroyVmInstance Delete a VM instance
 func (cli *ZSClient) DestroyVmInstance(uuid string, deleteMode param.DeleteMode) error {
 	return cli.Delete("v1/vm-instances", uuid, string(deleteMode))
 }
 
-// ExpungeVmInstance 彻底删除云主机
+// ExpungeVmInstance Permanently delete a VM instance
 func (cli *ZSClient) ExpungeVmInstance(uuid string) error {
 	params := map[string]struct{}{
 		"expungeVmInstance": {},
@@ -40,13 +40,13 @@ func (cli *ZSClient) ExpungeVmInstance(uuid string) error {
 	return cli.Put("v1/vm-instances", uuid, params, nil)
 }
 
-// QueryVmInstance 查询云主机
+// QueryVmInstance Query VM instances
 func (cli *ZSClient) QueryVmInstance(params param.QueryParam) ([]view.VmInstanceInventoryView, error) {
 	var resp []view.VmInstanceInventoryView
 	return resp, cli.List("v1/vm-instances", &params, &resp)
 }
 
-// PageVmInstance 分页查询云主机
+// PageVmInstance Paginate VM instances
 func (cli *ZSClient) PageVmInstance(params param.QueryParam) ([]view.VmInstanceInventoryView, int, error) {
 	var resp []view.VmInstanceInventoryView
 	page, err := cli.Page("v1/vm-instances", &params, &resp)
@@ -61,7 +61,7 @@ func (cli *ZSClient) GetVmInstance(uuid string) (*view.VmInstanceInventoryView, 
 	return &resp, nil
 }
 
-// StartVmInstance 启动云主机
+// StartVmInstance Start a VM instance
 func (cli *ZSClient) StartVmInstance(uuid string, params *param.StartVmInstanceParam) (*view.VmInstanceInventoryView, error) {
 	resp := view.VmInstanceInventoryView{}
 	if params == nil {
@@ -75,7 +75,7 @@ func (cli *ZSClient) StartVmInstance(uuid string, params *param.StartVmInstanceP
 	return &resp, nil
 }
 
-// StopVmInstance 停止云主机
+// StopVmInstance Stop a VM instance
 func (cli *ZSClient) StopVmInstance(uuid string, params param.StopVmInstanceParam) (*view.VmInstanceInventoryView, error) {
 	resp := view.VmInstanceInventoryView{}
 	if err := cli.Put("v1/vm-instances", uuid, params, &resp); err != nil {
@@ -84,7 +84,7 @@ func (cli *ZSClient) StopVmInstance(uuid string, params param.StopVmInstancePara
 	return &resp, nil
 }
 
-// RebootVmInstance 重启云主机
+// RebootVmInstance Reboot a VM instance
 func (cli *ZSClient) RebootVmInstance(uuid string) (*view.VmInstanceInventoryView, error) {
 	params := map[string]struct{}{
 		"rebootVmInstance": {},
@@ -96,7 +96,7 @@ func (cli *ZSClient) RebootVmInstance(uuid string) (*view.VmInstanceInventoryVie
 	return &resp, nil
 }
 
-// PauseVmInstance 暂停云主机
+// PauseVmInstance Pause a VM instance
 func (cli *ZSClient) PauseVmInstance(uuid string) (*view.VmInstanceInventoryView, error) {
 	params := map[string]struct{}{
 		"pauseVmInstance": {},
@@ -108,7 +108,7 @@ func (cli *ZSClient) PauseVmInstance(uuid string) (*view.VmInstanceInventoryView
 	return &resp, nil
 }
 
-// ResumeVmInstance 恢复暂停的云主机
+// ResumeVmInstance Resume a paused VM instance
 func (cli *ZSClient) ResumeVmInstance(uuid string) (*view.VmInstanceInventoryView, error) {
 	params := map[string]struct{}{
 		"resumeVmInstance": {},
@@ -120,7 +120,7 @@ func (cli *ZSClient) ResumeVmInstance(uuid string) (*view.VmInstanceInventoryVie
 	return &resp, nil
 }
 
-// GetVmGuestToolsInfo 获取云主机内部增强工具的信息
+// GetVmGuestToolsInfo Get information about VM guest tools
 func (cli *ZSClient) GetVmGuestToolsInfo(uuid string) (*view.VmGuestToolsInfoView, error) {
 	var resp view.VmGuestToolsInfoView
 	if err := cli.GetWithSpec("v1/vm-instances", uuid, "guest-tools-infos", "", nil, &resp); err != nil {
@@ -129,7 +129,7 @@ func (cli *ZSClient) GetVmGuestToolsInfo(uuid string) (*view.VmGuestToolsInfoVie
 	return &resp, nil
 }
 
-// GetLatestGuestToolsForVm 获取云主机可用的最新增强工具
+// GetLatestGuestToolsForVm Get the latest guest tools available for the VM
 func (cli *ZSClient) GetLatestGuestToolsForVm(uuid string) (*view.LatestGuestToolsView, error) {
 	var resp view.LatestGuestToolsView
 	if err := cli.GetWithSpec("v1/vm-instances", uuid, "latest-guest-tools", responseKeyInventory, nil, &resp); err != nil {
@@ -138,13 +138,13 @@ func (cli *ZSClient) GetLatestGuestToolsForVm(uuid string) (*view.LatestGuestToo
 	return &resp, nil
 }
 
-// GetVmBootOrder 获取云主机启动设备列表
+// GetVmBootOrder retrieves the boot device order of a VM.
 func (cli *ZSClient) GetVmBootOrder(uuid string) ([]string, error) {
 	var resp []string
 	return resp, cli.GetWithSpec("v1/vm-instances", uuid, "boot-orders", "orders", nil, &resp)
 }
 
-// AttachGuestToolsIsoToVm 为云主机加载增强工具镜像
+// AttachGuestToolsIsoToVm attaches the guest tools ISO to a VM.
 func (cli *ZSClient) AttachGuestToolsIsoToVm(uuid string) error {
 	params := map[string]struct{}{
 		"attachGuestToolsIsoToVm": {},
@@ -152,7 +152,7 @@ func (cli *ZSClient) AttachGuestToolsIsoToVm(uuid string) error {
 	return cli.Put("v1/vm-instances", uuid, params, nil)
 }
 
-// GetVmAttachableDataVolume 获取云主机可加载云盘列表
+// GetVmAttachableDataVolume retrieves a list of data volumes that can be attached to a VM.
 func (cli *ZSClient) GetVmAttachableDataVolume(uuid string) ([]view.VolumeView, error) {
 	resource := fmt.Sprintf("v1/vm-instances/%s/data-volume-candidates", uuid)
 	var resp []view.VolumeView
@@ -160,7 +160,7 @@ func (cli *ZSClient) GetVmAttachableDataVolume(uuid string) ([]view.VolumeView, 
 	return resp, cli.List(resource, &params, &resp)
 }
 
-// GetVmAttachableL3Network 获取云主机可加载L3网络列表
+// GetVmAttachableL3Network retrieves a list of L3 networks that can be attached to a VM.
 func (cli *ZSClient) GetVmAttachableL3Network(uuid string) ([]view.L3NetworkInventoryView, error) {
 	resource := fmt.Sprintf("v1/vm-instances/%s/l3-networks-candidates", uuid)
 	var resp []view.L3NetworkInventoryView
@@ -168,7 +168,7 @@ func (cli *ZSClient) GetVmAttachableL3Network(uuid string) ([]view.L3NetworkInve
 	return resp, cli.List(resource, &params, &resp)
 }
 
-// CloneVmInstance 克隆云主机到指定物理机
+// CloneVmInstance clones a VM to a specified host.
 func (cli *ZSClient) CloneVmInstance(uuid string, params param.CloneVmInstanceParam) (*view.CloneVmInstanceResult, error) {
 	var resp view.CloneVmInstanceResult
 	if err := cli.PutWithRespKey("v1/vm-instances", uuid, "result", params, &resp); err != nil {
@@ -177,7 +177,7 @@ func (cli *ZSClient) CloneVmInstance(uuid string, params param.CloneVmInstancePa
 	return &resp, nil
 }
 
-// UpdateVmInstance 更新云主机信息
+// UpdateVmInstance updates VM information.
 func (cli *ZSClient) UpdateVmInstance(uuid string, params param.UpdateVmInstanceParam) (*view.VmInstanceInventoryView, error) {
 	var resp view.VmInstanceInventoryView
 	if err := cli.Put("v1/vm-instances", uuid, params, &resp); err != nil {
@@ -186,7 +186,7 @@ func (cli *ZSClient) UpdateVmInstance(uuid string, params param.UpdateVmInstance
 	return &resp, nil
 }
 
-// GetVmConsoleAddress 获取云主机控制台地址和访问协议
+// GetVmConsoleAddress retrieves the console address and protocol of a VM.
 func (cli *ZSClient) GetVmConsoleAddress(instanceUUID string) (*view.VMConsoleAddressView, error) {
 	var resp view.VMConsoleAddressView
 	if err := cli.GetWithSpec("v1/vm-instances", instanceUUID, "console-addresses", "", nil, &resp); err != nil {
@@ -195,14 +195,14 @@ func (cli *ZSClient) GetVmConsoleAddress(instanceUUID string) (*view.VMConsoleAd
 	return &resp, nil
 }
 
-// GetInstanceConsolePassword 获取云主机控制台密码
+// GetInstanceConsolePassword retrieves the console password of a VM.
 func (cli *ZSClient) GetInstanceConsolePassword(instanceUUID string) (string, error) {
 	resp := view.GetVmConsolePasswordView{}
 	return resp.ConsolePassword, cli.GetWithSpec("v1/vm-instances", instanceUUID, "console-passwords", "", nil, &resp)
 }
 
-// LiveMigrateVM 热迁移云主机
-// hostUUID is the target host's uuid, if empty will choose a host automatically by cloud.
+// LiveMigrateVM performs a live migration of a VM.
+// hostUUID specifies the target host. If empty, the cloud chooses a host automatically.
 func (cli *ZSClient) LiveMigrateVM(instanceUUID, hostUUID string, autoConverge bool) (*view.VmInstanceInventoryView, error) {
 	type migrateVM struct {
 		HostUUID string `json:"hostUuid"`
@@ -224,64 +224,64 @@ func (cli *ZSClient) LiveMigrateVM(instanceUUID, hostUUID string, autoConverge b
 	return &resp, nil
 }
 
-// GetVmMigrationCandidateHosts 获取可热迁移的物理机列表
+// GetVmMigrationCandidateHosts retrieves a list of hosts eligible for live migration.
 func (cli *ZSClient) GetVmMigrationCandidateHosts(instanceUUID string) ([]view.HostInventoryView, error) {
 	var resp []view.HostInventoryView
 	queryParam := param.NewQueryParam()
 	return resp, cli.List(fmt.Sprintf("v1/vm-instances/%s/migration-target-hosts", instanceUUID), &queryParam, &resp)
 }
 
-// GetVmStartingCandidateClustersHosts 获取云主机可启动目的地列表
+// GetVmStartingCandidateClustersHosts retrieves a list of potential destinations for starting a VM.
 func (cli *ZSClient) GetVmStartingCandidateClustersHosts(instanceUUID string) ([]view.HostInventoryView, error) {
 	var resp []view.HostInventoryView
 	queryParam := param.NewQueryParam()
 	return resp, cli.ListWithRespKey(fmt.Sprintf("v1/vm-instances/%s/starting-target-hosts", instanceUUID), "hosts", &queryParam, &resp)
 }
 
-// GetVmQga 获取云主机Qga
+// GetVmQga retrieves the Qga (Guest Agent) information of a VM.
 func (cli *ZSClient) GetVmQga(uuid string) (view.VMQgaView, error) {
 	resp := view.VMQgaView{}
 	return resp, cli.GetWithSpec("v1/vm-instances", uuid, "qga", "", nil, &resp)
 }
 
-// SetVmQga 设置云主机Qga
+// SetVmQga sets the Qga (Guest Agent) configuration for a VM.
 func (cli *ZSClient) SetVmQga(params param.UpdateVmInstanceQgaParam) error {
 	return cli.Put("v1/vm-instances", params.UUID, params, nil)
 }
 
-// SetVmBootMode 设置云主机启动模式
+// SetVmBootMode sets the boot mode for a VM.
 func (cli *ZSClient) SetVmBootMode(uuid string, params param.SetVmBootModeParam) error {
 	return cli.Put("v1/vm-instances", uuid, params, nil)
 }
 
-// GetVmSshKey 获取云主机SSH Key
+// GetVmSshKey retrieves the SSH key associated with a virtual machine.
 func (cli *ZSClient) GetVmSshKey(uuid string) (view.VMSshKeyView, error) {
 	resp := view.VMSshKeyView{}
 	return resp, cli.GetWithSpec("v1/vm-instances", uuid, "ssh-keys", "", nil, &resp)
 }
 
-// SetVmSshKey 设置云主机SSH Key
+// SetVmSshKey sets the SSH key for a virtual machine.
 func (cli *ZSClient) SetVmSshKey(params param.UpdateVmInstanceSshKeyParam) error {
 	return cli.Put("v1/vm-instances", params.UUID, params, nil)
 }
 
-// DeleteVmSshKey 删除云主机SSH Key
+// DeleteVmSshKey deletes the SSH key of a virtual machine.
 func (cli *ZSClient) DeleteVmSshKey(uuid string, mode param.DeleteMode) error {
 	return cli.DeleteWithSpec("v1/vm-instances", uuid, "ssh-keys", fmt.Sprintf("mode=%s", mode), nil)
 }
 
-// ChangeVmPassword 变更云主机密码
+// ChangeVmPassword changes the password of a virtual machine.
 func (cli *ZSClient) ChangeVmPassword(params param.UpdateVmInstanceChangePwdParam) error {
 	return cli.Put("v1/vm-instances", params.UUID, params, nil)
 }
 
-// GetCandidateIsoForAttachingVm 获取云主机可加载ISO列表
+// GetCandidateIsoForAttachingVm retrieves the list of ISO images that can be attached to a virtual machine.
 func (cli *ZSClient) GetCandidateIsoForAttachingVm(uuid string, p *param.QueryParam) ([]view.ImageView, error) {
 	resp := make([]view.ImageView, 0)
 	return resp, cli.List("v1/vm-instances/"+uuid+"/iso-candidates", p, &resp)
 }
 
-// AttachIsoToVmInstance 加载ISO到云主机
+// AttachIsoToVmInstance attaches an ISO image to a virtual machine.
 func (cli *ZSClient) AttachIsoToVmInstance(isoUUID, instanceUUID, cdRomUUID string) (*view.VmInstanceInventoryView, error) {
 	var resp view.VmInstanceInventoryView
 	p := param.BaseParam{
@@ -293,7 +293,7 @@ func (cli *ZSClient) AttachIsoToVmInstance(isoUUID, instanceUUID, cdRomUUID stri
 	return &resp, nil
 }
 
-// DetachIsoFromVmInstance 卸载云主机上的ISO
+// DetachIsoFromVmInstance detaches an ISO image from a virtual machine.
 func (cli *ZSClient) DetachIsoFromVmInstance(instanceUUID, isoUUID string) (*view.VmInstanceInventoryView, error) {
 	var resp view.VmInstanceInventoryView
 	if err := cli.DeleteWithSpec("v1/vm-instances", instanceUUID, "iso", fmt.Sprintf("isoUuid=%s&deleteMode=%s", isoUUID, param.DeleteModePermissive), &resp); err != nil {
@@ -302,7 +302,7 @@ func (cli *ZSClient) DetachIsoFromVmInstance(instanceUUID, isoUUID string) (*vie
 	return &resp, nil
 }
 
-// SetVmClockTrack 设置云主机时钟同步
+// SetVmClockTrack configures clock synchronization for a virtual machine.
 func (cli *ZSClient) SetVmClockTrack(uuid string, params param.UpdateVmInstanceClockTrackParam) (*view.VmInstanceInventoryView, error) {
 	var resp view.VmInstanceInventoryView
 	if err := cli.Put("v1/vm-instances", uuid, params, &resp); err != nil {
@@ -311,20 +311,20 @@ func (cli *ZSClient) SetVmClockTrack(uuid string, params param.UpdateVmInstanceC
 	return &resp, nil
 }
 
-// QueryVmCdRom 查询CDROM清单
+// QueryVmCdRom queries the list of CD-ROMs for virtual machines.
 func (cli *ZSClient) QueryVmCdRom(p param.QueryParam) ([]view.VMCDRomView, error) {
 	resp := make([]view.VMCDRomView, 0)
 	return resp, cli.List("v1/vm-instances/cdroms", &p, &resp)
 }
 
-// PageVmCdRom 分页查询CDROM清单
+// PageVmCdRom queries CD-ROMs for virtual machines with pagination.
 func (cli *ZSClient) PageVmCdRom(p param.QueryParam) ([]view.VMCDRomView, int, error) {
 	resp := make([]view.VMCDRomView, 0)
 	num, err := cli.Page("v1/vm-instances/cdroms", &p, &resp)
 	return resp, num, err
 }
 
-// SetVmInstanceDefaultCdRom 设置云主机默认CDROM
+// SetVmInstanceDefaultCdRom sets the default CD-ROM for a virtual machine.
 func (cli *ZSClient) SetVmInstanceDefaultCdRom(vmInstanceUUID, cdRomUUID string) (*view.VMCDRomView, error) {
 	var resp view.VMCDRomView
 	if err := cli.Put("v1/vm-instances/", vmInstanceUUID+"/cdroms/"+cdRomUUID, map[string]interface{}{"setVmInstanceDefaultCdRom": nil}, &resp); err != nil {
@@ -333,7 +333,7 @@ func (cli *ZSClient) SetVmInstanceDefaultCdRom(vmInstanceUUID, cdRomUUID string)
 	return &resp, nil
 }
 
-// UpdateVmCdRom 修改CDROM
+// UpdateVmCdRom updates a CD-ROM for a virtual machine.
 func (cli *ZSClient) UpdateVmCdRom(cdRomUUID string, params param.UpdateVmCdRomParam) (*view.VMCDRomView, error) {
 	var resp view.VMCDRomView
 	if err := cli.Put("v1/vm-instances/cdroms", cdRomUUID, params, &resp); err != nil {
@@ -342,12 +342,12 @@ func (cli *ZSClient) UpdateVmCdRom(cdRomUUID string, params param.UpdateVmCdRomP
 	return &resp, nil
 }
 
-// DeleteVmCdRom 删除CDROM
+// DeleteVmCdRom deletes a CD-ROM from a virtual machine.
 func (cli *ZSClient) DeleteVmCdRom(cdRomUUID string, deleteMode param.DeleteMode) error {
 	return cli.Delete("v1/vm-instances/cdroms", cdRomUUID, string(deleteMode))
 }
 
-// CreateVmCdRom 为云主机创建CDROM
+// CreateVmCdRom creates a new CD-ROM for a virtual machine.
 func (cli *ZSClient) CreateVmCdRom(params param.CreateVmCdRomParam) (*view.VMCDRomView, error) {
 	var resp view.VMCDRomView
 	if err := cli.Post("v1/vm-instances/cdroms", params, &resp); err != nil {
@@ -356,7 +356,7 @@ func (cli *ZSClient) CreateVmCdRom(params param.CreateVmCdRomParam) (*view.VMCDR
 	return &resp, nil
 }
 
-// GetCandidatePrimaryStoragesForCreatingVm 获取可选择的主存储
+// GetCandidatePrimaryStoragesForCreatingVm retrieves the list of candidate primary storages for creating a virtual machine.
 func (cli *ZSClient) GetCandidatePrimaryStoragesForCreatingVm(params param.QueryParam) (*view.GetCandidatePrimaryStoragesForCreatingVmView, error) {
 	resp := new(view.GetCandidatePrimaryStoragesForCreatingVmView)
 	return resp, cli.ListWithRespKey("v1/vm-instances/candidate-storages", "", &params, resp)

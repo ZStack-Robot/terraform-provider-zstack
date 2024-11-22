@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package client
 
@@ -7,7 +7,7 @@ import (
 	"zstack.io/zstack-sdk-go/pkg/view"
 )
 
-// CreateInstanceOffering 创建云主机规格
+// CreateInstanceOffering creates a cloud host specification
 func (cli *ZSClient) CreateInstanceOffering(params *param.CreateInstanceOfferingParam) (*view.InstanceOfferingInventoryView, error) {
 	var resp view.InstanceOfferingInventoryView
 	if err := cli.Post("v1/instance-offerings", params, &resp); err != nil {
@@ -16,7 +16,7 @@ func (cli *ZSClient) CreateInstanceOffering(params *param.CreateInstanceOffering
 	return &resp, nil
 }
 
-// DeleteInstanceOffering 删除云主机规格
+// DeleteInstanceOffering deletes a cloud host specification
 func (cli *ZSClient) DeleteInstanceOffering(uuid string, deleteMode param.DeleteMode) error {
 	return cli.Delete("v1/instance-offerings", uuid, string(deleteMode))
 }

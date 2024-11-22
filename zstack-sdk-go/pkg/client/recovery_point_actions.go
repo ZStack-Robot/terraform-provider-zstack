@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package client
 
@@ -14,7 +14,7 @@ import (
 const RecoverPotListRespKey = "recoveryPoints"
 const ProtectRecoverPotListRespKey = "recoveryPoints"
 
-// DescribeVmInstanceRecoveryPoint
+// DescribeVmInstanceRecoveryPoint Get recovery point information for a VM instance
 func (cli *ZSClient) DescribeVmInstanceRecoveryPoint(uuid string, params *param.GetRecoveryPointParam) (*view.PointResourceInfoView, error) {
 	if len(uuid) == 0 {
 		return nil, fmt.Errorf("uuid should not empty")
@@ -27,7 +27,7 @@ func (cli *ZSClient) DescribeVmInstanceRecoveryPoint(uuid string, params *param.
 	return &resp, nil
 }
 
-// QueryRecoveryPoint 查询恢复点
+// QueryRecoveryPoint Query recovery points for a VM instance
 func (cli *ZSClient) QueryRecoveryPoint(uuid string, params param.QueryRecoveryPointParam) (*view.RecoveryPointRespView, error) {
 	if len(uuid) == 0 {
 		return nil, fmt.Errorf("uuid should not empty")
@@ -40,7 +40,7 @@ func (cli *ZSClient) QueryRecoveryPoint(uuid string, params param.QueryRecoveryP
 	return &resp, nil
 }
 
-// QueryProtectRecoveryPoint 查询保护恢复点
+// QueryProtectRecoveryPoint Query protected recovery points for a VM instance
 func (cli *ZSClient) QueryProtectRecoveryPoint(uuid string, params param.QueryProtectRecoveryPointParam) (*view.ProtectRecoveryPointRespView, error) {
 	if len(uuid) == 0 {
 		return nil, errors.New("uuid should not empty")
@@ -53,7 +53,7 @@ func (cli *ZSClient) QueryProtectRecoveryPoint(uuid string, params param.QueryPr
 	return &resp, nil
 }
 
-// ProtectVmInstanceRecoveryPoint 设置保护恢复点
+// ProtectVmInstanceRecoveryPoint Set protected recovery point for a VM instance
 func (cli *ZSClient) ProtectVmInstanceRecoveryPoint(uuid string, params param.ProtectVmInstanceRecoveryPointParam) error {
 	if len(uuid) == 0 {
 		return errors.New("uuid should not empty")
@@ -61,7 +61,7 @@ func (cli *ZSClient) ProtectVmInstanceRecoveryPoint(uuid string, params param.Pr
 	return cli.PutWithSpec("v1/vm-instances", uuid, "protect-recovery-point", "", &params, nil)
 }
 
-// UnprotectVmInstanceRecoveryPoint 解除保护恢复点
+// UnprotectVmInstanceRecoveryPoint Remove protected recovery point for a VM instance
 func (cli *ZSClient) UnprotectVmInstanceRecoveryPoint(uuid string, params param.UnprotectVmInstanceRecoveryPointParam) error {
 	if len(uuid) == 0 {
 		return errors.New("uuid should not empty")

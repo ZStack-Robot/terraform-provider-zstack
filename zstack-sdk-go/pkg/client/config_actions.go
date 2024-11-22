@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package client
 
@@ -12,8 +12,8 @@ import (
 type FencerStrategy string
 
 const (
-	Force      FencerStrategy = "Force"      //激进
-	Permissive FencerStrategy = "Permissive" //保守
+	Force      FencerStrategy = "Force"      // Force
+	Permissive FencerStrategy = "Permissive" // Permissive
 )
 
 func (cli *ZSClient) QueryGlobalConfig(params param.QueryParam) ([]view.GlobalConfigView, error) {
@@ -26,14 +26,14 @@ func (cli *ZSClient) QueryResourceConfig(params param.QueryParam) ([]view.Resour
 	return configurations, cli.List("v1/resource-configurations", &params, &configurations)
 }
 
-// GetResourceConfig 获取资源的资源高级设置
+// GetResourceConfig Get advanced settings for the resource
 func (cli *ZSClient) GetResourceConfig(resourceUuid, category, name string) ([]view.ResourceConfigView, error) {
 	resp := new([]view.ResourceConfigView)
 
 	return *resp, cli.GetWithSpec("v1/resource-configurations", resourceUuid, fmt.Sprintf("%s/%s", category, name), "effectiveConfigs", nil, resp)
 }
 
-// UpdateGlobalConfig 更新资源高级设置
+// UpdateGlobalConfig Update advanced settings for resources
 func (cli *ZSClient) UpdateGlobalConfig(category, name string, params param.UpdateGlobalConfigParam) (view.GlobalConfigView, error) {
 	resp := new(view.GlobalConfigView)
 

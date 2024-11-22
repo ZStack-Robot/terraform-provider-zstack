@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -32,12 +32,12 @@ type CreateCdpPolicyParam struct {
 type CreateCdpPolicyDetailParam struct {
 	Name                    string `json:"name"`
 	Description             string `json:"description"`
-	RecoveryPointPerSecond  int64  `json:"recoveryPointPerSecond"`  //恢复点间隔时间
-	HourlyRpSinceDay        int64  `json:"hourlyRpSinceDay"`        //从哪天开始保留每小时一个恢复点
-	DailyRpSinceDay         int64  `json:"dailyRpSinceDay"`         //从哪天开始保留每天一个恢复点
-	ExpireTimeInDay         int64  `json:"expireTimeInDay"`         // 备份数据有效时间
-	FullBackupIntervalInDay int64  `json:"fullBackupIntervalInDay"` //全量备份时间间隔
-	ResourceUuid            string `json:"resourceUuid"`            //资源uuid
+	RecoveryPointPerSecond  int64  `json:"recoveryPointPerSecond"`  // Recovery point interval time
+	HourlyRpSinceDay        int64  `json:"hourlyRpSinceDay"`        // From which day to keep hourly recovery points
+	DailyRpSinceDay         int64  `json:"dailyRpSinceDay"`         // From which day to keep daily recovery points
+	ExpireTimeInDay         int64  `json:"expireTimeInDay"`         // Backup data validity period
+	FullBackupIntervalInDay int64  `json:"fullBackupIntervalInDay"` // Full backup interval
+	ResourceUuid            string `json:"resourceUuid"`            // Resource UUID
 }
 
 type UpdateCdpPolicyParam struct {
@@ -48,12 +48,12 @@ type UpdateCdpPolicyParam struct {
 type UpdateCdpPolicyDetailParam struct {
 	Name                    *string `json:"name"`
 	Description             *string `json:"description"`
-	RetentionTimePerDay     *int64  `json:"retentionTimePerDay"`     // 恢复点保留时间
-	RecoveryPointPerSecond  *int64  `json:"recoveryPointPerSecond"`  // 恢复点间隔时间
-	HourlyRpSinceDay        *int64  `json:"hourlyRpSinceDay"`        // 从哪天开始保留每小时一个恢复点
-	DailyRpSinceDay         *int64  `json:"dailyRpSinceDay"`         // 从哪天开始保留每天一个恢复点
-	ExpireTimeInDay         *int64  `json:"expireTimeInDay"`         // 备份数据有效时间
-	FullBackupIntervalInDay *int64  `json:"fullBackupIntervalInDay"` // 全量备份时间间隔
+	RetentionTimePerDay     *int64  `json:"retentionTimePerDay"`     // Retention time for recovery points
+	RecoveryPointPerSecond  *int64  `json:"recoveryPointPerSecond"`  // Recovery point interval time
+	HourlyRpSinceDay        *int64  `json:"hourlyRpSinceDay"`        // From which day to keep hourly recovery points
+	DailyRpSinceDay         *int64  `json:"dailyRpSinceDay"`         // From which day to keep daily recovery points
+	ExpireTimeInDay         *int64  `json:"expireTimeInDay"`         // Backup data validity period
+	FullBackupIntervalInDay *int64  `json:"fullBackupIntervalInDay"` // Full backup interval
 }
 
 type CreateCdpTaskParam struct {
@@ -64,13 +64,13 @@ type CreateCdpTaskParam struct {
 type CreateCdpTaskDetailParam struct {
 	Name              string      `json:"name"`
 	Description       string      `json:"description"`
-	TaskType          CdpTaskType `json:"taskType"`          // CDP任务类型
-	PolicyUuid        string      `json:"policyUuid"`        // 权限策略UUID
-	BackupStorageUuid string      `json:"backupStorageUuid"` // 镜像存储UUID
-	ResourceUuids     []string    `json:"resourceUuids"`     // 备份资源列表
-	BackupBandwidth   int64       `json:"backupBandwidth"`   // 单个云盘备份速率
-	MaxCapacity       int64       `json:"maxCapacity"`       // CDP任务规划容量
-	MaxLatency        int64       `json:"maxLatency"`        // CDP任务RPO最大偏移量
+	TaskType          CdpTaskType `json:"taskType"`          // CDP task type
+	PolicyUuid        string      `json:"policyUuid"`        // Policy UUID
+	BackupStorageUuid string      `json:"backupStorageUuid"` // Backup storage UUID
+	ResourceUuids     []string    `json:"resourceUuids"`     // Backup resource list
+	BackupBandwidth   int64       `json:"backupBandwidth"`   // Backup rate for a single cloud disk
+	MaxCapacity       int64       `json:"maxCapacity"`       // CDP task planned capacity
+	MaxLatency        int64       `json:"maxLatency"`        // CDP task maximum RPO offset
 }
 
 type UpdateCdpTaskParam struct {

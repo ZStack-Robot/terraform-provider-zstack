@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package client
 
@@ -43,13 +43,13 @@ const (
 type ZSHttpClient struct {
 	*ZSConfig
 
-	sessionId string //当前采用账户和用户登录进行认证时有效
+	sessionId string //  Valid when using account or user login authentication
 
 	httpClient *http.Client
 }
 
 func NewZSHttpClient(config *ZSConfig) *ZSHttpClient {
-	//初始化httpClient
+	// Initialize httpClient
 	httpClient := httputils.GetAdaptiveTimeoutClient()
 	httputils.SetClientProxyFunc(httpClient, config.proxyFunc)
 	ts, _ := httpClient.Transport.(*http.Transport)
@@ -64,11 +64,11 @@ func NewZSHttpClient(config *ZSConfig) *ZSHttpClient {
 
 			url := req.URL.Path
 			uri := url[strings.Index(url, config.contextPath)+len(config.contextPath):]
-			//认证登录
+			// Authentication login
 			if req.Method == http.MethodPut && (uri == accountLoginPath || uri == userLoginPath) {
 				return nil, nil
 			}
-			//认证注销
+			// Authentication logout
 			if req.Method == http.MethodDelete && strings.HasPrefix(uri, logoutPathPrefix) {
 				return nil, nil
 			}
@@ -81,7 +81,7 @@ func NewZSHttpClient(config *ZSConfig) *ZSHttpClient {
 	}
 }
 
-// 当前采用账户和用户登录进行认证时有效
+// Valid when using account or user login authentication
 func (cli *ZSHttpClient) LoadSession(sessionId string) {
 	cli.sessionId = sessionId
 }
@@ -89,7 +89,7 @@ func (cli *ZSHttpClient) unloadSession() {
 	cli.sessionId = ""
 }
 
-////////////////////////////// List(查询) ///////////////////////
+////////////////////////////// List(Query) ///////////////////////
 
 func (cli *ZSHttpClient) ListAll(resource string, params *param.QueryParam, retVal interface{}) error {
 	result := []jsonutils.JSONObject{}
@@ -186,7 +186,7 @@ func (cli *ZSHttpClient) getListURL(resource string, params url.Values) string {
 	return url
 }
 
-////////////////////////////// Get(获取详情) ///////////////////////
+////////////////////////////// Get(Retrieve Details) ///////////////////////
 
 func (cli *ZSHttpClient) Get(resource, resourceId string, params interface{}, retVal interface{}) error {
 	urlStr := cli.getGetURL(resource, resourceId, "")
@@ -288,7 +288,7 @@ func (cli *ZSHttpClient) getGetURL(resource, resourceId, spec string) string {
 	return cli.getURL(resource, resourceId, spec)
 }
 
-////////////////////////////// Post(创建) ///////////////////////
+////////////////////////////// Post(Create) ///////////////////////
 
 func (cli *ZSHttpClient) Post(resource string, params interface{}, retVal interface{}) error {
 	return cli.PostWithRespKey(resource, responseKeyInventory, params, retVal)
@@ -344,7 +344,7 @@ func (cli *ZSHttpClient) getPostURL(resource string) string {
 	return cli.getURL(resource, "", "")
 }
 
-////////////////////////////// Put(更新) ///////////////////////
+////////////////////////////// Put(Update) ///////////////////////
 
 func (cli *ZSHttpClient) Put(resource, resourceId string, params interface{}, retVal interface{}) error {
 	return cli.PutWithRespKey(resource, resourceId, responseKeyInventory, params, retVal)
@@ -404,7 +404,7 @@ func (cli *ZSHttpClient) getPutURL(resource, resourceId, spec string) string {
 	return cli.getURL(resource, resourceId, spec)
 }
 
-////////////////////////////// Delete(删除) ///////////////////////
+////////////////////////////// Delete(Delete) ///////////////////////
 
 func (cli *ZSHttpClient) Delete(resource, resourceId, deleteMode string) error {
 	return cli.DeleteWithSpec(resource, resourceId, "", fmt.Sprintf("deleteMode=%s", deleteMode), nil)
@@ -464,7 +464,7 @@ func (cli *ZSHttpClient) getDeleteURL(resource, resourceId, spec, paramsStr stri
 	return url
 }
 
-////////////////////////////// 公共方法 ///////////////////////
+////////////////////////////// Common Func ///////////////////////
 
 func (cli *ZSHttpClient) getURL(resource, resourceId, spec string) string {
 	url := cli.getRequestURL(resource)

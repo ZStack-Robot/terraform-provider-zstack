@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -10,32 +10,32 @@ const (
 )
 
 type BaseParam struct {
-	SystemTags []string `json:"systemTags,omitempty"` //系统标签
-	UserTags   []string `json:"userTags,omitempty"`   //用户标签
-	RequestIp  string   `json:"requestIp,omitempty"`  //请求IP
+	SystemTags []string `json:"systemTags,omitempty"` // System tags
+	UserTags   []string `json:"userTags,omitempty"`   // User tags
+	RequestIp  string   `json:"requestIp,omitempty"`  // Request IP
 }
 
 type HqlParam struct {
-	OperationName string    `json:"operationName"` //请求名
-	Query         string    `json:"query"`         //查询语句
-	Variables     Variables `json:"variables"`     //语句对应参数
+	OperationName string    `json:"operationName"` // Request name
+	Query         string    `json:"query"`         // Query statement
+	Variables     Variables `json:"variables"`     // Parameters for the statement
 }
 
 type Variables struct {
-	Conditions      []Condition            `json:"conditions"`      //
-	ExtraConditions []Condition            `json:"extraConditions"` //
-	Input           map[string]interface{} `json:"input"`           //
+	Conditions      []Condition            `json:"conditions"`      // Conditions
+	ExtraConditions []Condition            `json:"extraConditions"` // Extra conditions
+	Input           map[string]interface{} `json:"input"`           // Input parameters
 	PageVar         `json:",inline,omitempty"`
-	Type            string `json:"type"` //
+	Type            string `json:"type"` // Type
 }
 
 type Condition struct {
-	Key   string `json:"key"`   //
-	Op    string `json:"op"`    //
-	Value string `json:"value"` //
+	Key   string `json:"key"`   // Key
+	Op    string `json:"op"`    // Operator
+	Value string `json:"value"` // Value
 }
 
 type PageVar struct {
-	Start int `json:"start,omitempty"`
-	Limit int `json:"limit,omitempty"`
+	Start int `json:"start,omitempty"` // Start page
+	Limit int `json:"limit,omitempty"` // Limit per page
 }

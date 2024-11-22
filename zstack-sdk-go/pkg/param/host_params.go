@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -7,7 +7,7 @@ type ChangeHostStateParam struct {
 	ChangeHostState ChangeHostStateDetailParam `json:"changeHostState"`
 }
 type ChangeHostStateDetailParam struct {
-	StateEvent StateEvent `json:"stateEvent"` // 启用或禁用 enable disable maintain
+	StateEvent StateEvent `json:"stateEvent"` //  enable disable maintain
 }
 
 type AddKVMHostParam struct {
