@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -10,9 +10,9 @@ const (
 	System  L3Category = "System"
 )
 
-// QueryL3NetworkRequest 查询三层网络
+// QueryL3NetworkRequest queries a layer 3 network
 type QueryL3NetworkRequest struct {
-	UUID string `json:"uuid"` //资源的UUID，唯一标示该资源
+	UUID string `json:"uuid"` // Resource UUID, uniquely identifies the resource
 }
 
 type UpdateL3NetworkParam struct {
@@ -22,17 +22,18 @@ type UpdateL3NetworkParam struct {
 
 type UpdateL3NetworkDetailParam struct {
 	BaseParam
-	Name        string      `json:"name"`        //三层网络名称
-	Description *string     `json:"description"` //三层网络描述
-	System      *bool       `json:"system"`      //是否用于系统云主机
-	DnsDomain   *string     `json:"dnsDomain"`   //三层网络的DNS域名
-	Category    *L3Category `json:"category"`    //三层网络的分类
+	Name        string      `json:"name"`        // Layer 3 network name
+	Description *string     `json:"description"` // Layer 3 network description
+	System      *bool       `json:"system"`      // Whether it is for system cloud hosts
+	DnsDomain   *string     `json:"dnsDomain"`   // DNS domain of the layer 3 network
+	Category    *L3Category `json:"category"`    // Category of the layer 3 network
 }
 
 type AddDnsToL3NetworkParam struct {
 	BaseParam
 	Params AddDnsToL3NetworkDetailParam `json:"params"`
 }
+
 type AddDnsToL3NetworkDetailParam struct {
 	Dns string `json:"dns"`
 }
@@ -55,15 +56,14 @@ type AddIpv6RangeParam struct {
 	BaseParam
 	Params AddIpv6RangeDetailParam `json:"params"`
 }
+
 type AddIpv6RangeDetailParam struct {
-	Name    string `json:"name"`
-	StartIp string `json:"startIp"`
-	EndIp   string `json:"endIp"`
-
-	Gateway   string `json:"gateway"`
-	PrefixLen int    `json:"prefixLen"`
-
-	AddressMode string `json:"addressMode"` // SLAAC	Stateful-DHCP	Stateless-DHCP
+	Name        string `json:"name"`
+	StartIp     string `json:"startIp"`
+	EndIp       string `json:"endIp"`
+	Gateway     string `json:"gateway"`
+	PrefixLen   int    `json:"prefixLen"`
+	AddressMode string `json:"addressMode"` // SLAAC, Stateful-DHCP, Stateless-DHCP
 }
 
 type AddIpRangeByNetworkCidrParam struct {
@@ -82,19 +82,21 @@ type AddIpv6RangeByNetworkCidrParam struct {
 	BaseParam
 	Params AddIpv6RangeByNetworkCidrDetailParam `json:"params"`
 }
+
 type AddIpv6RangeByNetworkCidrDetailParam struct {
 	Name        string `json:"name"`
 	NetworkCidr string `json:"networkCidr"`
-	AddressMode string `json:"addressMode"` // SLAAC	Stateful-DHCP	Stateless-DHCP
+	AddressMode string `json:"addressMode"` // SLAAC, Stateful-DHCP, Stateless-DHCP
 }
 
 type CreateL3NetworkParam struct {
 	BaseParam
 	Params CreateL3NetworkDetailParam `json:"params"`
 }
+
 type CreateL3NetworkDetailParam struct {
 	Name          string `json:"name"`
-	Description   string `json:"description"` //三层网络描述
+	Description   string `json:"description"` // Layer 3 network description
 	Type          string `json:"type"`
 	L2NetworkUuid string `json:"l2NetworkUuid"`
 	Category      string `json:"category"`

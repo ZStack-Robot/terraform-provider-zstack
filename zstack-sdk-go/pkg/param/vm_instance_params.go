@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -15,11 +15,11 @@ const (
 	InstantStart  InstanceStrategy = "InstantStart"
 	CreateStopped InstanceStrategy = "CreateStopped"
 
-	Grace InstanceStopType = "grace" //优雅关机，需要云主机里安装了相关ACPI驱动
-	Cold  InstanceStopType = "cold"  //冷关机，相当于直接断电
+	Grace InstanceStopType = "grace" // Graceful shutdown, requires ACPI driver installed in the VM
+	Cold  InstanceStopType = "cold"  // Cold shutdown, equivalent to directly cutting power
 
-	NeverStop HA = "NeverStop" //开启高可用
-	None      HA = "None"      //未开高可用
+	NeverStop HA = "NeverStop" // Enable high availability
+	None      HA = "None"      // High availability not enabled
 
 	Host  ClockTrack = "host"
 	Guest ClockTrack = "guest"
@@ -31,27 +31,27 @@ type CreateVmInstanceParam struct {
 }
 
 type CreateVmInstanceDetailParam struct {
-	Name                            string       `json:"name" `                            //云主机名称
-	InstanceOfferingUUID            string       `json:"instanceOfferingUuid" `            //计算规格UUID 指定云主机的CPU、内存等参数。
-	CpuNum                          int64        `json:"cpuNum"`                           //cpu 1
-	MemorySize                      int64        `json:"memorySize"`                       //内存大小 1073741824
-	ImageUUID                       string       `json:"imageUuid" `                       //镜像UUID 云主机的根云盘会从该字段指定的镜像创建。
-	L3NetworkUuids                  []string     `json:"l3NetworkUuids" `                  //三层网络UUID列表 可指定一个或多个三层网络，云主机会在每个三层网络上创建一个网卡。
-	Type                            InstanceType `json:"type" `                            //云主机类型 保留字段，无需指定。UserVm/ApplianceVm
-	RootDiskOfferingUuid            string       `json:"rootDiskOfferingUuid" `            //根云盘规格UUID 如果imageUuid字段指定的镜像类型是ISO，该字段必须指定以确定需要创建的根云盘大小。如果镜像类型是非ISO，该字段无需指定。
-	RootDiskSize                    *int64       `json:"rootDiskSize"`                     //跟云盘大小
-	DataDiskOfferingUuids           []string     `json:"dataDiskOfferingUuids" `           //云盘规格UUID列表 可指定一个或多个云盘规格UUID（UUID可以重复）为云主机创建一个或多个数据云盘。
-	DataDiskSizes                   []int64      `json:"dataDiskSizes"`                    //数据云盘大小
-	ZoneUuid                        string       `json:"zoneUuid" `                        //区域UUID 若指定，云主机会在指定区域创建。
-	ClusterUUID                     string       `json:"clusterUuid" `                     //集群UUID 若指定，云主机会在指定集群创建，该字段优先级高于zoneUuid。
-	HostUuid                        string       `json:"hostUuid" `                        //物理机UUID 若指定，云主机会在指定物理机创建，该字段优先级高于zoneUuid和clusterUuid。
-	PrimaryStorageUuidForRootVolume *string      `json:"primaryStorageUuidForRootVolume" ` //主存储UUID 若指定，云主机的根云盘会在指定主存储创建。
-	Description                     string       `json:"description" `                     //云主机的详细描述
-	DefaultL3NetworkUuid            string       `json:"defaultL3NetworkUuid" `            //默认三层网络UUID 当l3NetworkUuids指定了多个三层网络时，该字段指定提供默认路由的三层网络。若不指定，l3NetworkUuids的第一个网络被选为默认网络。
-	ResourceUuid                    string       `json:"resourceUuid" `                    //资源UUID 若指定，云主机会使用该字段值作为UUID。
+	Name                            string       `json:"name" `                            // VM instance name
+	InstanceOfferingUUID            string       `json:"instanceOfferingUuid" `            // Instance offering UUID, specifies CPU, memory, etc.
+	CpuNum                          int64        `json:"cpuNum"`                           // CPU number
+	MemorySize                      int64        `json:"memorySize"`                       // Memory size
+	ImageUUID                       string       `json:"imageUuid" `                       // Image UUID, the root volume of the VM will be created from this image.
+	L3NetworkUuids                  []string     `json:"l3NetworkUuids" `                  // List of layer 3 network UUIDs, one NIC will be created for each network.
+	Type                            InstanceType `json:"type" `                            // VM instance type, reserved field, no need to specify. UserVm/ApplianceVm
+	RootDiskOfferingUuid            string       `json:"rootDiskOfferingUuid" `            // Root disk offering UUID, must be specified if the image type is ISO.
+	RootDiskSize                    *int64       `json:"rootDiskSize"`                     // Root disk size
+	DataDiskOfferingUuids           []string     `json:"dataDiskOfferingUuids" `           // List of data disk offering UUIDs, one or more data disks will be created.
+	DataDiskSizes                   []int64      `json:"dataDiskSizes"`                    // Data disk sizes
+	ZoneUuid                        string       `json:"zoneUuid" `                        // Zone UUID, if specified, the VM will be created in the specified zone.
+	ClusterUUID                     string       `json:"clusterUuid" `                     // Cluster UUID, if specified, the VM will be created in the specified cluster, higher priority than zoneUuid.
+	HostUuid                        string       `json:"hostUuid" `                        // Host UUID, if specified, the VM will be created on the specified host, higher priority than zoneUuid and clusterUuid.
+	PrimaryStorageUuidForRootVolume *string      `json:"primaryStorageUuidForRootVolume" ` // Primary storage UUID, if specified, the root volume will be created on the specified primary storage.
+	Description                     string       `json:"description" `                     // Detailed description of the VM instance
+	DefaultL3NetworkUuid            string       `json:"defaultL3NetworkUuid" `            // Default layer 3 network UUID, specifies the default network for routing when multiple networks are specified.
+	ResourceUuid                    string       `json:"resourceUuid" `                    // Resource UUID, if specified, the VM will use this value as its UUID.
 
-	TagUuids             []string         `json:"tagUuids" ` //标签UUID列表
-	Strategy             InstanceStrategy `json:"strategy" ` //云主机创建策略 创建后立刻启动InstantStart 创建后不启动CreateStopped
+	TagUuids             []string         `json:"tagUuids" ` // List of tag UUIDs
+	Strategy             InstanceStrategy `json:"strategy" ` // VM creation strategy, InstantStart for immediate start, CreateStopped for stopped after creation.
 	RootVolumeSystemTags []string         `json:"rootVolumeSystemTags"`
 	DataVolumeSystemTags []string         `json:"dataVolumeSystemTags"`
 }
@@ -62,23 +62,23 @@ type CreateVmFromVolumeParam struct {
 }
 
 type CreateVmFromVolumeDetailParams struct {
-	Name                 string   `json:"name"`                 //云主机名称
-	Description          string   `json:"description"`          //资源的详细描述
-	InstanceOfferingUuid string   `json:"instanceOfferingUuid"` //计算规格UUID，注意：该参数与CPU数量、内存大小二选一
-	CpuNum               int      `json:"cpuNum"`               //CPU数量/内存大小，注意：该参数与instanceOfferingUuid二选一
-	MemorySize           int64    `json:"memorySize"`           //CPU数量/内存大小，注意：该参数与instanceOfferingUuid二选一
-	L3NetworkUuids       []string `json:"l3NetworkUuids"`       //三层网络UUID列表 可指定一个或多个三层网络，云主机会在每个三层网络上创建一个网卡。
-	Type                 string   `json:"type"`                 //云主机类型保留字段，无需指定。
-	VolumeUuid           string   `json:"volumeUuid"`           //云盘UUID
-	Platform             string   `json:"platform"`             //云盘系统平台
-	ZoneUuid             string   `json:"zoneUuid"`             //区域UUID 若指定，云主机会在指定区域创建。
-	ClusterUuid          string   `json:"clusterUuid"`          //集群UUID 若指定，云主机会在指定集群创建，该字段优先级高于zoneUuid
-	HostUuid             string   `json:"hostUuid"`             //物理机UUID 若指定，云主机会在指定物理机创建，该字段优先级高于zoneUuid和clusterUuid
-	PrimaryStorageUuid   string   `json:"primaryStorageUuid"`   //主存储UUID 若指定，云主机的根云盘会在指定主存储创建。
-	DefaultL3NetworkUuid string   `json:"defaultL3NetworkUuid"` //默认三层网络UUID 当l3NetworkUuids指定了多个三层网络时，该字段指定提供默认路由的三层网络。若不指定，l3NetworkUuids的第一个网络被选为默认网络。
-	Strategy             string   `json:"strategy"`             //云主机创建策略 1.创建后立刻启动 2.创建后不启动
-	ResourceUuid         string   `json:"resourceUuid"`         //资源UUID 若指定，云主机会使用该字段值作为UUID。
-	TagUuids             []string `json:"tagUuids"`             //标签UUID列表
+	Name                 string   `json:"name"`                 // VM instance name
+	Description          string   `json:"description"`          // Detailed description of the resource
+	InstanceOfferingUuid string   `json:"instanceOfferingUuid"` // Instance offering UUID, note: this parameter is mutually exclusive with CPU number and memory size.
+	CpuNum               int      `json:"cpuNum"`               // CPU number/memory size, note: this parameter is mutually exclusive with instanceOfferingUuid.
+	MemorySize           int64    `json:"memorySize"`           // CPU number/memory size, note: this parameter is mutually exclusive with instanceOfferingUuid.
+	L3NetworkUuids       []string `json:"l3NetworkUuids"`       // List of layer 3 network UUIDs, one NIC will be created for each network.
+	Type                 string   `json:"type"`                 // VM instance type, reserved field, no need to specify.
+	VolumeUuid           string   `json:"volumeUuid"`           // Volume UUID
+	Platform             string   `json:"platform"`             // Volume system platform
+	ZoneUuid             string   `json:"zoneUuid"`             // Zone UUID, if specified, the VM will be created in the specified zone.
+	ClusterUuid          string   `json:"clusterUuid"`          // Cluster UUID, if specified, the VM will be created in the specified cluster, higher priority than zoneUuid.
+	HostUuid             string   `json:"hostUuid"`             // Host UUID, if specified, the VM will be created on the specified host, higher priority than zoneUuid and clusterUuid.
+	PrimaryStorageUuid   string   `json:"primaryStorageUuid"`   // Primary storage UUID, if specified, the root volume will be created on the specified primary storage.
+	DefaultL3NetworkUuid string   `json:"defaultL3NetworkUuid"` // Default layer 3 network UUID, specifies the default network for routing when multiple networks are specified.
+	Strategy             string   `json:"strategy"`             // VM creation strategy, 1. Start immediately after creation, 2. Do not start after creation.
+	ResourceUuid         string   `json:"resourceUuid"`         // Resource UUID, if specified, the VM will use this value as its UUID.
+	TagUuids             []string `json:"tagUuids"`             // List of tag UUIDs
 }
 
 type CloneVmInstanceParam struct {
@@ -87,9 +87,9 @@ type CloneVmInstanceParam struct {
 }
 
 type CloneVmInstanceDetailParam struct {
-	Names                           []string         `json:"names"`    //云主机名称
-	Strategy                        InstanceStrategy `json:"strategy"` //策略 克隆后立刻启动InstantStart 克隆后不启动JustCreate
-	Full                            *bool            `json:"full"`     //是否克隆已挂载数据盘
+	Names                           []string         `json:"names"`    // VM instance names
+	Strategy                        InstanceStrategy `json:"strategy"` // Strategy, InstantStart for immediate start after cloning, JustCreate for not starting after cloning.
+	Full                            *bool            `json:"full"`     // Whether to clone mounted data disks
 	PrimaryStorageUuidForRootVolume *string          `json:"primaryStorageUuidForRootVolume" `
 	PrimaryStorageUuidForDataVolume *string          `json:"primaryStorageUuidForDataVolume" `
 	RootVolumeSystemTags            []string         `json:"rootVolumeSystemTags" `
@@ -98,21 +98,21 @@ type CloneVmInstanceDetailParam struct {
 
 type StartVmInstanceParam struct {
 	BaseParam
-	StartVmInstance StartVmInstanceDetailParam `json:"startVmInstance"` //可传hostUuid
+	StartVmInstance StartVmInstanceDetailParam `json:"startVmInstance"` // Can pass hostUuid
 }
 
 type StartVmInstanceDetailParam struct {
-	HostUuid string `json:"hostUuid"` //物理机UUID
+	HostUuid string `json:"hostUuid"` // Host UUID
 }
 
 type StopVmInstanceParam struct {
 	BaseParam
-	StopVmInstance StopVmInstanceDetailParam `json:"stopVmInstance"` //需要存uuid和 type
+	StopVmInstance StopVmInstanceDetailParam `json:"stopVmInstance"` // Requires uuid and type
 }
 
 type StopVmInstanceDetailParam struct {
-	Type   InstanceStopType `json:"type"`   //默认为grace：优雅关机；cold：冷关机（关闭电源）
-	StopHA bool             `json:"stopHa"` //彻底关闭HA云主机
+	Type   InstanceStopType `json:"type"`   // Default is grace: graceful shutdown; cold: cold shutdown (power off)
+	StopHA bool             `json:"stopHa"` // Completely shut down HA VM
 }
 
 type UpdateVmInstanceParam struct {
@@ -121,13 +121,13 @@ type UpdateVmInstanceParam struct {
 }
 
 type UpdateVmInstanceDetailParam struct {
-	Name                 string  `json:"name"`        //云主机名称
-	Description          *string `json:"description"` //云主机的详细描述
+	Name                 string  `json:"name"`        // VM instance name
+	Description          *string `json:"description"` // Detailed description of the VM instance
 	State                string  `json:"state"`
-	DefaultL3NetworkUuid string  `json:"defaultL3NetworkUuid"` //默认三层网络UUID 当l3NetworkUuids指定了多个三层网络时，该字段指定提供默认路由的三层网络。若不指定，l3NetworkUuids的第一个网络被选为默认网络。
-	Platform             string  `json:"platform"`             //云盘系统平台
-	CpuNum               *int    `json:"cpuNum"`               //CPU数目
-	MemorySize           *int64  `json:"memorySize"`           //CPU数量/内存大小，注意：该参数与instanceOfferingUuid二选一
+	DefaultL3NetworkUuid string  `json:"defaultL3NetworkUuid"` // Default layer 3 network UUID, specifies the default network for routing when multiple networks are specified.
+	Platform             string  `json:"platform"`             // Volume system platform
+	CpuNum               *int    `json:"cpuNum"`               // Number of CPUs
+	MemorySize           *int64  `json:"memorySize"`           // CPU number/memory size, note: this parameter is mutually exclusive with instanceOfferingUuid.
 	GuestOsType          string  `json:"guestOsType"`
 }
 
@@ -147,7 +147,7 @@ type SetVmBootModeParam struct {
 }
 
 type SetVmBootModeDetailParam struct {
-	BootMode BootMode `json:"bootMode"` //启动模式 Legacy,UEFI,UEFI_WITH_CSM
+	BootMode BootMode `json:"bootMode"` // Boot mode: Legacy, UEFI, UEFI_WITH_CSM
 }
 
 type UpdateVmInstanceSshKeyParam struct {
@@ -173,14 +173,16 @@ type UpdateVmInstanceClockTrackParam struct {
 }
 
 type UpdateVmInstanceClockTrackDetailParam struct {
-	Track             ClockTrack `json:"track"`             //时钟同步方式，可选值：guest, host
-	SyncAfterVMResume bool       `json:"syncAfterVMResume"` //是否在云主机恢复时同步时钟
-	IntervalInSeconds float64    `json:"intervalInSeconds"` //时钟同步间隔，单位：秒0  60 600 1800 3600 7200 21600 43200 86400
+	Track             ClockTrack `json:"track"`             // Clock synchronization method, optional values: guest, host
+	SyncAfterVMResume bool       `json:"syncAfterVMResume"` // Whether to synchronize the clock when the VM resumes
+	IntervalInSeconds float64    `json:"intervalInSeconds"` // Clock synchronization interval, unit: seconds (0, 60, 600, 1800, 3600, 7200, 21600, 43200, 86400)
 }
+
 type UpdateVmCdRomParam struct {
 	BaseParam
 	UpdateVmCdRom UpdateVmCdRomDetailParam `json:"updateVmCdRom"`
 }
+
 type UpdateVmCdRomDetailParam struct {
 	Name string `json:"name"`
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -8,7 +8,7 @@ type AttachL3NetworkToVmParam struct {
 }
 
 type AttachL3NetworkToVmDetailParam struct {
-	StaticIp string `json:"staticIp"` //指定分配给云主机的IP地址
+	StaticIp string `json:"staticIp"` // Specified IP address to be assigned to the VM
 }
 
 type UpdateVmNicMacParam struct {
@@ -17,7 +17,7 @@ type UpdateVmNicMacParam struct {
 }
 
 type UpdateVmNicMacDetailParam struct {
-	Mac string `json:"mac"` //mac地址
+	Mac string `json:"mac"` // MAC address
 }
 
 type SetVmStaticIpParam struct {
@@ -26,9 +26,9 @@ type SetVmStaticIpParam struct {
 }
 
 type SetVmStaticIpDetailParam struct {
-	L3NetworkUuid string `json:"l3NetworkUuid"` //三层网络UUID
-	Ip            string `json:"ip"`            //指定IP地址
-	Ip6           string `json:"ip6"`           //指定IPv6地址
+	L3NetworkUuid string `json:"l3NetworkUuid"` // Layer 3 network UUID
+	Ip            string `json:"ip"`            // Specified IP address
+	Ip6           string `json:"ip6"`           // Specified IPv6 address
 }
 
 type DeleteVmStaticIpParam struct {
@@ -37,7 +37,7 @@ type DeleteVmStaticIpParam struct {
 }
 
 type DeleteVmStaticIpDetailParam struct {
-	L3NetworkUuid string     `json:"l3NetworkUuid"` //三层网络UUID
+	L3NetworkUuid string     `json:"l3NetworkUuid"` // Layer 3 network UUID
 	DeleteMode    DeleteMode `json:"deleteMode"`
 }
 
@@ -47,5 +47,5 @@ type ChangeVmNicNetworkParam struct {
 }
 
 type ChangeVmNicNetworkDetailParam struct {
-	DestL3NetworkUuid string `json:"destL3NetworkUuid"` //指定三层网络UUID
+	DestL3NetworkUuid string `json:"destL3NetworkUuid"` // Specified layer 3 network UUID
 }

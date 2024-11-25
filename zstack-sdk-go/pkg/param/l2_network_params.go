@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -16,27 +16,29 @@ type CreateL2NoVlanNetworkParam struct {
 	BaseParam
 	Params CreateL2NoVlanNetworkDetailParam `json:"params"`
 }
+
 type CreateL2NoVlanNetworkDetailParam struct {
 	Name              string `json:"name"`
 	Description       string `json:"description"`
-	ZoneUuid          string `json:"zoneUuid"`          //区域UUID
-	PhysicalInterface string `json:"physicalInterface"` //物理网卡
-	Type              string `json:"type"`              //二层网络类型
-	ResourceUuid      string `json:"resourceUuid"`      //资源UUID
+	ZoneUuid          string `json:"zoneUuid"`          // Zone UUID
+	PhysicalInterface string `json:"physicalInterface"` // Physical network interface
+	Type              string `json:"type"`              // Layer 2 network type
+	ResourceUuid      string `json:"resourceUuid"`      // Resource UUID
 }
 
 type CreateL2VlanNetworkParam struct {
 	BaseParam
 	Params CreateL2VlanNetworkDetailParam `json:"params"`
 }
+
 type CreateL2VlanNetworkDetailParam struct {
 	Vlan              int    `json:"vlan"`
 	Name              string `json:"name"`
 	Description       string `json:"description"`
 	ZoneUuid          string `json:"zoneUuid"`
-	PhysicalInterface string `json:"physicalInterface"` //物理网卡
-	Type              string `json:"type"`              //二层网络类型
-	ResourceUuid      string `json:"resourceUuid"`      //资源UUID
+	PhysicalInterface string `json:"physicalInterface"` // Physical network interface
+	Type              string `json:"type"`              // Layer 2 network type
+	ResourceUuid      string `json:"resourceUuid"`      // Resource UUID
 }
 
 type AttachL2NetworkToClusterParam struct {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -22,8 +22,8 @@ func NewQueryParam() QueryParam {
 	}
 }
 
-// 查询条件，查询API的查询条件类似于MySQL数据库。
-// 省略该字段将返回所有记录，返回记录数的上限受限于limit字段
+// AddQ adds a query condition, similar to a MySQL database query.
+// Omitting this field will return all records, with the number of returned records limited by the 'limit' field.
 func (params *QueryParam) AddQ(q string) *QueryParam {
 	if params.Get("q") == "" {
 		params.Set("q", q)
@@ -33,57 +33,56 @@ func (params *QueryParam) AddQ(q string) *QueryParam {
 	return params
 }
 
-// 最多返回的记录数，类似MySQL的limit，默认值1000
+// Limit sets the maximum number of records to return, similar to MySQL's 'limit'. Default value is 1000.
 func (params *QueryParam) Limit(limit int) *QueryParam {
 	params.Set("limit", fmt.Sprintf("%d", limit))
 	return params
 }
 
-// 起始查询记录位置，类似MySQL的offset。跟limit配合使用可以实现分页
+// Start sets the starting position for the query, similar to MySQL's 'offset'. Used with 'limit' for pagination.
 func (params *QueryParam) Start(start int) *QueryParam {
 	params.Set("start", fmt.Sprintf("%d", start))
 	return params
 }
 
-// 计数查询，相当于MySQL中的count()函数。当设置成true时，API只返回的是满足查询条件的记录数
+// Count sets the query to return the count of records that match the query conditions, similar to MySQL's 'count()' function.
 func (params *QueryParam) Count(count bool) *QueryParam {
 	params.Set("count", fmt.Sprintf("%t", count))
 	return params
 }
 
-// 以字段分组，相当于MySQL中的group by关键字。例如groupBy=type
+// GroupBy groups the results by a specified field, similar to MySQL's 'group by' keyword.
 func (params *QueryParam) GroupBy(groupBy string) *QueryParam {
 	params.Set("groupBy", groupBy)
 	return params
 }
 
-// replyWithCount被设置成true后，查询返回中会包含满足查询条件的记录总数，跟start值比较就可以得知还需几次分页。
+// ReplyWithCount, when set to true, includes the total count of records that match the query in the response.
 func (params *QueryParam) ReplyWithCount(replyWithCount bool) *QueryParam {
 	params.Set("replyWithCount", fmt.Sprintf("%t", replyWithCount))
 	return params
 }
 
-// 未知，来自ZStack Java SDK【sdk-4.4.0.jar】
+// FilterName sets a filter name, functionality is unknown from ZStack Java SDK (sdk-4.4.0.jar).
 func (params *QueryParam) FilterName(filterName string) *QueryParam {
 	params.Set("filterName", filterName)
 	return params
 }
 
-// 以字段排序，等同于MySQL中的sort by关键字。必须跟+或者-配合使用，+表示升序，-表示降序，后面跟排序字段名，例如：
-// sort=+key，根据key进行升序排序
-// sort=-key，根据 key进行降序排序
+// Sort sorts the results by a specified field, similar to MySQL's 'sort by' keyword.
+// Use '+' for ascending order and '-' for descending order, followed by the field name.
 func (params *QueryParam) Sort(sort string) *QueryParam {
 	params.Set("sort", sort)
 	return params
 }
 
-// 指定返回的字段，等同于MySQL中的select字段功能。例如fields=name,uuid，则只返回满足条件记录的name和uuid字段
+// Fields specifies the fields to return, similar to MySQL's 'select' fields functionality.
 func (params *QueryParam) Fields(fields []string) *QueryParam {
 	params.Set("fields", strings.Join(fields, ","))
 	return params
 }
 
-// ConvertStruct2UrlValues param should be
+// ConvertStruct2UrlValues converts a struct to url.Values.
 func ConvertStruct2UrlValues(param interface{}) (url.Values, error) {
 	if reflect.Ptr != reflect.TypeOf(param).Kind() {
 		return nil, errors.New("model should be pointer kind")

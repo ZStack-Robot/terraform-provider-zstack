@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -6,34 +6,31 @@ import "strconv"
 
 type GetAllMetricMetadataParam struct {
 	BaseParam
-
-	Namespace string `json:"namespace"` //监控指标命名空间
-	Name      string `json:"name"`      //监控指标名称
+	Namespace string `json:"namespace"` // Metric namespace
+	Name      string `json:"name"`      // Metric name
 }
 
 type GetMetricLabelValueParam struct {
 	BaseParam
-
-	Namespace    string   `json:"namespace"`    //名字空间名称
-	MetricName   string   `json:"metricName"`   //监控指标名称
-	StartTime    int64    `json:"startTime"`    //起始时间，时间戳，秒
-	EndTime      int64    `json:"endTime"`      //结束时间，时间戳，秒
-	LabelNames   []string `json:"labelNames"`   //要获取值得标签名列表
-	FilterLabels []string `json:"filterLabels"` //标签过滤器列表，例如可以指定标签HostUuid=e47f7145f4cd4fca8e2856038ecdf3e1来选择特定物理机的，labelNames中指定标签的值
+	Namespace    string   `json:"namespace"`    // Namespace name
+	MetricName   string   `json:"metricName"`   // Metric name
+	StartTime    int64    `json:"startTime"`    // Start time, timestamp in seconds
+	EndTime      int64    `json:"endTime"`      // End time, timestamp in seconds
+	LabelNames   []string `json:"labelNames"`   // List of label names to get values for
+	FilterLabels []string `json:"filterLabels"` // List of label filters, e.g., HostUuid=e47f7145f4cd4fca8e2856038ecdf3e1 to select a specific physical machine
 }
 
 type GetMetricDataParam struct {
 	BaseParam
-
-	Namespace                string   `json:"namespace"`                //名字空间
-	MetricName               string   `json:"metricName"`               //监控项
-	StartTime                int64    `json:"startTime"`                //起始时间，时间戳，秒
-	EndTime                  int64    `json:"endTime"`                  //结束时间，时间戳，秒
-	Period                   int32    `json:"period"`                   //数据精度
-	Labels                   []string `json:"labels"`                   //过滤标签
-	ValueConditions          []string `json:"valueConditions"`          //未知TODO
-	Functions                []string `json:"functions"`                //函数列表
-	OffsetAheadOfCurrentTime int64    `json:"offsetAheadOfCurrentTime"` //未知TODO
+	Namespace                string   `json:"namespace"`                // Namespace
+	MetricName               string   `json:"metricName"`               // Metric name
+	StartTime                int64    `json:"startTime"`                // Start time, timestamp in seconds
+	EndTime                  int64    `json:"endTime"`                  // End time, timestamp in seconds
+	Period                   int32    `json:"period"`                   // Data precision
+	Labels                   []string `json:"labels"`                   // Filter labels
+	ValueConditions          []string `json:"valueConditions"`          // Value conditions (TODO: clarify)
+	Functions                []string `json:"functions"`                // Function list
+	OffsetAheadOfCurrentTime int64    `json:"offsetAheadOfCurrentTime"` // Offset ahead of current time (TODO: clarify)
 }
 
 func (p GetAllMetricMetadataParam) ToQueryParam() QueryParam {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -15,28 +15,26 @@ const (
 
 type CreateVipParam struct {
 	BaseParam
-
 	Params CreateVipDetailParam `json:"params"`
 }
 
 type CreateVipDetailParam struct {
-	Name              string               `json:"name"`                        //资源名称
-	Description       string               `json:"description,omitempty"`       //详细描述
-	L3NetworkUUID     string               `json:"l3NetworkUuid"`               //	三层网络UUID
-	IpRangeUUID       string               `json:"ipRangeUuid,omitempty"`       //IP段UUID
-	AllocatorStrategy VipAllocatorStrategy `json:"allocatorStrategy,omitempty"` //分配策略
-	RequiredIp        string               `json:"requiredIp,omitempty"`        //请求的IP
-	ResourceUuid      string               `json:"resourceUuid,omitempty"`      //资源UUID。若指定，镜像会使用该字段值作为UUID。
+	Name              string               `json:"name"`                        // Resource name
+	Description       string               `json:"description,omitempty"`       // Detailed description
+	L3NetworkUUID     string               `json:"l3NetworkUuid"`               // Layer 3 network UUID
+	IpRangeUUID       string               `json:"ipRangeUuid,omitempty"`       // IP range UUID
+	AllocatorStrategy VipAllocatorStrategy `json:"allocatorStrategy,omitempty"` // Allocation strategy
+	RequiredIp        string               `json:"requiredIp,omitempty"`        // Requested IP
+	ResourceUuid      string               `json:"resourceUuid,omitempty"`      // Resource UUID. If specified, the image will use this field value as the UUID.
 }
 
 type UpdateVipParam struct {
 	BaseParam
-
-	UUID      string               `json:"uuid"` //资源的UUID，唯一标示该资源
+	UUID      string               `json:"uuid"` // Resource UUID, uniquely identifies the resource
 	UpdateVip UpdateVipDetailParam `json:"updateVip"`
 }
 
 type UpdateVipDetailParam struct {
-	Name        string `json:"name"`                  //资源名称
-	Description string `json:"description,omitempty"` //详细描述
+	Name        string `json:"name"`                  // Resource name
+	Description string `json:"description,omitempty"` // Detailed description
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -16,13 +16,13 @@ type CreateDataVolumeParam struct {
 }
 
 type CreateDataVolumeDetailParam struct {
-	Name               string   `json:"name" example:"chenjh-DATA-TEST"`                     //云盘名称
-	Description        string   `json:"description" example:"JUST a test Volume For chenjh"` //云盘的描述
-	DiskOfferingUuid   string   `json:"diskOfferingUuid" example:""`                         //云盘规格UUID
-	DiskSize           int64    `json:"diskSize" example:"1024"`                             //云盘大小
-	PrimaryStorageUuid string   `json:"primaryStorageUuid" example:""`                       //主存储UUID
-	ResourceUuid       string   `json:"resourceUuid" example:""`                             //资源UUID
-	TagUuids           []string `json:"tagUuids" example:""`                                 //标签UUID列表
+	Name               string   `json:"name" example:"chenjh-DATA-TEST"`                     // Data volume name
+	Description        string   `json:"description" example:"JUST a test Volume For chenjh"` // Description of the data volume
+	DiskOfferingUuid   string   `json:"diskOfferingUuid" example:""`                         // Disk offering UUID
+	DiskSize           int64    `json:"diskSize" example:"1024"`                             // Disk size
+	PrimaryStorageUuid string   `json:"primaryStorageUuid" example:""`                       // Primary storage UUID
+	ResourceUuid       string   `json:"resourceUuid" example:""`                             // Resource UUID
+	TagUuids           []string `json:"tagUuids" example:""`                                 // List of tag UUIDs
 }
 
 type CreateDataVolumeFromVolumeTemplateParam struct {
@@ -32,10 +32,10 @@ type CreateDataVolumeFromVolumeTemplateParam struct {
 }
 
 type CreateDataVolumeFromVolumeTemplateDetailParam struct {
-	Name               string `json:"name"`               //云盘名称
-	Description        string `json:"description"`        //云盘的详细描述
-	PrimaryStorageUuid string `json:"primaryStorageUuid"` //主存储UUID
-	HostUuid           string `json:"hostUuid"`           //物理机UUID
+	Name               string `json:"name"`               // Data volume name
+	Description        string `json:"description"`        // Detailed description of the data volume
+	PrimaryStorageUuid string `json:"primaryStorageUuid"` // Primary storage UUID
+	HostUuid           string `json:"hostUuid"`           // Host UUID
 	ResourceUuid       string `json:"resourceUuid"`
 }
 
@@ -46,11 +46,11 @@ type CreateDataVolumeFromVolumeSnapshotParam struct {
 }
 
 type CreateDataVolumeFromVolumeSnapshotDetailParam struct {
-	Name               string `json:"name"`               //云盘名称
-	Description        string `json:"description"`        //云盘的详细描述
-	VolumeSnapshotUuid string `json:"volumeSnapshotUuid"` //云盘快照UUID
-	PrimaryStorageUuid string `json:"primaryStorageUuid"` //主存储UUID
-	ResourceUuid       string `json:"resourceUuid"`       //资源的Uuid
+	Name               string `json:"name"`               // Data volume name
+	Description        string `json:"description"`        // Detailed description of the data volume
+	VolumeSnapshotUuid string `json:"volumeSnapshotUuid"` // Volume snapshot UUID
+	PrimaryStorageUuid string `json:"primaryStorageUuid"` // Primary storage UUID
+	ResourceUuid       string `json:"resourceUuid"`       // Resource Uuid
 }
 
 type UpdateVolumeParam struct {
@@ -60,8 +60,8 @@ type UpdateVolumeParam struct {
 }
 
 type UpdateVolumeDetailParam struct {
-	Name        string  `json:"name"`        //资源名称
-	Description *string `json:"description"` //资源的详细描述
+	Name        string  `json:"name"`        // Resource name
+	Description *string `json:"description"` // Detailed description of the resource
 }
 
 type SetVolumeQoSParam struct {
@@ -71,8 +71,8 @@ type SetVolumeQoSParam struct {
 }
 
 type SetVolumeQoSDetailParam struct {
-	VolumeBandwidth int64  `json:"volumeBandwidth"` //云盘限速带宽
-	Mode            string `json:"mode"`            //total read write
+	VolumeBandwidth int64  `json:"volumeBandwidth"` // Data volume speed limit bandwidth
+	Mode            string `json:"mode"`            // total read write
 	ReadBandwidth   int64  `json:"readBandwidth"`
 	WriteBandwidth  int64  `json:"writeBandwidth"`
 	TotalBandwidth  int64  `json:"totalBandwidth"`
@@ -88,5 +88,5 @@ type ChangeVolumeStateParam struct {
 }
 
 type ChangeVolumeStateDetailParam struct {
-	StateEvent VolumeState `json:"stateEvent"` //开启或关闭，取值范围：enable、disable
+	StateEvent VolumeState `json:"stateEvent"` // Enable or disable, valid values: enable, disable
 }

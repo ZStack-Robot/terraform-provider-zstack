@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -9,10 +9,10 @@ type VolumeSnapshotGroupParam struct {
 }
 
 type VolumeSnapshotGroupDetailParam struct {
-	RootVolumeUuid string `json:"rootVolumeUuid"` //根云盘UUID
-	Name           string `json:"name"`           //资源名称
-	Description    string `json:"description"`    //资源的详细描述(可选)
-	ResourceUuid   string `json:"resourceUuid"`   //资源的Uuid(可选)
+	RootVolumeUuid string `json:"rootVolumeUuid"` // Root volume UUID
+	Name           string `json:"name"`           // Resource name
+	Description    string `json:"description"`    // Detailed description of the resource (optional)
+	ResourceUuid   string `json:"resourceUuid"`   // Resource Uuid (optional)
 }
 
 type UpdateVolumeSnapshotGroupParam struct {
@@ -22,6 +22,6 @@ type UpdateVolumeSnapshotGroupParam struct {
 }
 
 type UpdateVolumeSnapshotGroupDetailParam struct {
-	Name        string `json:"name"`        //资源名称
-	Description string `json:"description"` //资源的详细描述
+	Name        string `json:"name"`        // Resource name
+	Description string `json:"description"` // Detailed description of the resource
 }

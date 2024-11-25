@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -67,18 +67,20 @@ type UpdateImageParam struct {
 	BaseParam
 	UpdateImage UpdateImageDetailParam `json:"updateImage"`
 }
+
 type UpdateImageDetailParam struct {
-	Name        string  `json:"name"`        //镜像名称
-	Description *string `json:"description"` //镜像的详细描述
+	Name        string  `json:"name"`        // Image name
+	Description *string `json:"description"` // Detailed description of the image
 }
 
 type UpdateImageVirtioParam struct {
 	BaseParam
 	UpdateImage UpdateImageVirtioDetailParam `json:"updateImage"`
 }
+
 type UpdateImageVirtioDetailParam struct {
 	Virtio bool   `json:"virtio"`
-	UUID   string `json:"uuid"` //资源的UUID，唯一标示该资源
+	UUID   string `json:"uuid"` // Resource UUID, uniquely identifies the resource
 }
 
 type UpdateImagePlatformParam struct {
@@ -87,9 +89,9 @@ type UpdateImagePlatformParam struct {
 }
 
 type UpdateImagePlatformDetailParam struct {
-	Platform    string `json:"platform"`    //平台
-	GuestOsType string `json:"guestOsType"` //镜像对应的客户机操作系统类型
-	UUID        string `json:"uuid"`        //资源的UUID，唯一标示该资源
+	Platform    string `json:"platform"`    // Platform
+	GuestOsType string `json:"guestOsType"` // Guest OS type corresponding to the image
+	UUID        string `json:"uuid"`        // Resource UUID, uniquely identifies the resource
 }
 
 type ExpungeImageParam struct {
@@ -99,17 +101,17 @@ type ExpungeImageParam struct {
 
 type RecoverImageParam struct {
 	BaseParam
-	ImageUuid    string                   `json:"imageUuid"`    //镜像UUID
-	RecoverImage RecoverImageDetailParams `json:"recoverImage"` //放backupStorageUuids
+	ImageUuid    string                   `json:"imageUuid"`    // Image UUID
+	RecoverImage RecoverImageDetailParams `json:"recoverImage"` // Backup storage UUIDs
 }
 
 type RecoverImageDetailParams struct {
-	BackupStorageUuids []string `json:"backupStorageUuids"` //指定添加镜像的镜像服务器UUID列表
+	BackupStorageUuids []string `json:"backupStorageUuids"` // List of backup storage UUIDs to add the image to
 }
 
 type ChangeImageStateParam struct {
 	BaseParam
-	ImageUuid        string                      `json:"imageUuid"` //镜像UUID
+	ImageUuid        string                      `json:"imageUuid"` // Image UUID
 	ChangeImageState ChangeImageStateDetailParam `json:"changeImageState"`
 }
 
@@ -119,111 +121,112 @@ type ChangeImageStateDetailParam struct {
 
 type SyncImageSizeParam struct {
 	BaseParam
-	ImageUuid     string                   `json:"imageUuid"` //镜像UUID
+	ImageUuid     string                   `json:"imageUuid"` // Image UUID
 	SyncImageSize SyncImageSizeDetailParam `json:"syncImageSize"`
 }
+
 type SyncImageSizeDetailParam struct {
 }
 
 type GetCandidateBackupStorageForCreatingImageParam struct {
 	BaseParam
 	CandidateBackupStorageType CandidateBackupStorageType `json:"candidateBackupStorageType"`
-	VolumeUuid                 string                     `json:"volumeUuid" `         //云盘UUID，注意：volumeUuid 和 volumeSnapshotUuid 二选一
-	VolumeSnapshotUuid         string                     `json:"volumeSnapshotUuid" ` //云盘快照UUID，注意：volumeUuid 和 volumeSnapshotUuid 二选一
+	VolumeUuid                 string                     `json:"volumeUuid"`         // Cloud volume UUID, note: either volumeUuid or volumeSnapshotUuid is required
+	VolumeSnapshotUuid         string                     `json:"volumeSnapshotUuid"` // Cloud volume snapshot UUID, note: either volumeUuid or volumeSnapshotUuid is required
 }
 
 type CreateRootVolumeTemplateFromRootVolumeParam struct {
 	BaseParam
-	RootVolumeUuid string                                            `json:"rootVolumeUuid"` //根云盘UUID
-	Params         CreateRootVolumeTemplateFromRootVolumeDetailParam `json:"params"`         //结构体中的其他参数
+	RootVolumeUuid string                                            `json:"rootVolumeUuid"` // Root cloud volume UUID
+	Params         CreateRootVolumeTemplateFromRootVolumeDetailParam `json:"params"`         // Other parameters in the struct
 }
 
 type CreateRootVolumeTemplateFromRootVolumeDetailParam struct {
-	Name               string   `json:"name"`                //名称
-	RootVolumeUuid     string   `json:"rootVolumeUuid"`      //根云盘UUID
-	Description        string   `json:"description"`         //详细描述
-	GuestOsType        string   `json:"guestOsType" `        //根云盘镜像对应客户机操作系统类型
-	BackupStorageUuids []string `json:"backupStorageUuids" ` //镜像服务器UUID列表
-	Platform           string   `json:"platform" `           //镜像的系统平台,Linux,Windows,WindowsVirtio,Other,Paravirtualization
-	System             bool     `json:"system"`              //是否系统根云盘镜像
-	ResourceUuid       string   `json:"resourceUuid" `       //根云盘镜像UUID。若指定，根云盘镜像会使用该字段值作为UUID。
-	Architecture       string   `json:"architecture"`        //x86_64,aarch64,mips64el
-	TagUuids           []string `json:"tagUuids"`            //标签UUID列表
+	Name               string   `json:"name"`               // Name
+	RootVolumeUuid     string   `json:"rootVolumeUuid"`     // Root cloud volume UUID
+	Description        string   `json:"description"`        // Detailed description
+	GuestOsType        string   `json:"guestOsType"`        // Guest OS type corresponding to the root cloud volume image
+	BackupStorageUuids []string `json:"backupStorageUuids"` // List of backup storage UUIDs
+	Platform           string   `json:"platform"`           // Image system platform, Linux, Windows, WindowsVirtio, Other, Paravirtualization
+	System             bool     `json:"system"`             // Whether it is a system root cloud volume image
+	ResourceUuid       string   `json:"resourceUuid"`       // Root cloud volume image UUID. If specified, the root cloud volume image will use this value as its UUID.
+	Architecture       string   `json:"architecture"`       // x86_64, aarch64, mips64el
+	TagUuids           []string `json:"tagUuids"`           // List of tag UUIDs
 }
 
 type CreateRootVolumeTemplateFromVolumeSnapshotParam struct {
 	BaseParam
-	SnapshotUuid string                                                 `json:"snapshotUuid" ` //快照UUID
-	Params       CreateRootVolumeTemplateFromVolumeSnapshotDetailParams `json:"params"`        //结构体中的其他参数
+	SnapshotUuid string                                                 `json:"snapshotUuid"` // Snapshot UUID
+	Params       CreateRootVolumeTemplateFromVolumeSnapshotDetailParams `json:"params"`       // Other parameters in the struct
 }
+
 type CreateRootVolumeTemplateFromVolumeSnapshotDetailParams struct {
-	Name               string   `json:"name" `               //名称
-	Description        string   `json:"description" `        //详细描述
-	GuestOsType        string   `json:"guestOsType"`         //根云盘镜像对应客户机操作系统类型
-	BackupStorageUuids []string `json:"backupStorageUuids" ` //镜像服务器UUID列表
-	Platform           string   `json:"platform" `           //镜像的系统平台,Linux,Windows,WindowsVirtio,Other,Paravirtualization
-	System             bool     `json:"system" `             //是否系统根云盘镜像
-	ResourceUuid       string   `json:"resourceUuid"`        //根云盘镜像UUID。若指定，根云盘镜像会使用该字段值作为UUID。
-	Architecture       string   `json:"architecture"`        //x86_64,aarch64,mips64el
-	TagUuids           []string `json:"tagUuids"`            //标签UUID列表
+	Name               string   `json:"name"`               // Name
+	Description        string   `json:"description"`        // Detailed description
+	GuestOsType        string   `json:"guestOsType"`        // Guest OS type corresponding to the root cloud volume image
+	BackupStorageUuids []string `json:"backupStorageUuids"` // List of backup storage UUIDs
+	Platform           string   `json:"platform"`           // Image system platform, Linux, Windows, WindowsVirtio, Other, Paravirtualization
+	System             bool     `json:"system"`             // Whether it is a system root cloud volume image
+	ResourceUuid       string   `json:"resourceUuid"`       // Root cloud volume image UUID. If specified, the root cloud volume image will use this value as its UUID.
+	Architecture       string   `json:"architecture"`       // x86_64, aarch64, mips64el
+	TagUuids           []string `json:"tagUuids"`           // List of tag UUIDs
 }
 
 type CreateDataVolumeTemplateFromVolumeParam struct {
 	BaseParam
-	VolumeUuid string                                        `json:"volumeUuid" ` //快照UUID
-	Params     CreateDataVolumeTemplateFromVolumeDetailParam `json:"params"`      //结构体中的其他参数
-
+	VolumeUuid string                                        `json:"volumeUuid"` // Snapshot UUID
+	Params     CreateDataVolumeTemplateFromVolumeDetailParam `json:"params"`     // Other parameters in the struct
 }
 
 type CreateDataVolumeTemplateFromVolumeDetailParam struct {
-	Name               string   `json:"name" `               //名称
-	Description        string   `json:"description" `        //详细描述
-	BackupStorageUuids []string `json:"backupStorageUuids" ` //镜像服务器UUID列表
-	ResourceUuid       string   `json:"resourceUuid" `       //根云盘镜像UUID。若指定，根云盘镜像会使用该字段值作为UUID。
+	Name               string   `json:"name"`               // Name
+	Description        string   `json:"description"`        // Detailed description
+	BackupStorageUuids []string `json:"backupStorageUuids"` // List of backup storage UUIDs
+	ResourceUuid       string   `json:"resourceUuid"`       // Root cloud volume image UUID. If specified, the root cloud volume image will use this value as its UUID.
 }
 
 type CreateDataVolumeTemplateFromVolumeSnapshotParam struct {
 	BaseParam
-	SnapshotUuid string                                                `json:"snapshotUuid" ` //快照UUID
-	Params       CreateDataVolumeTemplateFromVolumeSnapshotDetailParam `json:"params" `       //结构体中的其他参数
+	SnapshotUuid string                                                `json:"snapshotUuid"` // Snapshot UUID
+	Params       CreateDataVolumeTemplateFromVolumeSnapshotDetailParam `json:"params"`       // Other parameters in the struct
 }
 
 type CreateDataVolumeTemplateFromVolumeSnapshotDetailParam struct {
-	Name               string   `json:"name" `               //名称
-	Description        string   `json:"description" `        //详细描述
-	BackupStorageUuids []string `json:"backupStorageUuids" ` //镜像服务器UUID列表
-	ResourceUuid       string   `json:"resourceUuid" `       //根云盘镜像UUID。若指定，根云盘镜像会使用该字段值作为UUID。
-	TagUuids           []string `json:"tagUuids" `           //标签UUID列表
+	Name               string   `json:"name"`               // Name
+	Description        string   `json:"description"`        // Detailed description
+	BackupStorageUuids []string `json:"backupStorageUuids"` // List of backup storage UUIDs
+	ResourceUuid       string   `json:"resourceUuid"`       // Root cloud volume image UUID. If specified, the root cloud volume image will use this value as its UUID.
+	TagUuids           []string `json:"tagUuids"`           // List of tag UUIDs
 }
 
 type SetImageQgaParam struct {
 	BaseParam
 	Uuid        string                 `json:"uuid"`
-	SetImageQga SetImageQgaDetailParam `json:"setImageQga"` //放enable
+	SetImageQga SetImageQgaDetailParam `json:"setImageQga"` // Enable
 }
 
 type SetImageQgaDetailParam struct {
-	Enable bool `json:"enable" `
+	Enable bool `json:"enable"`
 }
 
 type SetImageBootModeRequest struct {
 	BaseParam
-	Uuid             string                 `json:"uuid" `
-	SetImageBootMode SetImageBootModeParams `json:"setImageBootMode"` //放bootMode
+	Uuid             string                 `json:"uuid"`
+	SetImageBootMode SetImageBootModeParams `json:"setImageBootMode"` // Boot mode
 }
 
 type SetImageBootModeParams struct {
-	BootMode BootMode `json:"bootMode"` //镜像启动模式,Legacy,UEFI,UEFI_WITH_CSM
+	BootMode BootMode `json:"bootMode"` // Image boot mode, Legacy, UEFI, UEFI_WITH_CSM
 }
 
 type GetUploadImageJobDetailsParam struct {
 	BaseParam
-	ImageId string `json:"imageId" `
+	ImageId string `json:"imageId"`
 }
 
 type UpdateImageArchitectureDetailParam struct {
-	UUID         string       `json:"uuid"`         //资源的UUID，唯一标示该资源
-	Architecture Architecture `json:"architecture"` //x86_64,aarch64,mips64el
+	UUID         string       `json:"uuid"`         // Resource UUID, uniquely identifies the resource
+	Architecture Architecture `json:"architecture"` // x86_64, aarch64, mips64el
 }
 
 type UpdateImageArchitectureParam struct {

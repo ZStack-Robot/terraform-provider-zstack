@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -16,7 +16,7 @@ type ParseOvfParam struct {
 }
 
 type ParseOvfDetailParam struct {
-	XmlBase64 string `json:"xmlBase64"` //Base64编码的OVF文件内容
+	XmlBase64 string `json:"xmlBase64"` // Base64 encoded OVF file content
 }
 
 type CreateVmInstanceFromOvfParam struct {
@@ -25,13 +25,13 @@ type CreateVmInstanceFromOvfParam struct {
 }
 
 type CreateVmInstanceFromOvfDetailParam struct {
-	XmlBase64               string  `json:"xmlBase64"`               //资源名称
-	JsonImageInfos          string  `json:"jsonImageInfos"`          //描述OVF中disk ID与镜像文件对应关系的JSON字符串
-	BackupStorageUuid       string  `json:"backupStorageUuid"`       //用于存储上传镜像文件的镜像存储UUID
-	JsonCreateVmParam       string  `json:"jsonCreateVmParam"`       //包含云主机创建参数的消息的JSON字符串
-	DeleteImageAfterSuccess bool    `json:"deleteImageAfterSuccess"` //部署完成后删除镜像文件
-	DeleteImageOnFail       bool    `json:"deleteImageOnFail"`       //部署失败后删除镜像文件
-	ResourceUuid            *string `json:"resourceUuid"`            //资源UUID
+	XmlBase64               string  `json:"xmlBase64"`               // Resource name
+	JsonImageInfos          string  `json:"jsonImageInfos"`          // JSON string describing the relationship between disk ID and image file in OVF
+	BackupStorageUuid       string  `json:"backupStorageUuid"`       // Backup storage UUID for storing uploaded image files
+	JsonCreateVmParam       string  `json:"jsonCreateVmParam"`       // JSON string containing the message with VM creation parameters
+	DeleteImageAfterSuccess bool    `json:"deleteImageAfterSuccess"` // Delete image file after successful deployment
+	DeleteImageOnFail       bool    `json:"deleteImageOnFail"`       // Delete image file after deployment failure
+	ResourceUuid            *string `json:"resourceUuid"`            // Resource UUID
 }
 
 type CreateVmFromOvfImageParam struct {

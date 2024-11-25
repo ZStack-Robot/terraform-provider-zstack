@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package param
 
@@ -9,9 +9,9 @@ type VolumeSnapshotParam struct {
 }
 
 type VolumeSnapshotDetailParam struct {
-	Name         string `json:"name" example:"chenjh-test-snapshot"`                         //快照名称
-	Description  string `json:"description" example:"JUST a test VolumeSnapshot For chenjh"` //快照的详细描述(可选)
-	ResourceUuid string `json:"resourceUuid" example:""`                                     //资源的Uuid(可选)
+	Name         string `json:"name" example:"chenjh-test-snapshot"`                         // Snapshot name
+	Description  string `json:"description" example:"JUST a test VolumeSnapshot For chenjh"` // Detailed description of the snapshot (optional)
+	ResourceUuid string `json:"resourceUuid" example:""`                                     // Resource Uuid (optional)
 }
 
 type UpdateVolumeSnapshotParam struct {
@@ -21,6 +21,6 @@ type UpdateVolumeSnapshotParam struct {
 }
 
 type UpdateVolumeSnapshotDetailParam struct {
-	Name        string `json:"name"`        //快照的新名称
-	Description string `json:"description"` //快照的新详细描述
+	Name        string `json:"name"`        // New name for the snapshot
+	Description string `json:"description"` // New detailed description for the snapshot
 }
