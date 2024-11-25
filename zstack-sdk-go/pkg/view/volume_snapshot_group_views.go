@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,27 +6,27 @@ type VolumeSnapshotGroupView struct {
 	BaseInfoView
 	BaseTimeView
 
-	SnapshotCount      int                     `json:"snapshotCount"`  //组内快照数量
-	VmInstanceUuid     string                  `json:"vmInstanceUuid"` //云主机UUID
+	SnapshotCount      int                     `json:"snapshotCount"`  // Number of snapshots in the group
+	VmInstanceUuid     string                  `json:"vmInstanceUuid"` // Cloud host UUID
 	VolumeSnapshotRefs []VolumeSnapshotRefView `json:"volumeSnapshotRefs"`
 }
 
 type VolumeSnapshotRefView struct {
 	BaseTimeView
 
-	VolumeSnapshotUuid        string `json:"volumeSnapshotUuid"`        //云盘快照UUID
-	VolumeSnapshotGroupUuid   string `json:"volumeSnapshotGroupUuid"`   //快照组UUID
-	DeviceId                  int    `json:"deviceId"`                  //打快照时云盘的加载序号
-	SnapshotDeleted           bool   `json:"snapshotDeleted"`           //快照是否已经被删除
-	VolumeUuid                string `json:"volumeUuid"`                //云盘UUID
-	VolumeName                string `json:"volumeName"`                //云盘的名字
-	VolumeType                string `json:"volumeType"`                //云盘的类型
-	VolumeSnapshotInstallPath string `json:"volumeSnapshotInstallPath"` //快照的安装路径
-	VolumeSnapshotName        string `json:"volumeSnapshotName"`        //快照的名字
+	VolumeSnapshotUuid        string `json:"volumeSnapshotUuid"`        // Cloud disk snapshot UUID
+	VolumeSnapshotGroupUuid   string `json:"volumeSnapshotGroupUuid"`   // Snapshot group UUID
+	DeviceId                  int    `json:"deviceId"`                  // Mount sequence number of the cloud disk when the snapshot was taken
+	SnapshotDeleted           bool   `json:"snapshotDeleted"`           // Whether the snapshot has been deleted
+	VolumeUuid                string `json:"volumeUuid"`                // Cloud disk UUID
+	VolumeName                string `json:"volumeName"`                // Name of the cloud disk
+	VolumeType                string `json:"volumeType"`                // Type of the cloud disk
+	VolumeSnapshotInstallPath string `json:"volumeSnapshotInstallPath"` // Installation path of the snapshot
+	VolumeSnapshotName        string `json:"volumeSnapshotName"`        // Name of the snapshot
 }
 
 type VolumeSnapshotGroupAvailabilityView struct {
-	UUID      string `json:"uuid"`      //资源的UUID，唯一标示该资源
-	Available bool   `json:"available"` //是否可以恢复
-	Reason    string `json:"reason"`    //不可恢复的理由，如可恢复则为空
+	UUID      string `json:"uuid"`      // Resource UUID, uniquely identifies the resource
+	Available bool   `json:"available"` // Whether it can be restored
+	Reason    string `json:"reason"`    // Reason for not being able to restore, empty if it can be restored
 }

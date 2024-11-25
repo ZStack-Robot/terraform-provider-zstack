@@ -1,10 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
 type ConsoleInventoryView struct {
-	Scheme   string `json:"scheme" bson:"scheme"`     //访问协议类型
-	Hostname string `json:"hostname" bson:"hostname"` //宿主机名称
-	Port     int    `json:"port" bson:"port"`         //端口
-	Token    string `json:"token" bson:"token"`       //口令
+	Scheme   string `json:"scheme" bson:"scheme"`     // Access protocol type
+	Hostname string `json:"hostname" bson:"hostname"` // Hostname of the host
+	Port     int    `json:"port" bson:"port"`         // Port number
+	Token    string `json:"token" bson:"token"`       // Token
 }

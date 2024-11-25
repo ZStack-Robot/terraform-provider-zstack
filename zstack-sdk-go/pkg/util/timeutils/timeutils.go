@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package timeutils
 

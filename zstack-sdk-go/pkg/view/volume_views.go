@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -8,10 +8,10 @@ type VolumeView struct {
 	BaseInfoView
 	BaseTimeView
 
-	PrimaryStorageUUID string    `json:"primaryStorageUuid"` //主存储UUID
-	VMInstanceUUID     string    `json:"vmInstanceUuid"`     //云主机UUID
-	LastVmInstanceUuid string    `json:"lastVmInstanceUuid"` //上一云主机UUID
-	DiskOfferingUUID   string    `json:"diskOfferingUuid"`   //云盘规格UUID
+	PrimaryStorageUUID string    `json:"primaryStorageUuid"` // Primary storage UUID
+	VMInstanceUUID     string    `json:"vmInstanceUuid"`     // Cloud VM UUID
+	LastVmInstanceUuid string    `json:"lastVmInstanceUuid"` // Last cloud VM UUID
+	DiskOfferingUUID   string    `json:"diskOfferingUuid"`   // Cloud disk specification UUID
 	RootImageUUID      string    `json:"rootImageUuid"`
 	InstallPath        string    `json:"installPath"`
 	Type               string    `json:"type"`
@@ -22,7 +22,7 @@ type VolumeView struct {
 	State              string    `json:"state"`
 	Status             string    `json:"status"`
 	IsShareable        bool      `json:"isShareable"`
-	LastDetachDate     time.Time `json:"lastDetachDate"` //最后一次卸载时间
+	LastDetachDate     time.Time `json:"lastDetachDate"` // Last detach time
 }
 
 type VolumeFormatView struct {
@@ -37,17 +37,17 @@ type VolumeCapabilitiesView struct {
 }
 
 type VolumeQoSView struct {
-	VolumeUuid                      string `json:"volumeUuid"`                      //云盘UUID
-	VolumeBandwidth                 int32  `json:"volumeBandwidth"`                 //云盘带宽，默认-1
-	VolumeBandwidthRead             int32  `json:"volumeBandwidthRead"`             //云盘读带宽，默认-1
-	VolumeBandwidthWrite            int32  `json:"volumeBandwidthWrite"`            //云盘写带宽，默认-1
-	VolumeBandwidthUpthreshold      int32  `json:"volumeBandwidthUpthreshold"`      //云盘带宽上限，默认-1
-	VolumeBandwidthReadUpthreshold  int32  `json:"volumeBandwidthReadUpthreshold"`  //云盘读带宽上限，默认-1
-	VolumeBandwidthWriteUpthreshold int32  `json:"volumeBandwidthWriteUpthreshold"` //云盘写带宽上限，默认-1
-	IopsTotal                       int32  `json:"iopsTotal"`                       //云盘总IOPS
-	IopsRead                        int32  `json:"iopsRead"`                        //云盘读取IOPS
-	IopsWrite                       int32  `json:"iopsWrite"`                       //云盘写入IOPS
-	IopsTotalUpthreshold            int32  `json:"iopsTotalUpthreshold"`            //云盘总IOPS上限，-1表示无上限限制
-	IopsReadUpthreshold             int32  `json:"iopsReadUpthreshold"`             //云盘读取IOPS上限，-1表示无上限限制
-	IopsWriteUpthreshold            int32  `json:"iopsWriteUpthreshold"`            //云盘写入IOPS上限，-1表示无上限限制
+	VolumeUuid                      string `json:"volumeUuid"`                      // Cloud disk UUID
+	VolumeBandwidth                 int32  `json:"volumeBandwidth"`                 // Cloud disk bandwidth, default -1
+	VolumeBandwidthRead             int32  `json:"volumeBandwidthRead"`             // Cloud disk read bandwidth, default -1
+	VolumeBandwidthWrite            int32  `json:"volumeBandwidthWrite"`            // Cloud disk write bandwidth, default -1
+	VolumeBandwidthUpthreshold      int32  `json:"volumeBandwidthUpthreshold"`      // Cloud disk bandwidth upper limit, default -1
+	VolumeBandwidthReadUpthreshold  int32  `json:"volumeBandwidthReadUpthreshold"`  // Cloud disk read bandwidth upper limit, default -1
+	VolumeBandwidthWriteUpthreshold int32  `json:"volumeBandwidthWriteUpthreshold"` // Cloud disk write bandwidth upper limit, default -1
+	IopsTotal                       int32  `json:"iopsTotal"`                       // Total IOPS of the cloud disk
+	IopsRead                        int32  `json:"iopsRead"`                        // Read IOPS of the cloud disk
+	IopsWrite                       int32  `json:"iopsWrite"`                       // Write IOPS of the cloud disk
+	IopsTotalUpthreshold            int32  `json:"iopsTotalUpthreshold"`            // Total IOPS upper limit of the cloud disk, -1 means no upper limit
+	IopsReadUpthreshold             int32  `json:"iopsReadUpthreshold"`             // Read IOPS upper limit of the cloud disk, -1 means no upper limit
+	IopsWriteUpthreshold            int32  `json:"iopsWriteUpthreshold"`            // Write IOPS upper limit of the cloud disk, -1 means no upper limit
 }

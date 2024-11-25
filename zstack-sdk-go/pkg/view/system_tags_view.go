@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,8 +6,8 @@ type SystemTagView struct {
 	BaseInfoView
 	BaseTimeView
 
-	Inherent     bool   `json:"inherent"`     //内部系统标签
-	ResourceUuid string `json:"resourceUuid"` //用户指定的资源UUID，若指定，系统不会为该资源随机分配UUID
-	ResourceType string `json:"resourceType"` //当创建一个标签时, 用户必须制定标签所关联的资源类型(resource type)
-	Tag          string `json:"tag"`          //标签字符串
+	Inherent     bool   `json:"inherent"`     // Internal system tag
+	ResourceUuid string `json:"resourceUuid"` // User-specified resource UUID, if specified, the system will not randomly assign a UUID to the resource
+	ResourceType string `json:"resourceType"` // When creating a tag, the user must specify the resource type associated with the tag
+	Tag          string `json:"tag"`          // Tag string
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -7,7 +7,7 @@ type L2NetworkInventoryView struct {
 	BaseTimeView
 
 	Vlan                 int      `json:"vlan"`
-	ZoneUuid             string   `json:"zoneUuid"` //区域UUID 若指定，云主机会在指定区域创建。
+	ZoneUuid             string   `json:"zoneUuid"` // Zone UUID. If specified, the cloud host will be created in the specified zone.
 	PhysicalInterface    string   `json:"physicalInterface"`
 	Type                 string   `json:"type"`
 	AttachedClusterUuids []string `json:"attachedClusterUuids"`

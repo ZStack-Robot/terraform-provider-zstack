@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -14,8 +14,8 @@ type ResourceConfigView struct {
 	BaseInfoView
 	BaseTimeView
 
-	ResourceUuid string `json:"resourceUuid"` //配置对应的资源UUID
-	ResourceType string `json:"resourceType"` //配置对应的资源类型
-	Category     string `json:"category"`     //配置类别
-	Value        string `json:"value"`        //配置的值
+	ResourceUuid string `json:"resourceUuid"` // UUID of the resource corresponding to the configuration
+	ResourceType string `json:"resourceType"` // Type of the resource corresponding to the configuration
+	Category     string `json:"category"`     // Configuration category
+	Value        string `json:"value"`        // Value of the configuration
 }

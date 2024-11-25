@@ -1,17 +1,17 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
 type MetricMetadataView struct {
-	Namespace   string   `json:"namespace"`   //名字空间
-	Name        string   `json:"name"`        //资源名称
-	Description string   `json:"description"` //资源名称
-	LabelNames  []string `json:"labelNames"`  //标签名
+	Namespace   string   `json:"namespace"`   // Namespace
+	Name        string   `json:"name"`        // Resource name
+	Description string   `json:"description"` // Resource description
+	LabelNames  []string `json:"labelNames"`  // Label names
 	Driver      string   `json:"driver"`
 }
 
 type MetricDataView struct {
-	Value  float64                `json:"value"`  //监控值
-	Time   int64                  `json:"time"`   //记录生成时间，时间戳，秒
-	Labels map[string]interface{} `json:"labels"` //标签
+	Value  float64                `json:"value"`  // Monitoring value
+	Time   int64                  `json:"time"`   // Record generation time, timestamp in seconds
+	Labels map[string]interface{} `json:"labels"` // Labels
 }

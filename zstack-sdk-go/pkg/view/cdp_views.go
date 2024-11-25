@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -7,36 +7,36 @@ import "zstack.io/zstack-sdk-go/pkg/param"
 type CdpPolicyInventoryView struct {
 	BaseInfoView
 	BaseTimeView
-	RetentionTimePerDay     int64                `json:"retentionTimePerDay"`     //恢复点保留时间
-	RecoveryPointPerSecond  int64                `json:"recoveryPointPerSecond"`  //恢复点间隔时间
-	State                   param.CdpPolicyState `json:"state"`                   //策略状态
-	HourlyRpSinceDay        int64                `json:"hourlyRpSinceDay"`        // 从哪天开始保留每小时一个恢复点
-	DailyRpSinceDay         int64                `json:"dailyRpSinceDay"`         // 从哪天开始保留每天一个恢复点
-	ExpireTimeInDay         int64                `json:"expireTimeInDay"`         // 备份数据有效时间
-	FullBackupIntervalInDay int64                `json:"fullBackupIntervalInDay"` // 全量备份时间间隔
+	RetentionTimePerDay     int64                `json:"retentionTimePerDay"`     // Retention time for recovery points
+	RecoveryPointPerSecond  int64                `json:"recoveryPointPerSecond"`  // Interval time for recovery points
+	State                   param.CdpPolicyState `json:"state"`                   // Policy state
+	HourlyRpSinceDay        int64                `json:"hourlyRpSinceDay"`        // Start day to retain one recovery point per hour
+	DailyRpSinceDay         int64                `json:"dailyRpSinceDay"`         // Start day to retain one recovery point per day
+	ExpireTimeInDay         int64                `json:"expireTimeInDay"`         // Validity time for backup data
+	FullBackupIntervalInDay int64                `json:"fullBackupIntervalInDay"` // Interval for full backup
 }
 
 type CdpTaskInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	PolicyUuid        string                    `json:"policyUuid"`        // 权限策略UUID
-	BackupStorageUuid string                    `json:"backupStorageUuid"` // 镜像存储UUID
-	BackupBandwidth   int64                     `json:"backupBandwidth"`   // 单个云盘备份速率
-	MaxCapacity       int64                     `json:"maxCapacity"`       // CDP任务规划容量
-	UsedCapacity      int64                     `json:"usedCapacity"`      //CDP已用容量
-	MaxLatency        int64                     `json:"maxLatency"`        // CDP任务RPO最大偏移量
-	LastLatency       int64                     `json:"lastLatency"`       // CDP任务RPO最后偏移量
+	PolicyUuid        string                    `json:"policyUuid"`        // Policy UUID
+	BackupStorageUuid string                    `json:"backupStorageUuid"` // Backup storage UUID
+	BackupBandwidth   int64                     `json:"backupBandwidth"`   // Backup speed for a single volume
+	MaxCapacity       int64                     `json:"maxCapacity"`       // Planned capacity for the CDP task
+	UsedCapacity      int64                     `json:"usedCapacity"`      // Used capacity for CDP
+	MaxLatency        int64                     `json:"maxLatency"`        // Maximum RPO offset for the CDP task
+	LastLatency       int64                     `json:"lastLatency"`       // Last RPO offset for the CDP task
 	Status            param.CdpTaskStatus       `json:"status"`
 	State             param.CdpTaskState        `json:"state"`
 	TaskType          param.CdpTaskType         `json:"taskType"`
-	ResourceRefs      []CdpTaskResourceRefsView `json:"resourceRefs"` // 任务资源清单
+	ResourceRefs      []CdpTaskResourceRefsView `json:"resourceRefs"` // Task resource list
 }
 
 type CdpTaskResourceRefsView struct {
-	TaskUuid     string `json:"taskUuid"`     // CDP任务UUID
-	ResourceUuid string `json:"resourceUuid"` // 资源UUID
-	ResourceType string `json:"resourceType"` // 任务资源清单
+	TaskUuid     string `json:"taskUuid"`     // CDP task UUID
+	ResourceUuid string `json:"resourceUuid"` // Resource UUID
+	ResourceType string `json:"resourceType"` // Task resource list
 	BaseTimeView
 }
 

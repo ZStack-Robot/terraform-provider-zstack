@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,27 +6,27 @@ type VmInstanceInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	ZoneUUID             string               `json:"zoneUuid"`             //区域UUID
-	ClusterUUID          string               `json:"clusterUuid"`          //集群UUID
-	ImageUUID            string               `json:"imageUuid"`            //镜像UUID
-	HostUUID             string               `json:"hostUuid"`             //物理机UUID
-	LastHostUUID         string               `json:"lastHostUuid"`         //上一次运行云主机的物理机UUID
-	InstanceOfferingUUID string               `json:"instanceOfferingUuid"` //计算规格UUID
-	RootVolumeUUID       string               `json:"rootVolumeUuid"`       //根云盘UUID
-	Platform             string               `json:"platform"`             //云主机运行平台
-	Architecture         string               `json:"architecture"`         //架构类型
-	GuestOsType          string               `json:"guestOsType" `         //镜像对应客户机操作系统的类型
-	DefaultL3NetworkUUID string               `json:"defaultL3NetworkUuid"` //默认三层网络UUID
-	Type                 string               `json:"type"`                 //云主机类型
-	HypervisorType       string               `json:"hypervisorType"`       //云主机的hypervisor类型
-	MemorySize           int64                `json:"memorySize"`           //内存大小
-	CPUNum               int                  `json:"cpuNum"`               //cpu数量
-	CPUSpeed             int64                `json:"cpuSpeed"`             //cpu主频
-	AllocatorStrategy    string               `json:"allocatorStrategy"`    //分配策略
-	State                string               `json:"state"`                //云主机的可用状态
-	VMNics               []VmNicInventoryView `json:"vmNics"`               //所有网卡信息
-	AllVolumes           []VolumeView         `json:"allVolumes"`           //所有卷
-	VmCdRoms             []VmCdRom            `json:"vmCdRoms"`             //驱动
+	ZoneUUID             string               `json:"zoneUuid"`             // Zone UUID
+	ClusterUUID          string               `json:"clusterUuid"`          // Cluster UUID
+	ImageUUID            string               `json:"imageUuid"`            // Image UUID
+	HostUUID             string               `json:"hostUuid"`             // Physical machine UUID
+	LastHostUUID         string               `json:"lastHostUuid"`         // Physical machine UUID where the cloud host last ran
+	InstanceOfferingUUID string               `json:"instanceOfferingUuid"` // Compute specification UUID
+	RootVolumeUUID       string               `json:"rootVolumeUuid"`       // Root cloud disk UUID
+	Platform             string               `json:"platform"`             // Cloud host running platform
+	Architecture         string               `json:"architecture"`         // Architecture type
+	GuestOsType          string               `json:"guestOsType" `         // Guest OS type corresponding to the image
+	DefaultL3NetworkUUID string               `json:"defaultL3NetworkUuid"` // Default layer 3 network UUID
+	Type                 string               `json:"type"`                 // Cloud host type
+	HypervisorType       string               `json:"hypervisorType"`       // Hypervisor type of the cloud host
+	MemorySize           int64                `json:"memorySize"`           // Memory size
+	CPUNum               int                  `json:"cpuNum"`               // Number of CPUs
+	CPUSpeed             int64                `json:"cpuSpeed"`             // CPU frequency
+	AllocatorStrategy    string               `json:"allocatorStrategy"`    // Allocation strategy
+	State                string               `json:"state"`                // Availability status of the cloud host
+	VMNics               []VmNicInventoryView `json:"vmNics"`               // All NIC information
+	AllVolumes           []VolumeView         `json:"allVolumes"`           // All volumes
+	VmCdRoms             []VmCdRom            `json:"vmCdRoms"`             // CD-ROMs
 }
 
 type CloneVmInstanceResult struct {
@@ -43,25 +43,26 @@ type VmCdRom struct {
 	BaseInfoView
 	BaseTimeView
 
-	DeviceId       int    `json:"deviceId"`       //
-	VmInstanceUuid string `json:"vmInstanceUuid"` //
+	DeviceId       int    `json:"deviceId"`       // Device ID
+	VmInstanceUuid string `json:"vmInstanceUuid"` // VM instance UUID
 }
 
 type VMConsoleAddressView struct {
-	HostIp      string      `json:"hostIp" bson:"hostIp"`           //云主机运行物理机IP
-	Port        string      `json:"port" bson:"port"`               //云主机控制台端口
-	Protocol    string      `json:"protocol" bson:"protocol"`       //云主机控制台协议，vnc或spice或vncAndSpice
-	Success     bool        `json:"success" bson:"success"`         //操作是否成功
-	VdiPortInfo VdiPortInfo `json:"vdiPortInfo" bson:"vdiPortInfo"` //端口组
+	HostIp      string      `json:"hostIp" bson:"hostIp"`           // IP of the physical machine running the cloud host
+	Port        string      `json:"port" bson:"port"`               // Console port of the cloud host
+	Protocol    string      `json:"protocol" bson:"protocol"`       // Console protocol of the cloud host, e.g., vnc or spice or vncAndSpice
+	Success     bool        `json:"success" bson:"success"`         // Whether the operation was successful
+	VdiPortInfo VdiPortInfo `json:"vdiPortInfo" bson:"vdiPortInfo"` // Port group
 }
+
 type VdiPortInfo struct {
-	VncPort      int `json:"vncPort" bson:"vncPort"`           //	vnc端口号
-	SpicePort    int `json:"spicePort" bson:"spicePort"`       //spice端口号
-	SpiceTlsPort int `json:"spiceTlsPort" bson:"spiceTlsPort"` //spice开启Tls加密，会存在spiceTlsPort和spicePort两个端口号，通过spice客户端连接云主机需要使用spiceTlsPort端口号
+	VncPort      int `json:"vncPort" bson:"vncPort"`           // VNC port number
+	SpicePort    int `json:"spicePort" bson:"spicePort"`       // SPICE port number
+	SpiceTlsPort int `json:"spiceTlsPort" bson:"spiceTlsPort"` // SPICE TLS port number, used when SPICE is encrypted with TLS
 }
 
 type GetVmConsolePasswordView struct {
-	ConsolePassword string `json:"consolePassword" bson:"consolePassword"` //密码
+	ConsolePassword string `json:"consolePassword" bson:"consolePassword"` // Password
 }
 
 type VmGuestToolsInfoView struct {
@@ -75,9 +76,9 @@ type LatestGuestToolsView struct {
 
 	ManagementNodeUuid string      `json:"managementNodeUuid" `
 	AgentType          interface{} `json:"agentType" `
-	HypervisorType     string      `json:"hypervisorType" ` //虚拟化类型
-	Version            interface{} `json:"version" `        //版本
-	Architecture       string      `json:"architecture" `   //架构
+	HypervisorType     string      `json:"hypervisorType" ` // Hypervisor type
+	Version            interface{} `json:"version" `        // Version
+	Architecture       string      `json:"architecture" `   // Architecture
 }
 
 type VMQgaView struct {

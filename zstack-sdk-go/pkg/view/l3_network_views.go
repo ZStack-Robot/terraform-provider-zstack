@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,14 +6,14 @@ type L3NetworkInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	Type            string             `json:"type"`          //三层网络类型
-	ZoneUuid        string             `json:"zoneUuid"`      //区域UUID 若指定，云主机会在指定区域创建。
-	L2NetworkUuid   string             `json:"l2NetworkUuid"` //二层网络UUID
-	State           string             `json:"state"`         //三层网络的可用状态
-	DnsDomain       string             `json:"dnsDomain"`     //DNS域
-	System          bool               `json:"system"`        //是否用于系统云主机
-	Category        string             `json:"category"`      //网络类型，需要与system标签搭配使用，system为true时可设置为Public、Private
-	IpVersion       int                `json:"ipVersion"`     //ip协议号:4,6
+	Type            string             `json:"type"`          // Layer 3 network type
+	ZoneUuid        string             `json:"zoneUuid"`      // Zone UUID. If specified, the cloud host will be created in the specified zone.
+	L2NetworkUuid   string             `json:"l2NetworkUuid"` // Layer 2 network UUID
+	State           string             `json:"state"`         // Layer 3 network availability state
+	DnsDomain       string             `json:"dnsDomain"`     // DNS domain
+	System          bool               `json:"system"`        // Whether it is used for system cloud hosts
+	Category        string             `json:"category"`      // Network type, needs to be used with the system tag, can be set to Public or Private when system is true
+	IpVersion       int                `json:"ipVersion"`     // IP protocol number: 4, 6
 	Dns             []string           `json:"dns"`
 	IpRanges        []IpRangeInventory `json:"ipRanges"`
 	NetworkServices []NetworkServices  `json:"networkServices"`
@@ -21,41 +21,41 @@ type L3NetworkInventoryView struct {
 }
 
 type IpRangeInventory struct {
-	UUID          string `json:"uuid"`          //资源的UUID，唯一标示该资源
-	L3NetworkUuid string `json:"l3NetworkUuid"` //三层网络UUID
-	Name          string `json:"name"`          //资源名称
-	Description   string `json:"description"`   //资源的详细描述
+	UUID          string `json:"uuid"`          // Resource UUID, uniquely identifies the resource
+	L3NetworkUuid string `json:"l3NetworkUuid"` // Layer 3 network UUID
+	Name          string `json:"name"`          // Resource name
+	Description   string `json:"description"`   // Detailed description of the resource
 	StartIp       string `json:"StartIp"`
 	EndIp         string `json:"EndIp"`
-	Netmask       string `json:"netmask"`   //网络掩码
-	PrefixLen     string `json:"prefixLen"` //掩码长度
-	Gateway       string `json:"gateway"`   //网关地址
+	Netmask       string `json:"netmask"`   // Network mask
+	PrefixLen     string `json:"prefixLen"` // Mask length
+	Gateway       string `json:"gateway"`   // Gateway address
 	NetworkCidr   string `json:"networkCidr"`
-	IpVersion     string `json:"ipVersion"`   //ip协议号:4,6
-	AddressMode   string `json:"addressMode"` //IPv6地址分配模式
-	CreateDate    string `json:"createDate"`  //创建时间
-	LastOpDate    string `json:"lastOpDate"`  //最后一次修改时间
+	IpVersion     string `json:"ipVersion"`   // IP protocol number: 4, 6
+	AddressMode   string `json:"addressMode"` // IPv6 address allocation mode
+	CreateDate    string `json:"createDate"`  // Creation time
+	LastOpDate    string `json:"lastOpDate"`  // Last modification time
 	IpRangeType   string `json:"ipRangeType"`
 }
 
 type NetworkServices struct {
-	L3NetworkUuid              string `json:"l3NetworkUuid"`              //三层网络UUID
-	NetworkServiceProviderUuid string `json:"networkServiceProviderUuid"` //网络服务提供模块UUID
+	L3NetworkUuid              string `json:"l3NetworkUuid"`              // Layer 3 network UUID
+	NetworkServiceProviderUuid string `json:"networkServiceProviderUuid"` // Network service provider module UUID
 	NetworkServiceType         string `json:"networkServiceType"`
 }
 
 type HostRoute struct {
 	Id            string `json:"id"`
-	L3NetworkUuid string `json:"l3NetworkUuid"` //三层网络UUID
+	L3NetworkUuid string `json:"l3NetworkUuid"` // Layer 3 network UUID
 	Prefix        string `json:"prefix"`
 	Nexthop       string `json:"nexthop"`
-	CreateDate    string `json:"createDate"` //创建时间
-	LastOpDate    string `json:"lastOpDate"` //最后一次修改时间
+	CreateDate    string `json:"createDate"` // Creation time
+	LastOpDate    string `json:"lastOpDate"` // Last modification time
 }
 
 type FreeIpInventoryView struct {
-	IpRangeUuid string `json:"ipRangeUuid"` //IP段UUID
-	Ip          string `json:"ip"`          //ip
+	IpRangeUuid string `json:"ipRangeUuid"` // IP range UUID
+	Ip          string `json:"ip"`          // IP
 	Netmask     string `json:"netmask"`
 	Gateway     string `json:"gateway"`
 }
@@ -65,31 +65,31 @@ type CheckIpView struct {
 }
 
 type IpAddressCapacityView struct {
-	TotalCapacity           int64            `json:"totalCapacity" `           //IP地址容量
-	AvailableCapacity       int64            `json:"availableCapacity" `       //可用IP地址容量
-	UsedIpAddressNumber     int64            `json:"usedIpAddressNumber" `     //已使用IP数量
-	Ipv4TotalCapacity       int64            `json:"ipv4TotalCapacity" `       //IPv4地址容量
-	Ipv4AvailableCapacity   int64            `json:"ipv4AvailableCapacity" `   //可用IPv4地址容量
-	Ipv4UsedIpAddressNumber int64            `json:"ipv4UsedIpAddressNumber" ` //已使用IPv4数量
-	Ipv6TotalCapacity       int64            `json:"ipv6TotalCapacity" `       //IPv6地址容量
-	Ipv6AvailableCapacity   int64            `json:"ipv6AvailableCapacity" `   //可用IPv6地址容量
-	Ipv6UsedIpAddressNumber int64            `json:"ipv6UsedIpAddressNumber" ` //已使用IPv6数量
-	ResourceType            string           `json:"resourceType" `            //所查询资源的类型（地址范围、三层网络、区域）
-	Success                 bool             `json:"success" `                 //成功
-	CapacityData            []IpCapacityData `json:"capacityData" `
+	TotalCapacity           int64            `json:"totalCapacity"`           // Total IP address capacity
+	AvailableCapacity       int64            `json:"availableCapacity"`       // Available IP address capacity
+	UsedIpAddressNumber     int64            `json:"usedIpAddressNumber"`     // Number of used IP addresses
+	Ipv4TotalCapacity       int64            `json:"ipv4TotalCapacity"`       // Total IPv4 address capacity
+	Ipv4AvailableCapacity   int64            `json:"ipv4AvailableCapacity"`   // Available IPv4 address capacity
+	Ipv4UsedIpAddressNumber int64            `json:"ipv4UsedIpAddressNumber"` // Number of used IPv4 addresses
+	Ipv6TotalCapacity       int64            `json:"ipv6TotalCapacity"`       // Total IPv6 address capacity
+	Ipv6AvailableCapacity   int64            `json:"ipv6AvailableCapacity"`   // Available IPv6 address capacity
+	Ipv6UsedIpAddressNumber int64            `json:"ipv6UsedIpAddressNumber"` // Number of used IPv6 addresses
+	ResourceType            string           `json:"resourceType"`            // Type of the queried resource (IP range, Layer 3 network, zone)
+	Success                 bool             `json:"success"`                 // Success
+	CapacityData            []IpCapacityData `json:"capacityData"`
 }
 
 type IpCapacityData struct {
-	ResourceUuid            string `json:"resourceUuid,omitempty"`   //资源UUID。若指定，镜像会使用该字段值作为UUID。
-	TotalCapacity           int64  `json:"totalCapacity" `           //IP地址总容量
-	AvailableCapacity       int64  `json:"availableCapacity" `       //可用IP地址容量
-	UsedIpAddressNumber     int64  `json:"usedIpAddressNumber" `     //已用IP地址容量
-	Ipv4TotalCapacity       int64  `json:"ipv4TotalCapacity"`        //IPv4地址总容量
-	Ipv4AvailableCapacity   int64  `json:"ipv4AvailableCapacity" `   //可用IPv4地址容量
-	Ipv4UsedIpAddressNumber int64  `json:"ipv4UsedIpAddressNumber" ` //已用IPv4地址容量
-	Ipv6TotalCapacity       int64  `json:"ipv6TotalCapacity" `       //IPv6地址总容量
-	Ipv6AvailableCapacity   int64  `json:"ipv6AvailableCapacity" `   //	可用IPv6地址容量
-	Ipv6UsedIpAddressNumber int64  `json:"ipv6UsedIpAddressNumber" ` //已用IPv6地址容量
+	ResourceUuid            string `json:"resourceUuid,omitempty"`  // Resource UUID. If specified, the image will use this value as the UUID.
+	TotalCapacity           int64  `json:"totalCapacity"`           // Total IP address capacity
+	AvailableCapacity       int64  `json:"availableCapacity"`       // Available IP address capacity
+	UsedIpAddressNumber     int64  `json:"usedIpAddressNumber"`     // Number of used IP addresses
+	Ipv4TotalCapacity       int64  `json:"ipv4TotalCapacity"`       // Total IPv4 address capacity
+	Ipv4AvailableCapacity   int64  `json:"ipv4AvailableCapacity"`   // Available IPv4 address capacity
+	Ipv4UsedIpAddressNumber int64  `json:"ipv4UsedIpAddressNumber"` // Number of used IPv4 addresses
+	Ipv6TotalCapacity       int64  `json:"ipv6TotalCapacity"`       // Total IPv6 address capacity
+	Ipv6AvailableCapacity   int64  `json:"ipv6AvailableCapacity"`   // Available IPv6 address capacity
+	Ipv6UsedIpAddressNumber int64  `json:"ipv6UsedIpAddressNumber"` // Number of used IPv6 addresses
 }
 
 type DnsInventoryView struct {
@@ -146,8 +146,8 @@ type IpAddressInventoryView struct {
 type ReservedIpRangeInventoryView struct {
 	Uuid          string `json:"uuid"`
 	L3NetworkUuid string `json:"l3NetworkUuid"`
-	Name          string `json:"name"`      // max length of 255 characters
-	StartIp       string `json:"startIp"`   // start IP address, in IPv4
-	EndIp         string `json:"endIp"`     // end IP address, in IPv4
+	Name          string `json:"name"`      // Maximum length of 255 characters
+	StartIp       string `json:"startIp"`   // Start IP address, in IPv4
+	EndIp         string `json:"endIp"`     // End IP address, in IPv4
 	IpVersion     int    `json:"ipVersion"` // IP version (e.g., 4 for IPv4)
 }

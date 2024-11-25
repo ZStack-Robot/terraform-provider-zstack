@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,6 +6,6 @@ type ZoneView struct {
 	BaseInfoView
 	BaseTimeView
 
-	State string `json:"state"` //状态
-	Type  string `json:"type"`  //类型
+	State string `json:"state"`
+	Type  string `json:"type"`
 }

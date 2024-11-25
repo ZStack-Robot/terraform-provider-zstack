@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -7,10 +7,10 @@ type VolumeSnapshotView struct {
 	BaseTimeView
 
 	Type                      string `json:"type"`
-	VolumeUUID                string `json:"volumeUuid"` //云盘UUID
+	VolumeUUID                string `json:"volumeUuid"`
 	TreeUUID                  string `json:"treeUuid"`
 	ParentUUID                string `json:"parentUuid"`
-	PrimaryStorageUUID        string `json:"primaryStorageUuid"` //主存储UUID
+	PrimaryStorageUUID        string `json:"primaryStorageUuid"`
 	PrimaryStorageInstallPath string `json:"primaryStorageInstallPath"`
 	VolumeType                string `json:"volumeType"`
 	Format                    string `json:"format"`
@@ -38,8 +38,8 @@ type VolumeSnapshotTreeNodeView struct {
 }
 
 type VolumeSnapshotSizeView struct {
-	Size       int64 `json:"size"`       //快照容量
-	ActualSize int64 `json:"actualSize"` //快照实际容量
+	Size       int64 `json:"size"`
+	ActualSize int64 `json:"actualSize"`
 	Success    bool  `json:"success"`
 }
 

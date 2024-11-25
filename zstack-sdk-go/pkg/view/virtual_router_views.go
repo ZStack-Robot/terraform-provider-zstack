@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -9,24 +9,24 @@ type VirtualRouterInventoryView struct {
 	ApplianceVmType           string               `json:"applianceVmType"`
 	ManagementNetworkUuid     string               `json:"managementNetworkUuid"`
 	DefaultRouteL3NetworkUuid string               `json:"defaultRouteL3NetworkUuid"`
-	Status                    string               `json:"status"` //云盘的连接状态
+	Status                    string               `json:"status"` // Connection status of the cloud disk
 	AgentPort                 int                  `json:"agentPort"`
-	ZoneUuid                  string               `json:"zoneUuid,omitempty"`    //区域UUID 若指定，云主机会在指定区域创建。
-	ClusterUUID               string               `json:"clusterUuid,omitempty"` //集群UUID 若指定，云主机会在指定集群创建，该字段优先级高于zoneUuid。
-	ImageUUID                 string               `json:"imageUuid"`             //镜像UUID 云主机的根云盘会从该字段指定的镜像创建。
-	HostUuid                  string               `json:"hostUuid"`              //物理机UUID
-	LastHostUUID              string               `json:"lastHostUuid"`          //上一次运行云主机的物理机UUID
-	InstanceOfferingUUID      string               `json:"instanceOfferingUuid"`  //计算规格UUID 指定云主机的CPU、内存等参数。
+	ZoneUuid                  string               `json:"zoneUuid,omitempty"`    // Zone UUID If specified, the cloud host will be created in the specified zone.
+	ClusterUUID               string               `json:"clusterUuid,omitempty"` // Cluster UUID If specified, the cloud host will be created in the specified cluster, this field has higher priority than zoneUuid.
+	ImageUUID                 string               `json:"imageUuid"`             // Image UUID The root cloud disk of the cloud host will be created from the image specified by this field.
+	HostUuid                  string               `json:"hostUuid"`              // Physical machine UUID
+	LastHostUUID              string               `json:"lastHostUuid"`          // Physical machine UUID where the cloud host last ran
+	InstanceOfferingUUID      string               `json:"instanceOfferingUuid"`  // Compute specification UUID Specifies the CPU, memory, and other parameters of the cloud host.
 	RootVolumeUuid            string               `json:"rootVolumeUuid"`
 	Platform                  string               `json:"platform"`
 	DefaultL3NetworkUuid      string               `json:"defaultL3NetworkUuid"`
 	Type                      string               `json:"type"`
-	HypervisorType            string               `json:"hypervisorType"` //虚拟机管理程序类型,KVM Simulator
-	MemorySize                int64                `json:"memorySize"`     //内存大小
-	CPUNum                    int                  `json:"cpuNum"`         //cpu数量
-	CPUSpeed                  int64                `json:"cpuSpeed"`       //cpu主频
+	HypervisorType            string               `json:"hypervisorType"` // Hypervisor type, e.g., KVM Simulator
+	MemorySize                int64                `json:"memorySize"`     // Memory size
+	CPUNum                    int                  `json:"cpuNum"`         // Number of CPUs
+	CPUSpeed                  int64                `json:"cpuSpeed"`       // CPU frequency
 	AllocatorStrategy         string               `json:"allocatorStrategy,omitempty"`
 	State                     string               `json:"state"`
-	VMNics                    []VmNicInventoryView `json:"vmNics"`     //所有网卡信息
-	AllVolumes                []VolumeView         `json:"allVolumes"` //所有卷
+	VMNics                    []VmNicInventoryView `json:"vmNics"`     // All NIC information
+	AllVolumes                []VolumeView         `json:"allVolumes"` // All volumes
 }

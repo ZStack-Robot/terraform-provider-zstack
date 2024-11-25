@@ -1,26 +1,26 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
 type GetCandidatePrimaryStoragesForCreatingVmView struct {
-	DataVolumePrimaryStorages map[string][]PrimaryStorageInventoryView `json:"dataVolumePrimaryStorages" `
-	RootVolumePrimaryStorages []PrimaryStorageInventoryView            `json:"rootVolumePrimaryStorages" `
+	DataVolumePrimaryStorages map[string][]PrimaryStorageInventoryView `json:"dataVolumePrimaryStorages"`
+	RootVolumePrimaryStorages []PrimaryStorageInventoryView            `json:"rootVolumePrimaryStorages"`
 }
 
 type PrimaryStorageInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	ZoneUuid                  string                                `json:"zoneUuid"` //区域UUID
-	Url                       string                                `json:"url" `
-	TotalCapacity             int64                                 `json:"totalCapacity" `
-	AvailableCapacity         int64                                 `json:"availableCapacity" `
+	ZoneUuid                  string                                `json:"zoneUuid"` // Zone UUID
+	Url                       string                                `json:"url"`
+	TotalCapacity             int64                                 `json:"totalCapacity"`
+	AvailableCapacity         int64                                 `json:"availableCapacity"`
 	TotalPhysicalCapacity     int64                                 `json:"totalPhysicalCapacity"`
 	AvailablePhysicalCapacity int64                                 `json:"availablePhysicalCapacity"`
 	SystemUsedCapacity        int64                                 `json:"systemUsedCapacity"`
-	Type                      string                                `json:"type"` //云主机类型 保留字段，无需指定。UserVm/ApplianceVm
-	State                     string                                `json:"state" `
-	Status                    string                                `json:"status" `
+	Type                      string                                `json:"type"` // Cloud host type reserved field, no need to specify. UserVm/ApplianceVm
+	State                     string                                `json:"state"`
+	Status                    string                                `json:"status"`
 	AttachedClusterUuids      []string                              `json:"attachedClusterUuids"`
 	Mons                      []CephPrimaryStorageMonsView          `json:"mons"`
 	Pools                     []CephPrimaryStoragePoolInventoryView `json:"pools"`

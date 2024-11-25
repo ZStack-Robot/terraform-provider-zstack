@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,11 +6,11 @@ type InstanceOfferingInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	CpuNum            int    `json:"cpuNum" `            //CPU数量
-	CpuSpeed          int    `json:"cpuSpeed" `          //CPU速度
-	MemorySize        int64  `json:"memorySize" `        //内存大小
-	Type              string `json:"type" `              //类型
-	AllocatorStrategy string `json:"allocatorStrategy" ` //分配策略
-	SortKey           int    `json:"sortKey" `
-	State             string `json:"state" ` //状态（启用，禁用）
+	CpuNum            int    `json:"cpuNum"`            // Number of CPUs
+	CpuSpeed          int    `json:"cpuSpeed"`          // CPU speed
+	MemorySize        int64  `json:"memorySize"`        // Memory size
+	Type              string `json:"type"`              // Type
+	AllocatorStrategy string `json:"allocatorStrategy"` // Allocation strategy
+	SortKey           int    `json:"sortKey"`
+	State             string `json:"state"` // State (Enabled, Disabled)
 }

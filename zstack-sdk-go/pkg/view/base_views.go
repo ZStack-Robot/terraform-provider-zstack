@@ -1,27 +1,27 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
 import "time"
 
 type BaseInfoView struct {
-	UUID        string `json:"uuid"`        //资源的UUID，唯一标示该资源
-	Name        string `json:"name"`        //资源名称
-	Description string `json:"description"` //资源的详细描述
+	UUID        string `json:"uuid"`        // Resource UUID, unique identifier for the resource
+	Name        string `json:"name"`        // Resource name
+	Description string `json:"description"` // Detailed description of the resource
 }
 
 type BaseTimeView struct {
-	CreateDate time.Time `json:"createDate"` //创建时间
-	LastOpDate time.Time `json:"lastOpDate"` //最后一次修改时间
+	CreateDate time.Time `json:"createDate"` // Creation time
+	LastOpDate time.Time `json:"lastOpDate"` // Last modification time
 }
 
 type ErrorCodeView struct {
-	Code        string                 `json:"code"`        //错误码号，错误的全局唯一标识，例如SYS.1000, HOST.1001
-	Description string                 `json:"description"` // 	错误的概要描述
-	Details     string                 `json:"details"`     //错误的详细信息
-	Elaboration string                 `json:"elaboration"` //保留字段，默认为null
+	Code        string                 `json:"code"`        // Error code number, global unique identifier for the error, e.g., SYS.1000, HOST.1001
+	Description string                 `json:"description"` // Brief description of the error
+	Details     string                 `json:"details"`     // Detailed information about the error
+	Elaboration string                 `json:"elaboration"` // Reserved field, defaults to null
 	Location    string                 `json:"location"`
 	Cost        string                 `json:"cost"`
-	Opaque      map[string]interface{} `json:"opaque"` //保留字段，默认为null
-	Cause       *ErrorCodeView         `json:"cause"`  //根错误，引发当前错误的源错误，若无原错误，该字段为null
+	Opaque      map[string]interface{} `json:"opaque"` // Reserved field, defaults to null
+	Cause       *ErrorCodeView         `json:"cause"`  // Root error, the source error that caused the current error, null if there is no source error
 }

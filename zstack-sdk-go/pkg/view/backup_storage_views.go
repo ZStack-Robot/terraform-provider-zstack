@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -8,7 +8,7 @@ type BackupStorageInventoryView struct {
 	Url               string   `json:"url" `
 	TotalCapacity     int64    `json:"totalCapacity" `
 	AvailableCapacity int64    `json:"availableCapacity" `
-	Type              string   `json:"type"` //云主机类型 保留字段，无需指定。UserVm/ApplianceVm
+	Type              string   `json:"type"` // VM type reserved field, no need to specify. UserVm/ApplianceVm
 	State             string   `json:"state" `
 	Status            string   `json:"status" `
 	AttachedZoneUuids []string `json:"attachedZoneUuids" `
@@ -51,10 +51,10 @@ type CephMon struct {
 }
 
 type ExportImageFromBackupStorageResultView struct {
-	ImageUrl     string `json:"imageUrl"`     //导出的镜像的URL
-	ExportMd5Sum string `json:"exportMd5Sum"` //导出的镜像的MD5值
-	Success      bool   `json:"success"`      //导出是否成功
-	Error        string `json:"error"`        //导出失败的错误信息
+	ImageUrl     string `json:"imageUrl"`     // URL of the exported image
+	ExportMd5Sum string `json:"exportMd5Sum"` // MD5 value of the exported image
+	Success      bool   `json:"success"`      // Whether the export was successful
+	Error        string `json:"error"`        // Error message if the export failed
 }
 
 type GcResultView struct {

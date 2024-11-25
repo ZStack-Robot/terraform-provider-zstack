@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) ZStack.io, Inc.
 
 package view
 
@@ -6,7 +6,7 @@ type EipInventoryView struct {
 	BaseInfoView
 	BaseTimeView
 
-	VmNicUuid string `json:"vmNicUuid"` //云主机网卡UUID
+	VmNicUuid string `json:"vmNicUuid"` // UUID of the VM NIC
 	VipUuid   string `json:"vipUuid"`
 	State     string `json:"state"`
 	VipIp     string `json:"vipIp"`
