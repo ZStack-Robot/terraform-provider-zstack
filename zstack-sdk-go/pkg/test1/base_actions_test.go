@@ -15,7 +15,7 @@ const (
 	//ZStack Cloud基础版支持AccessKey、超管及子账户登录认证
 	//ZStack Cloud企业版支持AccessKey、超管及子账户登录认证、企业用户登录认证
 
-	accountLoginHostname        = "IPOfCloudAPIEndpoint" //基础版-高可用-4.4.24
+	accountLoginHostname        = "172.30.3.3"           //基础版-高可用-4.4.24
 	accountLoginAccountName     = "admin"                //基础版-高可用-4.4.24
 	accountLoginAccountPassword = "password"             //基础版-高可用-4.4.24
 	accountLoginMasterHostname  = "IPOfCloudAPIEndpoint" //基础版-高可用-4.4.24

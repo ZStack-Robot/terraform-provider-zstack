@@ -32,7 +32,7 @@ func TestPageL2Network(t *testing.T) {
 }
 
 func TestGetL2Network(t *testing.T) {
-	network, err := accountLoginCli.GetL2Network("c0e78f8c33b844f3a5bbc55514111054")
+	network, err := accountLoginCli.GetL2Network("6de83607f46544e497c84c7eb085b498")
 	if err != nil {
 		golog.Errorf("TestGetL2Network  %v", err)
 		return
