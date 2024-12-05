@@ -302,6 +302,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackl2NetworkDataSource,
 		ZStackvrouterDataSource,
 		ZStackVirtualRouterImageDataSource,
+		ZStackVRouterOfferingDataSource,
 	}
 
 }

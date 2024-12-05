@@ -43,7 +43,7 @@ type vrouterModel struct {
 	InstanceOfferingUUID  types.String       `tfsdk:"instance_offering_uuid"`
 	Platform              types.String       `tfsdk:"platform"`
 	Architecture          types.String       `tfsdk:"architecture"`
-	CPUNum                types.Int64        `tfsdk:"cup_num"`
+	CPUNum                types.Int64        `tfsdk:"cpu_num"`
 	MemorySize            types.Int64        `tfsdk:"memory_size"`
 	VmNics                []vrouterNicsModel `tfsdk:"vm_nics"`
 }
@@ -242,7 +242,7 @@ func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 							Computed:    true,
 							Description: "The CPU architecture (e.g., x86_64, ARM) of the virtual router.",
 						},
-						"cup_num": schema.Int64Attribute{
+						"cpu_num": schema.Int64Attribute{
 							Computed:    true,
 							Description: "The number of CPUs allocated to the virtual router.",
 						},

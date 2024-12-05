@@ -27,7 +27,7 @@ func TestAccZStackvmInstancesDataSource(t *testing.T) {
 					// Verify the first vm instances to ensure all attributes are set
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.architecture", "aarch64"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cluster_uuid", "8087f700b6474a6fb916e0ba139f767c"),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cup_num", "2"),
+					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cpu_num", "2"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.host_uuid", "fd4d0c9f335c47e6a804345dc4a74601"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.hypervisor_type", "KVM"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.image_uuid", "4c2b64fe5d1b43ccb15410be32227076"),
@@ -74,7 +74,7 @@ func TestAccZStackvmInstancesDataSourceFilterByNameRegex(t *testing.T) {
 					// Verify the first vm instances to ensure all attributes are set
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.architecture", "aarch64"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cluster_uuid", "8087f700b6474a6fb916e0ba139f767c"),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cup_num", "2"),
+					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cpu_num", "2"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.host_uuid", "fd4d0c9f335c47e6a804345dc4a74601"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.hypervisor_type", "KVM"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.image_uuid", "4c2b64fe5d1b43ccb15410be32227076"),
@@ -121,7 +121,7 @@ func TestAccZStackvmInstancesDataSourceFilterByNamePattern(t *testing.T) {
 					// Verify the first vm instances to ensure all attributes are set
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.architecture", "aarch64"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cluster_uuid", "8087f700b6474a6fb916e0ba139f767c"),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cup_num", "2"),
+					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cpu_num", "2"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.host_uuid", "fd4d0c9f335c47e6a804345dc4a74601"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.hypervisor_type", "KVM"),
 					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.image_uuid", "4c2b64fe5d1b43ccb15410be32227076"),

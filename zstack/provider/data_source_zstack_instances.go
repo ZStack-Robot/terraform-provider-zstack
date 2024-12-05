@@ -36,7 +36,7 @@ type vmsModel struct {
 	HostUuid       types.String      `tfsdk:"host_uuid"`
 	Platform       types.String      `tfsdk:"platform"`
 	Architecture   types.String      `tfsdk:"architecture"`
-	CPUNum         types.Int64       `tfsdk:"cup_num"`
+	CPUNum         types.Int64       `tfsdk:"cpu_num"`
 	MemorySize     types.Int64       `tfsdk:"memory_size"`
 	VmNics         []vmNicsModel     `tfsdk:"vm_nics"`
 	AllVolumes     []allVolumesModel `tfsdk:"all_volumes"`
@@ -226,7 +226,7 @@ func (d *vmsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 							Computed:    true,
 							Description: "The CPU architecture (e.g., x86_64, ARM) of the VM.",
 						},
-						"cup_num": schema.Int64Attribute{
+						"cpu_num": schema.Int64Attribute{
 							Computed:    true,
 							Description: "The number of CPUs allocated to the VM.",
 						},

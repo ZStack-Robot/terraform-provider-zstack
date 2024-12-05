@@ -32,7 +32,7 @@ Read-Only:
 - `all_volumes` (Attributes List) (see [below for nested schema](#nestedatt--vminstances--all_volumes))
 - `architecture` (String) The CPU architecture (e.g., x86_64, ARM) of the VM.
 - `cluster_uuid` (String) The UUID of the cluster in which the VM is located.
-- `cup_num` (Number) The number of CPUs allocated to the VM.
+- `cpu_num` (Number) The number of CPUs allocated to the VM.
 - `host_uuid` (String) The UUID of the host on which the VM is running.
 - `hypervisor_type` (String) The type of hypervisor on which the VM is running (e.g., KVM, VMware).
 - `image_uuid` (String) The UUID of the image used to create the VM.

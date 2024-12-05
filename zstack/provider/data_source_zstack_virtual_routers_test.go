@@ -45,7 +45,7 @@ func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
 
 					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.platform", "Linux"),
 					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.architecture", "x86_64"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cup_num", "1"),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cpu_num", "1"),
 					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.memory_size", "1073741824"),
 
 					// Verify the first nic of vm instance to ensure all attributes are set
