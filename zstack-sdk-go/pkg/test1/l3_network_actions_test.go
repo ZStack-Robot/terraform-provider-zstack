@@ -131,14 +131,14 @@ func TestAddDnsToL3Network(t *testing.T) {
 }
 
 func TestAddIpRange(t *testing.T) {
-	ipRange, err := accountLoginCli.AddIpRange("00025f3499ed43b998573dbe8225f142", param.AddIpRangeParam{
+	ipRange, err := accountLoginCli.AddIpRange("6a7c9dd9d6e449f992a59df8c102b3ba", param.AddIpRangeParam{
 		BaseParam: param.BaseParam{},
 		Params: param.AddIpRangeDetailParam{
 			Name:        "192.168.1.100-92.168.1.200",
-			StartIp:     "192.168.1.100",
-			EndIp:       "192.168.1.200",
-			Netmask:     "255.255.255.0",
-			Gateway:     "192.168.1.1",
+			StartIp:     "192.168.2.100",
+			EndIp:       "192.168.2.200",
+			Netmask:     "255.255.0.0",
+			Gateway:     "192.168.100.1",
 			IpRangeType: "",
 		},
 	})
@@ -169,12 +169,12 @@ func TestAddIpv6Range(t *testing.T) {
 }
 
 func TestAddIpRangeByNetworkCidr(t *testing.T) {
-	cidr, err := accountLoginCli.AddIpRangeByNetworkCidr("53f9a5797d2b4a4eb24ac1bd98bef910", param.AddIpRangeByNetworkCidrParam{
+	cidr, err := accountLoginCli.AddIpRangeByNetworkCidr("6a7c9dd9d6e449f992a59df8c102b3ba", param.AddIpRangeByNetworkCidrParam{
 		BaseParam: param.BaseParam{},
 		Params: param.AddIpRangeByNetworkCidrDetailParam{
-			Name:        "192.168.3.0/24",
-			NetworkCidr: "192.168.3.0/24",
-			Gateway:     "192.168.3.254",
+			Name:        "192.168.12.0/16",
+			NetworkCidr: "192.168.15.0/16",
+			Gateway:     "192.168.15.1",
 			IpRangeType: "",
 		},
 	})

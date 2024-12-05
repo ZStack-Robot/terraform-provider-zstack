@@ -37,6 +37,8 @@ const (
 
 	SystemTagBootModeUEFI   = "bootMode::UEFI"
 	SystemTagBootModeLegacy = "bootMode::Legacy"
+
+	SystemTagApplianceTypeVRouter = "applianceType::vrouter"
 )
 
 type AddImageParam struct {

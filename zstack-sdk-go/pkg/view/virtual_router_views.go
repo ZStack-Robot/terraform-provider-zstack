@@ -29,4 +29,6 @@ type VirtualRouterInventoryView struct {
 	State                     string               `json:"state"`
 	VMNics                    []VmNicInventoryView `json:"vmNics"`     // All NIC information
 	AllVolumes                []VolumeView         `json:"allVolumes"` // All volumes
+	HaStatus                  string               `json:"haStatus"`
+	Architecture              string               `json:"architecture"`
 }

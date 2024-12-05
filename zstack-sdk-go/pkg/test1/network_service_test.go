@@ -14,7 +14,22 @@ func TestQueryNetworkServiceProvider(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	t.Log(provider)
+	t.Log("begin------------------------")
+	t.Log(provider[0].Name)
+	t.Log(provider[0].Uuid)
+	t.Log(provider[0].Type)
+	t.Log(provider[0].NetworkServiceTypes)
+	t.Log(provider[0].AttachedL2NetworkUuids)
+	t.Log("------------------------")
+	t.Log(provider[1].Name)
+	t.Log(provider[1].Uuid)
+	t.Log(provider[1].NetworkServiceTypes)
+	t.Log(provider[1].AttachedL2NetworkUuids)
+	t.Log("------------------------")
+	t.Log(provider[2].Name)
+	t.Log(provider[2].Uuid)
+	t.Log(provider[2].NetworkServiceTypes)
+	t.Log(provider[2].AttachedL2NetworkUuids)
 }
 
 func TestAttachNetworkServiceToL3Network(t *testing.T) {
@@ -26,7 +41,7 @@ func TestAttachNetworkServiceToL3Network(t *testing.T) {
 					"LoadBalancer",
 				},
 				"710a1f404ed5412595c0c4570cbde071": []string{"SecurityGroup"},
-				"be4f28e3e9254526a4ad25617d6ccf59": []string{
+				"22de5a6792bf4de1835b92125ac3c419": []string{
 					"VipQos",
 					"DNS",
 					"HostRoute",

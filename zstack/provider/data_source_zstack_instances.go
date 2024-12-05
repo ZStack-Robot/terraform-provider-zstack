@@ -93,6 +93,12 @@ func (d *vmsDataSource) Metadata(_ context.Context, req datasource.MetadataReque
 // Read implements datasource.DataSourceWithConfigure.
 func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state vmsDataSourceModel
+	diags := req.Config.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	params := param.NewQueryParam()
 
@@ -152,7 +158,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		state.VmInstances = append(state.VmInstances, vminstanceState)
 	}
 
-	diags := resp.State.Set(ctx, &state)
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

@@ -35,7 +35,7 @@ func TestZSClient_ValidateSession(t *testing.T) {
 }
 
 func TestZSClient_Zql(t *testing.T) {
-	if _, err := accountLoginCli.Zql("query vminstance limit 10", nil); err != nil {
+	if _, err := accountLoginCli.Zql("query Image where __systemTag__='applianceType::vrouter'", nil); err != nil {
 		t.Fatalf("TestZSClient_Zql error: %v", err)
 	}
 }

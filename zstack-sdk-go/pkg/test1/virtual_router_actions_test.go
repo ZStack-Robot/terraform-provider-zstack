@@ -27,3 +27,25 @@ func TestGetVirtualRouterVm(t *testing.T) {
 	}
 	golog.Println(vm)
 }
+
+func TestCreateVirtualRouterOffering(t *testing.T) {
+	vroffer, err := accountLoginCli.CreateVirtualRouterOffering(param.CreateVirtualRouterOfferingParam{
+		BaseParam: param.BaseParam{},
+		Params: param.CreateVirtualRouterOfferingDetailParam{
+			Name:                  "vrOffering",
+			Description:           "vrOffering",
+			ZoneUuid:              "d29f4847a99f4dea83bc446c8fe6e64c",
+			ManagementNetworkUuid: "50e8c0d69681447fbe347c8dae2b1bef",
+			ImageUuid:             "93005c8a2a314a489635eca8c30794d4",
+			//PublicNetworkUuid:     "",
+			//IsDefault:  true,
+			CpuNum:     1,
+			MemorySize: 1073741824, // Byte 1GB = 1024MB = 1024*1024KB = 1024*1024*1024B = 1073741824Byte
+			Type:       "VirtualRouter",
+		},
+	})
+	if err != nil {
+		t.Errorf("TestCreateVirtualRouterOffering %v", err)
+	}
+	golog.Println(vroffer)
+}

@@ -38,7 +38,7 @@ func TestZSClient_QueryImage3(t *testing.T) {
 	//params.AddQ("backupStorage.zone.uuid=6e8191bfd57745f282f78cb013b732b6")
 	params.AddQ("format!=vmtx")
 	params.AddQ("system=false")
-	params.AddQ("backupStorageRefs.exportUrl!=null")
+	//	params.AddQ("backupStorageRefs.exportUrl!=null")
 	//params.AddQ("backupStorage.zone.uuid=6e8191bfd57745f282f78cb013b732b6")
 	result, err := accountLoginCli.QueryImage(params)
 	if err != nil {
@@ -59,7 +59,7 @@ func TestZSClient_QueryImage2(t *testing.T) {
 	//params.AddQ("format!=vmtx")
 	//params.AddQ("status=Ready")
 	//params.AddQ("system=false")
-	params.AddQ("name=C790123newname")
+	params.AddQ("name=fd")
 	//params.AddQ("mediaType=DataVolumeTemplate")
 	//params.AddQ("backupStorage.zone.uuid=6e8191bfd57745f282f78cb013b732b6")
 	result, err := accountLoginCli.QueryImage(params)
@@ -100,6 +100,48 @@ func TestZSClient_QueryImage(t *testing.T) {
 	for _, r := range result {
 		golog.Infof("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s", r.UUID, r.Name, r.Platform, r.GuestOsType, r.Format, r.Status, r.Size, r.Description)
 	}
+}
+
+type Image struct {
+	Name        string `json:"name"`
+	UUID        string `json:"uuid"`
+	Format      string `json:"format"`
+	URL         string `json:"url"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	State       string `json:"state"`
+}
+
+type QueryResult struct {
+	Results []struct {
+		Inventories []Image `json:"inventories"`
+	} `json:"results"`
+}
+
+func TestZSCliebt_QueryByZql(t *testing.T) {
+
+	//var reservedIpRanges []view.ReservedIpRangeInventoryView
+	var queryResult QueryResult
+	//	_, err := accountLoginCli.Zql(fmt.Sprintf("query Image "), &virtualRouterImages, "inventories")
+
+	_, err := accountLoginCli.Zql(
+		"query Image where __systemTag__='applianceType::vrouter'",
+		&queryResult,
+		"results", "inventories",
+	)
+	if err != nil {
+		fmt.Errorf("failed to execute ZQL query: %w", err)
+	}
+
+	//_, err := accountLoginCli.Zql(fmt.Sprintf("query Image"), &virtualRouterImages, "inventories")
+	// 提取结果
+	if len(queryResult.Results) > 0 {
+		inventories := queryResult.Results[0].Inventories
+		fmt.Printf("Query Response: %+v\n", inventories)
+	} else {
+		fmt.Println("No inventories found.")
+	}
+
 }
 
 func TestZSClient_GetImage(t *testing.T) {

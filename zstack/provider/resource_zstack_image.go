@@ -250,7 +250,7 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	image, err := r.client.GetImage(state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error getting ZStack Image uuid", "Could not read image uuid"+image.Name+": "+err.Error(),
+			"Error getting ZStack Image uuid", "Could not read image uuid"+err.Error(),
 		)
 		return
 	}
@@ -261,7 +261,7 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.LastUpdated = types.StringValue(image.LastOpDate.GoString())
 	//state.Description = types.StringValue(image.Description)
 
-	diags = resp.State.Get(ctx, &state)
+	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

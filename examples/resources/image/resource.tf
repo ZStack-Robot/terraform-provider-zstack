@@ -1,7 +1,7 @@
 # Copyright (c) ZStack.io, Inc.
 
 data "zstack_backupstorages" "example" {
-  name  = "bs"
+  name  = "name of image Storage"
 }
 
 resource "zstack_image" "image" {

@@ -15,6 +15,7 @@ type L3NetworkInventoryView struct {
 	Category        string             `json:"category"`      // Network type, needs to be used with the system tag, can be set to Public or Private when system is true
 	IpVersion       int                `json:"ipVersion"`     // IP protocol number: 4, 6
 	Dns             []string           `json:"dns"`
+	EnableIPAM      bool               `json:"enableIPAM"`
 	IpRanges        []IpRangeInventory `json:"ipRanges"`
 	NetworkServices []NetworkServices  `json:"networkServices"`
 	HostRoute       []HostRoute        `json:"hostRoute"`

@@ -148,6 +148,13 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 		state.IpVersion = types.Int64Value(int64(reservedIpRanges[0].IpVersion))
 		state.L3NetworkUuid = types.StringValue(reservedIpRanges[0].L3NetworkUuid)
 	}
+
+	// 更新 State
+	diags = response.State.Set(ctx, &state)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (r *reservedIpResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {

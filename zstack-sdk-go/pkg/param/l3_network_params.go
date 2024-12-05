@@ -101,6 +101,7 @@ type CreateL3NetworkDetailParam struct {
 	L2NetworkUuid string `json:"l2NetworkUuid"`
 	Category      string `json:"category"`
 	System        bool   `json:"system"`
+	EnableIPAM    bool   `json:"enableIPAM"`
 }
 
 type AddReservedIpRangeParam struct {

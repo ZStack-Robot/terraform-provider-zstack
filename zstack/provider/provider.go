@@ -300,6 +300,8 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackHostsDataSource,
 		ZStackmnNodeDataSource,
 		ZStackl2NetworkDataSource,
+		ZStackvrouterDataSource,
+		ZStackVirtualRouterImageDataSource,
 	}
 
 }
@@ -316,8 +318,12 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		ImageResource,
 		InstanceResource,
 		ReservedIpResource,
+		SubnetResource,
+		VpcResource,
+		VipResource,
+		VirtualRouterImageResource,
+		VirtualRouterOfferingResource,
 	}
-
 }
 
 // Schema implements provider.Provider.
