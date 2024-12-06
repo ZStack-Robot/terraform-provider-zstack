@@ -39,13 +39,10 @@ type vpcResource struct {
 }
 
 type vpcModel struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	//Type          types.String `tfsdk:"type"`  L3VpcNetwork or L3BasicNetwork
-	L2NetworkUuid types.String `tfsdk:"l2_network_uuid"`
-	//Category      types.String `tfsdk:"category"`  Public, Private,System
-	//System types.Bool `tfsdk:"system"`
+	Uuid              types.String    `tfsdk:"uuid"`
+	Name              types.String    `tfsdk:"name"`
+	Description       types.String    `tfsdk:"description"`
+	L2NetworkUuid     types.String    `tfsdk:"l2_network_uuid"`
 	EnableIPAM        types.Bool      `tfsdk:"enable_ipam"`
 	SubnetCidr        subnetCidrModel `tfsdk:"subnet_cidr"`
 	Dns               types.String    `tfsdk:"dns"`
@@ -56,7 +53,6 @@ type subnetCidrModel struct {
 	Name        string `tfsdk:"name"`
 	NetworkCidr string `tfsdk:"network_cidr"`
 	Gateway     string `tfsdk:"gateway"`
-	//   IpRangeType string `json:"ipRangeType"`
 }
 
 func VpcResource() resource.Resource {
@@ -270,7 +266,7 @@ func (r *vpcResource) Read(ctx context.Context, request resource.ReadRequest, re
 			Uuid: types.StringValue(""),
 		}
 	}
-	// 更新 State
+	// update State
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
