@@ -130,7 +130,7 @@ func TestZSCliebt_QueryByZql(t *testing.T) {
 		"results", "inventories",
 	)
 	if err != nil {
-		fmt.Errorf("failed to execute ZQL query: %w", err)
+		golog.Errorf("failed to execute ZQL query: %w", err)
 	}
 
 	//_, err := accountLoginCli.Zql(fmt.Sprintf("query Image"), &virtualRouterImages, "inventories")
@@ -399,11 +399,10 @@ func TestSyncImageSize(t *testing.T) {
 		ImageUuid:     "4c9d3864089f4611be17faff64b7f965",
 		SyncImageSize: param.SyncImageSizeDetailParam{},
 	})
-	if err != nil {
-		return
-	}
+
 	if err != nil {
 		golog.Errorf("TestSyncImageSize error:%v", err)
+		return
 	}
 	fmt.Println(size)
 }

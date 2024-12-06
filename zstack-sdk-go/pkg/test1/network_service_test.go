@@ -37,11 +37,9 @@ func TestAttachNetworkServiceToL3Network(t *testing.T) {
 		BaseParam: param.BaseParam{},
 		Params: param.AttachNetworkServiceToL3NetworkDetailParam{
 			NetworkServices: map[string][]string{
-				"590c129ef6dd451e914576d0aba74757": []string{
-					"LoadBalancer",
-				},
-				"710a1f404ed5412595c0c4570cbde071": []string{"SecurityGroup"},
-				"22de5a6792bf4de1835b92125ac3c419": []string{
+				"590c129ef6dd451e914576d0aba74757": {"LoadBalancer"},  // Simplified
+				"710a1f404ed5412595c0c4570cbde071": {"SecurityGroup"}, // Simplified
+				"22de5a6792bf4de1835b92125ac3c419": { // Simplified
 					"VipQos",
 					"DNS",
 					"HostRoute",
