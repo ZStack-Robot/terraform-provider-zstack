@@ -49,3 +49,18 @@ func TestCreateVirtualRouterOffering(t *testing.T) {
 	}
 	golog.Println(vroffer)
 }
+
+func TestCreateVirtualRouterInstance(t *testing.T) {
+	vrInstance, err := accountLoginCli.CreateVirtualRouterInstance(param.CreateVirtualRouterInstanceParam{
+		BaseParam: param.BaseParam{},
+		Params: param.CreateVirtualRouterInstanceDetailParam{
+			Name:                      "vrInstance",
+			Description:               "testing",
+			VirtualRouterOfferingUuid: "43ad9df1194243bea1259fc276615a7f",
+		},
+	})
+	if err != nil {
+		t.Errorf("TestCreateVirtualRouterInstance %v", err)
+	}
+	golog.Println(vrInstance)
+}

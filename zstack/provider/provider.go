@@ -324,6 +324,7 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		VipResource,
 		VirtualRouterImageResource,
 		VirtualRouterOfferingResource,
+		VirtualRouterInstanceResource,
 	}
 }
 

@@ -16,13 +16,13 @@ func (cli *ZSClient) CreateVirtualRouterOffering(params param.CreateVirtualRoute
 	return &resp, nil
 }
 
-// QueryVirtualRouterVm Query VPC Virtual Router
+// QueryVirtualRouter Offering Query VPC Virtual Router Offering
 func (cli *ZSClient) QueryVirtualRouterOffering(params param.QueryParam) ([]view.VirtualRouterOfferingInventoryView, error) {
 	resp := make([]view.VirtualRouterOfferingInventoryView, 0)
 	return resp, cli.List("v1/instance-offerings/virtual-routers", &params, &resp)
 }
 
-// GetVirtualRouterVm Query a specific VPC Virtual Router
+// GetVirtualRouterOffering Query a specific VPC Virtual Router Offering
 func (cli *ZSClient) GetVirtualRouterOffering(uuid string) (view.VirtualRouterOfferingInventoryView, error) {
 	resp := view.VirtualRouterOfferingInventoryView{}
 	return resp, cli.Get("v1/instance-offerings/virtual-routers", uuid, nil, &resp)

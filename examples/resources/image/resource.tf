@@ -1,7 +1,7 @@
 # Copyright (c) ZStack.io, Inc.
 
 data "zstack_backupstorages" "example" {
-  name  = "name of image Storage"
+  name = "name of image Storage"
 }
 
 resource "zstack_image" "image" {
@@ -11,13 +11,13 @@ resource "zstack_image" "image" {
   url         = "file:///opt/zstack-dvd/zstack-image-1.4.qcow2"
   #url = "http://url/image.raw"
   # url = "http://url/image.qcow2"
-  guest_os_type = "Linux"
-  platform    = "Linux"
-  format      = "qcow2"
-  architecture = "x86_64"
-  virtio            = false
+  guest_os_type        = "Linux"
+  platform             = "Linux"
+  format               = "qcow2"
+  architecture         = "x86_64"
+  virtio               = false
   backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
-  boot_mode = "legacy"
+  boot_mode            = "legacy"
 }
 
 output "zstack_image" {

@@ -110,7 +110,24 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 
 // Delete implements resource.Resource.
 func (r *virtualRouterOfferingResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state virtualRouterOfferingResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
+	if state.Uuid == types.StringValue("") {
+		tflog.Warn(ctx, "virtual router image uuid is empty, so nothing to delete, skip it")
+		return
+	}
+
+	err := r.client.DeleteInstanceOffering(state.Uuid.ValueString(), param.DeleteModeEnforcing)
+
+	if err != nil {
+		resp.Diagnostics.AddError("fail to delete virtual router image", ""+err.Error())
+		return
+	}
 }
 
 // Metadata implements resource.Resource.

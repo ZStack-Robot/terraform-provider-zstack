@@ -152,39 +152,39 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 					Attributes: map[string]schema.Attribute{
 						"uuid": schema.StringAttribute{
 							Computed:    true,
-							Description: "The unique identifier (UUID) of the virtual router offer.",
+							Description: "The unique identifier (UUID) of the virtual router offering.",
 						},
 						"name": schema.StringAttribute{
 							Computed:    true,
-							Description: "The name of the virtual router offer.",
+							Description: "The name of the virtual router offering.",
 						},
 						"description": schema.StringAttribute{
 							Computed:    true,
-							Description: "The type of hypervisor on which the virtual router is running (e.g., KVM, VMware).",
+							Description: "A brief description of the virtual router offering.",
 						},
 						"cpu_num": schema.Int32Attribute{
 							Computed:    true,
-							Description: "Specifies the type of appliance VM for the virtual router.",
+							Description: "The number of CPUs allocated to the virtual router offer.",
 						},
 						"cpu_speed": schema.Int32Attribute{
 							Computed:    true,
-							Description: "The current state of the virtual router (e.g., Running, Stopped).",
+							Description: "The speed of each CPU in MHz.",
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "Operational status of the virtual router (e.g., Connected, Disconnected)",
+							Description: "The memory size allocated to the virtual router, in bytes.",
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,
-							Description: "The type of the virtual router (e.g., UserVm or SystemVm).",
+							Description: "The type of the virtual router offering (e.g., VirtualRouter).",
 						},
 						"allocator_strategy": schema.StringAttribute{
 							Computed:    true,
-							Description: "The high-availability (HA) status of the virtual router.",
+							Description: "The strategy used for allocating resources to the virtual router.",
 						},
 						"zone_uuid": schema.StringAttribute{
 							Computed:    true,
-							Description: "The UUID of the zone in which the virtual router is located.",
+							Description: "The UUID of the zone where the virtual router is deployed.",
 						},
 						"management_network_uuid": schema.StringAttribute{
 							Computed:    true,
@@ -196,23 +196,23 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 						},
 						"image_uuid": schema.StringAttribute{
 							Computed:    true,
-							Description: "The UUID of the host on which the virtual router is running.",
+							Description: "The UUID of the image used by the virtual router offer.",
 						},
 						"sort_key": schema.Int32Attribute{
 							Computed:    true,
-							Description: "The UUID of the instance offering assigned to the virtual router.",
+							Description: "The sort key used for ordering virtual router offerings.",
 						},
 						"state": schema.StringAttribute{
 							Computed:    true,
-							Description: "The platform (e.g., Linux, Windows) on which the virtual router is running.",
+							Description: "The current state of the virtual router offering (e.g., Enabled, Disabled).",
 						},
 						"reserved_memory_size": schema.StringAttribute{
 							Computed:    true,
-							Description: "The CPU architecture (e.g., x86_64, ARM) of the virtual router.",
+							Description: "The amount of memory reserved for the virtual router, in bytes.",
 						},
 						"is_default": schema.BoolAttribute{
 							Computed:    true,
-							Description: "The CPU architecture (e.g., x86_64, ARM) of the virtual router.",
+							Description: "Indicates whether this virtual router offering is the default configuration.",
 						},
 					},
 				},

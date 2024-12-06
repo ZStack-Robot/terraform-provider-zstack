@@ -18,3 +18,12 @@ func (cli *ZSClient) GetVirtualRouterVm(uuid string) (view.VirtualRouterInventor
 	resp := view.VirtualRouterInventoryView{}
 	return resp, cli.Get("v1/vm-instances/appliances/virtual-routers", uuid, nil, &resp)
 }
+
+// CreateVirtualRouterVM Create a Virtual Router VM instance
+func (cli *ZSClient) CreateVirtualRouterInstance(params param.CreateVirtualRouterInstanceParam) (*view.VirtualRouterInventoryView, error) {
+	resp := view.VirtualRouterInventoryView{}
+	if err := cli.Post("v1/vpc/virtual-routers", params, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
