@@ -176,20 +176,6 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 				"access_key_secret value in the configuration or use the ZSTACK_ACCESS_KEY_SECRET environment variable\n")
 	}
 
-	/*
-		if (account_name == "" || account_password == "") && (access_key_id == "" || access_key_secret == "") {
-			resp.Diagnostics.AddError(
-				"Missing ZStack Authorization",
-				"The provider cannot create the ZStack API client as there is no zstack authorization. \n"+
-					"Please set at least one authorization method: account_name + account_password OR access_key_id + access_key_secret.\n\n"+
-					"account_name value can be set in the configuration or use the ZSTACK_account_name environment variable\n"+
-					"account_password value in the configuration or use the ZSTACK_ACCOUNTPASSWORD environment variable\n"+
-					"access_key_id value in the configuration or use the ZSTACK_ACCESSKEYID environment variable\n"+
-					"access_key_secret value in the configuration or use the ZSTACK_ACCESSKEYSECRET environment variable\n",
-			)
-		}
-	*/
-
 	if resp.Diagnostics.HasError() {
 		return
 	}

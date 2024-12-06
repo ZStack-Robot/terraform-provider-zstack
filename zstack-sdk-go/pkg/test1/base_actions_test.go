@@ -11,24 +11,19 @@ import (
 )
 
 const (
-	//ZStack Cloud社区版仅支持超管账户登录认证
-	//ZStack Cloud基础版支持AccessKey、超管及子账户登录认证
-	//ZStack Cloud企业版支持AccessKey、超管及子账户登录认证、企业用户登录认证
+	// The ZStack Cloud Community Edition only supports login authentication for super admin accounts.
+	// The ZStack Cloud Basic Edition supports login authentication for AccessKey, super admin, and sub-accounts.
+	// The ZStack Cloud Enterprise Edition supports login authentication for AccessKey, super admin, sub-accounts, and enterprise users.
 
-	accountLoginHostname        = "172.30.3.3"           //基础版-高可用-4.4.24
-	accountLoginAccountName     = "admin"                //基础版-高可用-4.4.24
-	accountLoginAccountPassword = "password"             //基础版-高可用-4.4.24
-	accountLoginMasterHostname  = "IPOfCloudAPIEndpoint" //基础版-高可用-4.4.24
-	accountLoginSlaveHostname   = "IPOfCloudAPIEndpoint" //基础版-高可用-4.4.24
+	accountLoginHostname        = "" //ZStack Cloud API endpoint IP address
+	accountLoginAccountName     = "admin"
+	accountLoginAccountPassword = "password"
+	accountLoginMasterHostname  = "IPOfCloudAPIEndpoint"
+	accountLoginSlaveHostname   = "IPOfCloudAPIEndpoint"
 
-	accessKeyAuthHostname        = "IPOfCloudAPIEndpoint" //基础版-4.3.28
-	accessKeyAuthAccessKeyId     = "AccessKeyId"          //基础版-4.3.28
-	accessKeyAuthAccessKeySecret = "AccessKeySecret"      //基础版-4.3.28
-
-	// userLoginHostname            = "" //企业版
-	// userLoginAccountName         = "" //企业版
-	// userLoginAccountUserName     = "" //企业版
-	// userLoginAccountUserPassword = "" //企业版
+	accessKeyAuthHostname        = "IPOfCloudAPIEndpoint"
+	accessKeyAuthAccessKeyId     = "AccessKeyId"
+	accessKeyAuthAccessKeySecret = "AccessKeySecret"
 
 	readOnly = false
 	debug    = false
@@ -47,13 +42,6 @@ var accessKeyAuthCli = client.NewZSClient(
 		ReadOnly(readOnly).
 		Debug(debug),
 )
-
-// var userLoginCli = client.NewZSClient(
-// 	client.DefaultZSConfig(accountLoginHostname).
-// 		LoginAccountUser(userLoginAccountName, userLoginAccountUserName, userLoginAccountUserPassword).
-// 		ReadOnly(readOnly).
-// 		Debug(debug),
-// )
 
 func TestMain(m *testing.M) {
 	_, err := accountLoginCli.Login()

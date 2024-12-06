@@ -26,6 +26,7 @@ description: |-
 - `dns` (String) Attach Dns Server for this VPC network.
 - `enable_ipam` (Boolean) Enable IP Address Management (IPAM) for this VPC network.
 - `subnet_cidr` (Attributes) Details of the subnet CIDR to be configured in the VPC network. (see [below for nested schema](#nestedatt--subnet_cidr))
+- `virtual_router_uuid` (String) Attach virtual router  for this VPC network.
 
 ### Read-Only
 

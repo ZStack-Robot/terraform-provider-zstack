@@ -46,9 +46,10 @@ type vpcModel struct {
 	L2NetworkUuid types.String `tfsdk:"l2_network_uuid"`
 	//Category      types.String `tfsdk:"category"`  Public, Private,System
 	//System types.Bool `tfsdk:"system"`
-	EnableIPAM types.Bool      `tfsdk:"enable_ipam"`
-	SubnetCidr subnetCidrModel `tfsdk:"subnet_cidr"`
-	Dns        types.String    `tfsdk:"dns"`
+	EnableIPAM        types.Bool      `tfsdk:"enable_ipam"`
+	SubnetCidr        subnetCidrModel `tfsdk:"subnet_cidr"`
+	Dns               types.String    `tfsdk:"dns"`
+	VirtualRouterUuid types.String    `tfsdk:"virtual_router_uuid"`
 }
 
 type subnetCidrModel struct {
@@ -109,6 +110,10 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"dns": schema.StringAttribute{
 				Optional:    true,
 				Description: "Attach Dns Server for this VPC network.",
+			},
+			"virtual_router_uuid": schema.StringAttribute{
+				Optional:    true,
+				Description: "Attach virtual router  for this VPC network.",
 			},
 			"subnet_cidr": schema.SingleNestedAttribute{
 				Optional: true,
@@ -183,6 +188,11 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 		},
 	}
 
+	attachVRtoVPC := param.AttachL3NetworkToVmParam{
+		BaseParam: param.BaseParam{},
+		Params:    param.AttachL3NetworkToVmDetailParam{},
+	}
+
 	p := param.CreateL3NetworkParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreateL3NetworkDetailParam{
@@ -212,6 +222,7 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	r.client.AttachNetworkServiceToL3Network(pvc.UUID, netSvcParam)
 	r.client.AddIpRangeByNetworkCidr(pvc.UUID, cidrParam)
 	r.client.AddDnsToL3Network(pvc.UUID, dnsParam)
+	r.client.AttachL3NetworkToVm(pvc.UUID, plan.VirtualRouterUuid.ValueString(), attachVRtoVPC)
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
