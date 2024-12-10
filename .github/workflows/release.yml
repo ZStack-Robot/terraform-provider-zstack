@@ -1,4 +1,5 @@
 name: release
+
 on:
   push:
     tags:
@@ -9,17 +10,28 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      # Step 1: Checkout the repository code
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Step 2: Fetch the full Git history (required for GoReleaser to properly handle versions)
       - name: Fetch Git History
         run: git fetch --prune --unshallow
 
+      # Step 3: Set up the Go environment (GoReleaser needs Go to build)
       - name: Set up Go Environment
         uses: actions/setup-go@v4
         with:
           go-version: "1.22.0"
 
+      # Step 4: Install signore (needed for signing artifacts)
+      - name: Install signore
+        run: |
+          curl -LO https://github.com/goreleaser/signore/releases/download/v0.0.4/signore_0.0.4_Linux_x86_64.tar.gz
+          tar -xvzf signore_0.0.4_Linux_x86_64.tar.gz
+          sudo mv signore /usr/local/bin/
+
+      # Step 5: Import the GPG private key (for signing releases)
       - name: Import GPG Key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
@@ -27,6 +39,7 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 
+      # Step 6: Run GoReleaser to build and release the project
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
