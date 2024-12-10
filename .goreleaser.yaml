@@ -1,18 +1,14 @@
+# .goreleaser.yml
+
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
 
 version: 2
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
+    # Clean up Go modules and generate code if necessary
     - go mod tidy
-    # you may remove this if you don't need go generate
     - go generate ./...
 
 builds:
@@ -40,24 +36,29 @@ builds:
 
 archives:
   - format: zip
-    # this name template makes the OS and Arch compatible with the results of `uname`.
+    # Generate zip files for each combination of OS and Arch
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     
 milestones:
   - close: true
 
 release:
+  # Add extra files to the release, including the terraform-registry-manifest.json
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  # You can specify release IDs here if required
   ids:
     - none
+  # Optional: you may want to upload assets to GitHub Releases
+  github:
+    release: true  # Automatically create a release on GitHub and upload assets
 
 signs:
   - artifacts: checksum
     args:
       - --batch
       - --detach-sign
-      
+
 changelog:
-  # skip: true
+  # skip: true   # Uncomment to disable changelog generation if you don't need it
