@@ -3,7 +3,6 @@ version: 2
 # Archives section for creating the distribution files
 archives:
   - files:
-      # Ensure only built binary and license file are archived
       - src: 'LICENSE'
         dst: 'LICENSE.txt'
     format: zip
@@ -42,13 +41,13 @@ builds:
       - -s -w -X main.Version={{.Version}}  # Set the version in the binary
     mod_timestamp: '{{ .CommitTimestamp }}'  # Timestamp of commit for builds
 
-  # Release section moved inside builds (if required in specific GoReleaser version)
-  release:
-    extra_files:
-      - glob: 'terraform-registry-manifest.json'
-        name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
-    ids:
-      - none  # Disable auto-ids for releases
+# Release section moved inside builds (if required in specific GoReleaser version)
+release:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  ids:
+    - none  # Disable auto-ids for releases
 
 # Checksum generation configuration
 checksum:
