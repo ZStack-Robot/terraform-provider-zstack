@@ -1,23 +1,31 @@
-# .goreleaser.yml
-
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
 version: 2
 
+# Archives section for creating the distribution files
+archives:
+  - files:
+      # Ensure only built binary and license file are archived
+      - src: 'LICENSE'
+        dst: 'LICENSE.txt'
+    format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+
+# Before build hooks (optional, used to download dependencies and prepare environment)
 before:
   hooks:
-    # Clean up Go modules and generate code if necessary
-    - go mod tidy
-    - go generate ./...
+    - 'go mod download'
 
+# Build configuration for various OS and architecture targets
 builds:
-  - env:
-      - CGO_ENABLED=0
+  - binary: '{{ .ProjectName }}_v{{ .Version }}_x5'  # Binary name format
+    env:
+      - CGO_ENABLED=0  # Disable CGo for cross-platform compatibility
+    flags:
+      - -trimpath  # Remove the file system paths from the final binary
     goos:
+      - darwin
+      - freebsd
       - linux
       - windows
-      - darwin
     goarch:
       - '386'
       - amd64
@@ -31,34 +39,41 @@ builds:
       - goarch: arm64
         goos: windows
     ldflags:
-      - -s -w -X main.Version={{.Version}}
-    mod_timestamp: '{{ .CommitTimestamp }}'
+      - -s -w -X main.Version={{.Version}}  # Set the version in the binary
+    mod_timestamp: '{{ .CommitTimestamp }}'  # Timestamp of commit for builds
 
-archives:
-  - format: zip
-    # Generate zip files for each combination of OS and Arch
-    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-    
-milestones:
-  - close: true
+  # Release section moved inside builds (if required in specific GoReleaser version)
+  release:
+    extra_files:
+      - glob: 'terraform-registry-manifest.json'
+        name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+    ids:
+      - none  # Disable auto-ids for releases
 
-release:
-  # Add extra files to the release, including the terraform-registry-manifest.json
+# Checksum generation configuration
+checksum:
+  algorithm: sha256
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
-  # You can specify release IDs here if required
-  ids:
-    - none
-  # Optional: you may want to upload assets to GitHub Releases
-  github:
-    release: true  # Automatically create a release on GitHub and upload assets
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
 
+# Milestone to close issues or PRs after release
+milestones:
+  - close: true
+
+# Signing configuration for checksums and the release artifacts
 signs:
-  - artifacts: checksum
-    args:
-      - --batch
-      - --detach-sign
+  - args: ["sign", "--dearmor", "--file", "${artifact}", "--out", "${signature}"]
+    artifacts: checksum
+    cmd: signore
+    signature: ${artifact}.sig
+  - args: ["sign", "--dearmor", "--file", "${artifact}", "--out", "${signature}"]
+    artifacts: checksum
+    cmd: signore
+    id: key-id
+    signature: ${artifact}.72D7468F.sig
 
-changelog:
-  # skip: true   # Uncomment to disable changelog generation if you don't need it
+# Snapshot naming template for pre-release builds
+snapshot:
+  name_template: "{{ .Tag }}-next"
