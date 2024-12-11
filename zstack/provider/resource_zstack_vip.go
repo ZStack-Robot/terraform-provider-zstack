@@ -177,7 +177,7 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 	}
 	if !found {
 		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "vpc not found. It might have been deleted outside of Terraform.")
+		tflog.Warn(ctx, "VIP not found. It might have been deleted outside of Terraform.")
 		state = vipModel{
 			Uuid: types.StringValue(""),
 		}
