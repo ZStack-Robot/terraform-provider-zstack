@@ -1,71 +1,48 @@
+# Visit https://goreleaser.com for documentation on how to customize this
+# behavior.
 version: 2
-
-# Archives section for creating the distribution files
-archives:
-  - files:
-      - src: 'LICENSE'
-        dst: 'LICENSE.txt'
-    format: zip
-    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-
-# Before build hooks (optional, used to download dependencies and prepare environment)
 before:
   hooks:
-    - 'go mod download'
-
-# Build configuration for various OS and architecture targets
+    # this is just an example and not a requirement for provider building/publishing
+    - go mod tidy
 builds:
-  - binary: '{{ .ProjectName }}_v{{ .Version }}_x5'  # Binary name format
-    env:
-      - CGO_ENABLED=0  # Disable CGo for cross-platform compatibility
-    flags:
-      - -trimpath  # Remove the file system paths from the final binary
-    goos:
-      - darwin
-      - freebsd
-      - linux
-      - windows
-    goarch:
-      - '386'
-      - amd64
-      - arm
-      - arm64
-    ignore:
-      - goarch: arm
-        goos: windows
-      - goarch: arm64
-        goos: freebsd
-      - goarch: arm64
-        goos: windows
-    ldflags:
-      - -s -w -X main.Version={{.Version}}  # Set the version in the binary
-    mod_timestamp: '{{ .CommitTimestamp }}'  # Timestamp of commit for builds
-
-# Release section moved inside builds (if required in specific GoReleaser version)
-release:
-  extra_files:
-    - glob: 'terraform-registry-manifest.json'
-      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
-  ids:
-    - none  # Disable auto-ids for releases
-
-# Checksum generation configuration
+- env:
+    # goreleaser does not work with CGO, it could also complicate
+    # usage by users in CI/CD systems like HCP Terraform where
+    # they are unable to install libraries.
+    - CGO_ENABLED=0
+  mod_timestamp: '{{ .CommitTimestamp }}'
+  flags:
+    - -trimpath
+  ldflags:
+    - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+  goos:
+    - freebsd
+    - windows
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - '386'
+    - arm
+    - arm64
+  ignore:
+    - goos: darwin
+      goarch: '386'
+  binary: '{{ .ProjectName }}_v{{ .Version }}'
+archives:
+- format: zip
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
-  algorithm: sha256
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
-
-# Milestone to close issues or PRs after release
-milestones:
-  - close: true
-
-# Signing configuration for checksums and the release artifacts
+  algorithm: sha256
 signs:
   - artifacts: checksum
     args:
-      # if you are using this is a GitHub action or some other automated pipeline, you
+      # if you are using this in a GitHub action or some other automated pipeline, you 
       # need to pass the batch flag to indicate its not interactive.
       - "--batch"
       - "--local-user"
@@ -74,7 +51,11 @@ signs:
       - "${signature}"
       - "--detach-sign"
       - "${artifact}"
-
-# Snapshot naming template for pre-release builds
-snapshot:
-  name_template: "{{ .Tag }}-next"
+release:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  # If you want to manually examine the release before its live, uncomment this line:
+  # draft: true
+changelog:
+  disable: true
