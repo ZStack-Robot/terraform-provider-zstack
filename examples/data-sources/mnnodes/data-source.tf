@@ -1,4 +1,4 @@
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_mnnodes" "hosts" {
 

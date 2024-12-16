@@ -1,4 +1,4 @@
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_zones" "zones" {
   name_regex = "ZONE-1"

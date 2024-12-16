@@ -1,4 +1,4 @@
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_virtual_routers" "test" {
   #   name = "name of vm instance"

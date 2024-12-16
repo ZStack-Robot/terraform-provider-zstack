@@ -12,7 +12,7 @@ Fetches a list of clusters and their associated attributes.
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+#  Copyright (c) ZStack.io, Inc.
 
 data "zstack_clusters" "example" {
   #name = "cluster1"

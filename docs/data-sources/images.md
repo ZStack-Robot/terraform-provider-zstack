@@ -12,7 +12,7 @@ Fetches a list of images and their associated attributes from the ZStack environ
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_hosts" "example" {
   #  name = "hostname"

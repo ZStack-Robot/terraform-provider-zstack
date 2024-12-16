@@ -12,7 +12,7 @@ Fetches a list of vips and their associated attributes from the ZStack environme
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_vips" "test" {
 

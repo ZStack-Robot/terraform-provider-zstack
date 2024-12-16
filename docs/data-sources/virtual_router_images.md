@@ -12,7 +12,7 @@ Fetches a list of virtual router images and their associated attributes from the
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_virtual_router_images" "test" {
   #   name = "name of virtual router images"

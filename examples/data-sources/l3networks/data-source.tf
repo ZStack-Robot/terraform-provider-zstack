@@ -1,4 +1,4 @@
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_l3networks" "networks" {
   #   name = "L3 networks name"

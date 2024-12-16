@@ -1,7 +1,7 @@
 ---
-page_title: "zstack Provider"
+page_title: "ZStack Provider"
 description: |-
-      The ZStack provider is used to interact with the resources supported by ZStack Cloud, a powerful cloud management platform. 
+  The ZStack provider is used to interact with the resources supported by ZStack Cloud, a powerful cloud management platform. 
   This provider allows you to manage various cloud resources such as virtual machines, networks, storage, and more. 
   It provides a seamless integration with Terraform, enabling you to define and manage your cloud infrastructure as code.
 ---

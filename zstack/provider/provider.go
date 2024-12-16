@@ -295,6 +295,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackVirtualRouterImageDataSource,
 		ZStackVRouterOfferingDataSource,
 		ZStackVIPsDataSource,
+		ZStackInstanceOfferingDataSource,
 	}
 
 }
@@ -318,6 +319,7 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		VirtualRouterOfferingResource,
 		VirtualRouterInstanceResource,
 		EIPResource,
+		InstanceOfferingResource,
 	}
 }
 

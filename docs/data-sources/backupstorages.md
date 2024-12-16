@@ -12,7 +12,7 @@ List all backup storages, or query backup storages by exact name match, or query
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+#  Copyright (c) ZStack.io, Inc.
 
 data "zstack_backupstorages" "example" {
   #   name  = "backupstorage name"

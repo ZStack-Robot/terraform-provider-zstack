@@ -12,7 +12,7 @@ Fetches a list of VM instances and their associated attributes from the ZStack e
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_instances" "vminstances" {
   #   name = "name of vm instance"

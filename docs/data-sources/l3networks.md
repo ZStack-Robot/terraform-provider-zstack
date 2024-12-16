@@ -12,7 +12,7 @@ Fetches a list of L3 networks and their associated attributes from the ZStack en
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_l3networks" "networks" {
   #   name = "L3 networks name"

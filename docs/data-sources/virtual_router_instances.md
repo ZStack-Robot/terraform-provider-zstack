@@ -12,7 +12,7 @@ Fetches a list of virtual router instances and their associated attributes from 
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_virtual_routers" "test" {
   #   name = "name of vm instance"

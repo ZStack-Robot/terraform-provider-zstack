@@ -12,7 +12,7 @@ Fetches a list of Management nodes and their associated attributes from the ZSta
 ## Example Usage
 
 ```terraform
-# # Copyright (c) ZStack.io, Inc.
+# Copyright (c) ZStack.io, Inc.
 
 data "zstack_mnnodes" "hosts" {
 
