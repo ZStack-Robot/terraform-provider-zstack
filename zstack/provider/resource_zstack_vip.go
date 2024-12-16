@@ -59,6 +59,9 @@ func (r *vipResource) Metadata(_ context.Context, request resource.MetadataReque
 
 func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
+		Description: "This resource allows you to manage Virtual IP (VIP) addresses in ZStack. " +
+			"A VIP is a dedicated IP address that can be used for various network services, such as load balancing or high availability. " +
+			"You can define the VIP's properties, such as its name, description, associated L3 network, and the IP range it belongs to.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

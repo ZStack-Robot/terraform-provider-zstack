@@ -179,6 +179,7 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of L3 networks and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching L3 Network.",

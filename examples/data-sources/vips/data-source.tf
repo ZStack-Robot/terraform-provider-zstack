@@ -1,7 +1,7 @@
-# Copyright (c) ZStack.io, Inc.
+# # Copyright (c) ZStack.io, Inc.
 
 data "zstack_vips" "test" {
-  
+
 }
 
 output "zstack_vips" {

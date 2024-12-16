@@ -28,6 +28,13 @@ var (
 	_ resource.ResourceWithConfigure = &vmResource{}
 )
 
+var networkModelAttrTypes = map[string]attr.Type{
+	"uuid":    types.StringType,
+	"ip":      types.StringType,
+	"netmask": types.StringType,
+	"gateway": types.StringType,
+}
+
 const (
 	mdevDevice gpuDeviceTyp = "mdevDevice"
 	pciDevice  gpuDeviceTyp = "pciDevice"
@@ -72,12 +79,20 @@ type vmInstanceDataSourceModel struct {
 	Strategy             types.String `tfsdk:"strategy"`
 	MemorySize           types.Int64  `tfsdk:"memory_size"`
 	CPUNum               types.Int64  `tfsdk:"cpu_num"`
-	IP                   types.String `tfsdk:"ip"`
-	NeverStop            types.Bool   `tfsdk:"never_stop"`
-	Marketplace          types.Bool   `tfsdk:"marketplace"`
-	GPUDevices           types.List   `tfsdk:"gpu_devices"`
-	GPUSpecs             types.Object `tfsdk:"gpu_device_specs"`
-	UserData             types.String `tfsdk:"user_data"`
+	//IP                   types.String `tfsdk:"ip"`
+	NeverStop   types.Bool   `tfsdk:"never_stop"`
+	Marketplace types.Bool   `tfsdk:"marketplace"`
+	GPUDevices  types.List   `tfsdk:"gpu_devices"`
+	GPUSpecs    types.Object `tfsdk:"gpu_device_specs"`
+	UserData    types.String `tfsdk:"user_data"`
+	VMNics      types.List   `tfsdk:"vm_nics"`
+}
+
+type NicsModel struct {
+	Uuid    types.String `tfsdk:"uuid"`
+	Ip      types.String `tfsdk:"ip"`
+	Netmask types.String `tfsdk:"netmask"`
+	Gateway types.String `tfsdk:"gateway"`
 }
 
 func InstanceResource() resource.Resource {
@@ -111,6 +126,9 @@ func (r *vmResource) Metadata(_ context.Context, req resource.MetadataRequest, r
 // Schema implements resource.Resource.
 func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "This resource allows you to manage virtual machine (VM) instances in ZStack. " +
+			"A VM instance represents a virtualized compute resource that can be created, updated, and deleted. " +
+			"You can define the VM's properties, such as its name, image, network configuration, disks, and GPU devices.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
@@ -120,7 +138,27 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Description: "The name of the VM instance.",
 			},
-			"ip": schema.StringAttribute{
+			"vm_nics": schema.ListNestedAttribute{
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"uuid": schema.StringAttribute{
+							Required:    true,
+							Description: "The UUID of the network.",
+						},
+						"ip": schema.StringAttribute{
+							Computed:    true,
+							Description: "The IP address assigned to the network.",
+						},
+						"netmask": schema.StringAttribute{
+							Computed:    true,
+							Description: "The netmask of the network.",
+						},
+						"gateway": schema.StringAttribute{
+							Computed:    true,
+							Description: "The gateway of the network.",
+						},
+					},
+				},
 				Computed:    true,
 				Description: "The IP address assigned to the VM instance.",
 			},
@@ -545,7 +583,21 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.Name = types.StringValue(instance.Name)
 	plan.Description = types.StringValue(instance.Description)
 	plan.MemorySize = types.Int64Value(instance.MemorySize)
-	plan.IP = types.StringValue(instance.VMNics[0].IP)
+	//plan.IP = types.StringValue(instance.VMNics[0].IP)
+
+	// 处理所有网卡信息
+	var vmNics []NicsModel
+	for _, nic := range instance.VMNics {
+		vmNics = append(vmNics, NicsModel{
+			Uuid:    types.StringValue(nic.UUID),
+			Ip:      types.StringValue(nic.IP),
+			Netmask: types.StringValue(nic.Netmask),
+			Gateway: types.StringValue(nic.Gateway),
+		})
+	}
+
+	// 将网卡信息存储在状态中
+	plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 
 	//var diskModelsState []diskModel
 	//for _, volume := range instance.AllVolumes {
@@ -614,12 +666,29 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.MemorySize = types.Int64Value(vm.MemorySize)
 	state.CPUNum = types.Int64Value(int64(vm.CPUNum))
 
-	vmNics := vm.VMNics
-	if len(vmNics) > 0 {
-		state.IP = types.StringValue(vmNics[0].IP)
-	} else {
-		state.IP = types.StringValue("")
+	/*
+		vmNics := vm.VMNics
+		if len(vmNics) > 0 {
+			state.IP = types.StringValue(vmNics[0].IP)
+		} else {
+			state.IP = types.StringValue("")
+		}
+
+	*/
+
+	// 处理所有网卡信息
+	var vmNics []NicsModel
+	for _, nic := range vm.VMNics {
+		vmNics = append(vmNics, NicsModel{
+			Uuid:    types.StringValue(nic.UUID),
+			Ip:      types.StringValue(nic.IP),
+			Netmask: types.StringValue(nic.Netmask),
+			Gateway: types.StringValue(nic.Gateway),
+		})
 	}
+
+	// 将网卡信息存储在状态中
+	state.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 
 	state.L3NetworkUuids, _ = types.ListValue(types.StringType, []attr.Value{types.StringValue(vm.DefaultL3NetworkUUID)})
 	diags = resp.State.Set(ctx, &state)
@@ -683,7 +752,21 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		plan.Name = types.StringValue(instance.Name)
 		plan.Description = types.StringValue(instance.Description)
 		plan.MemorySize = types.Int64Value(instance.MemorySize)
-		plan.IP = types.StringValue(instance.VMNics[0].IP)
+		//plan.IP = types.StringValue(instance.VMNics[0].IP)
+
+		// 更新 vm_nics 信息
+		var vmNics []NicsModel
+		for _, nic := range instance.VMNics {
+			vmNics = append(vmNics, NicsModel{
+				Uuid:    types.StringValue(nic.UUID),
+				Ip:      types.StringValue(nic.IP),
+				Netmask: types.StringValue(nic.Netmask),
+				Gateway: types.StringValue(nic.Gateway),
+			})
+		}
+
+		// 将 vm_nics 信息设置到状态中
+		plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 
 		diags := resp.State.Set(ctx, &plan)
 		resp.Diagnostics.Append(diags...)

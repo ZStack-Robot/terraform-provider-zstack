@@ -122,6 +122,7 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 // Schema implements datasource.DataSource.
 func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of images and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching images",

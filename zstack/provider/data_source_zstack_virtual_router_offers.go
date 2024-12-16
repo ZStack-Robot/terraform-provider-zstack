@@ -137,6 +137,7 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of virtual router offers and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router offer",

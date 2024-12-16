@@ -56,11 +56,14 @@ func (r *subnetResource) Configure(ctx context.Context, request resource.Configu
 }
 
 func (r *subnetResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = request.ProviderTypeName + "_subnet"
+	response.TypeName = request.ProviderTypeName + "_subnet_ip_range"
 }
 
 func (r *subnetResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
+		Description: "This resource allows you to manage subnets in ZStack. " +
+			"A subnet is a logical subdivision of an IP network, defined by a range of IP addresses. " +
+			"You can define the subnet's properties, such as its name, IP range, netmask, gateway, and the L3 network it belongs to.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

@@ -47,6 +47,7 @@ type vmNicsModel struct {
 	Mac     types.String `tfsdk:"mac"`
 	Netmask types.String `tfsdk:"netmask"`
 	Gateway types.String `tfsdk:"gateway"`
+	Uuid    types.String `tfsdk:"uuid"`
 }
 
 type allVolumesModel struct {
@@ -139,6 +140,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 				Mac:     types.StringValue(vmnics.Mac),
 				Netmask: types.StringValue(vmnics.Netmask),
 				Gateway: types.StringValue(vmnics.Gateway),
+				Uuid:    types.StringValue(vmnics.UUID),
 			})
 		}
 
@@ -169,6 +171,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *vmsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of VM instances and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching VM instance",
@@ -253,6 +256,10 @@ func (d *vmsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 									"gateway": schema.StringAttribute{
 										Computed:    true,
 										Description: "The gateway IP address for the VM NIC.",
+									},
+									"uuid": schema.StringAttribute{
+										Computed:    true,
+										Description: "The uuid for the VM NIC.",
 									},
 								},
 							},

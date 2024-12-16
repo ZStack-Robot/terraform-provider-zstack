@@ -175,6 +175,9 @@ func (r *virtualRouterOfferingResource) Read(ctx context.Context, req resource.R
 // Schema implements resource.Resource.
 func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "This resource allows you to manage virtual router offerings in ZStack. " +
+			"A virtual router offering defines the configuration and resource settings for virtual router instances, such as CPU, memory, and management network. " +
+			"You can define the offering's properties, such as its name, description, CPU and memory allocation, and the associated management network.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

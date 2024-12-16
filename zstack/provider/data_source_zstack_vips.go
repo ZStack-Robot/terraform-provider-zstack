@@ -125,7 +125,7 @@ func (d *vipsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *vipsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a list of hosts and their associated attributes from the ZStack environment.",
+		Description: "Fetches a list of vips and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching VIPs",
