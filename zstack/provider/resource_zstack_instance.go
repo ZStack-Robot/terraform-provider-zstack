@@ -293,10 +293,12 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			},
 			"memory_size": schema.Int64Attribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The memory size allocated to the VM instance in bytes.",
 			},
 			"cpu_num": schema.Int64Attribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The number of CPUs allocated to the VM instance.",
 			},
 			"strategy": schema.StringAttribute{
@@ -539,6 +541,33 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		}
 	}
 
+	// Check if instance_offering_uuid is provided
+	var memorySize int64
+	var cpuNum int64
+	if !plan.InstanceOfferingUuid.IsNull() && plan.InstanceOfferingUuid.ValueString() != "" {
+		instanceOffering, err := r.client.GetInstanceOffering(plan.InstanceOfferingUuid.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Params Error",
+				fmt.Sprintf("failed to get instance offering %s, err: %v", plan.InstanceOfferingUuid.ValueString(), err),
+			)
+			return
+		}
+		memorySize = instanceOffering.MemorySize
+		cpuNum = int64(instanceOffering.CpuNum)
+	} else {
+		if plan.MemorySize.IsNull() || plan.CPUNum.IsNull() {
+			resp.Diagnostics.AddError(
+				"Params Error",
+				"memory_size and cpu_num must be provided if instance_offering_uuid is not set",
+			)
+			return
+		}
+
+		memorySize = plan.MemorySize.ValueInt64()
+		cpuNum = plan.CPUNum.ValueInt64()
+	}
+
 	createVmInstanceParam := param.CreateVmInstanceParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
@@ -563,8 +592,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			DefaultL3NetworkUuid:            l3NetworkUuids[0],
 			TagUuids:                        nil,
 			Strategy:                        param.InstanceStrategy(plan.Strategy.ValueString()),
-			MemorySize:                      plan.MemorySize.ValueInt64(),
-			CpuNum:                          plan.CPUNum.ValueInt64(),
+			MemorySize:                      memorySize,
+			CpuNum:                          cpuNum,
 			RootVolumeSystemTags:            rootDiskSystemTags,
 			DataVolumeSystemTags:            dataDiskSystemTags,
 		},
@@ -583,6 +612,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.Name = types.StringValue(instance.Name)
 	plan.Description = types.StringValue(instance.Description)
 	plan.MemorySize = types.Int64Value(instance.MemorySize)
+	plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
 	//plan.IP = types.StringValue(instance.VMNics[0].IP)
 
 	// 处理所有网卡信息
@@ -596,35 +626,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		})
 	}
 
-	// 将网卡信息存储在状态中
 	plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
-
-	//var diskModelsState []diskModel
-	//for _, volume := range instance.AllVolumes {
-	//	if volume.Type == "Root" {
-	//		plan.RootDisk.Attributes()["uuid"] = types.StringValue(volume.UUID) // rootDiskAttributes
-	//		continue
-	//	}
-	//
-	//	re := regexp.MustCompile(`ceph://([a-zA-Z0-9-]+)/`)
-	//	matches := re.FindStringSubmatch(volume.InstallPath)
-	//
-	//	poolName := ""
-	//	if len(matches) != 1 {
-	//		continue
-	//	}
-	//
-	//	poolName = matches[1]
-	//	diskModelsState = append(diskModelsState, diskModel{
-	//		types.Int64Value(int64(volume.Size)),
-	//		types.StringValue(volume.DiskOfferingUUID),
-	//		types.BoolValue(volume.VirtioSCSI),
-	//		types.StringValue(volume.PrimaryStorageUUID),
-	//		types.StringValue(poolName),
-	//	})
-	//}
-	//
-	//plan.DataDisks, _ = fwtypes.NewListNestedObjectValueOfValueSlice[diskModel](ctx, diskModelsState)
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -648,13 +650,9 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 
 	vm, err := r.client.GetVmInstance(state.Uuid.ValueString())
 	if err != nil {
-		// reference azure, set uuid to 'empty'
-		// https://github.com/hashicorp/terraform-provider-azurerm/blob/main/internal/services/compute/linux_virtual_machine_resource.go
 		tflog.Warn(ctx, "cannot read vm, maybe it has been deleted, set uuid to 'empty'. vm was no longer managed by terraform. error: "+err.Error())
 		state.Uuid = types.StringValue("")
 		diags = resp.State.Set(ctx, &state)
-		//resp.Diagnostics.AddError(fmt.Sprintf("cannot read vm [uuid: %s]", state.UUID.ValueString()),
-		//	fmt.Sprintf("cannot read vm [uuid: %s], err: %v", state.UUID.ValueString(), err))
 		resp.Diagnostics.Append(diags...)
 		return
 	}
@@ -666,17 +664,6 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.MemorySize = types.Int64Value(vm.MemorySize)
 	state.CPUNum = types.Int64Value(int64(vm.CPUNum))
 
-	/*
-		vmNics := vm.VMNics
-		if len(vmNics) > 0 {
-			state.IP = types.StringValue(vmNics[0].IP)
-		} else {
-			state.IP = types.StringValue("")
-		}
-
-	*/
-
-	// 处理所有网卡信息
 	var vmNics []NicsModel
 	for _, nic := range vm.VMNics {
 		vmNics = append(vmNics, NicsModel{
@@ -687,7 +674,6 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		})
 	}
 
-	// 将网卡信息存储在状态中
 	state.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 
 	state.L3NetworkUuids, _ = types.ListValue(types.StringType, []attr.Value{types.StringValue(vm.DefaultL3NetworkUUID)})
@@ -752,6 +738,7 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		plan.Name = types.StringValue(instance.Name)
 		plan.Description = types.StringValue(instance.Description)
 		plan.MemorySize = types.Int64Value(instance.MemorySize)
+		plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
 		//plan.IP = types.StringValue(instance.VMNics[0].IP)
 
 		// 更新 vm_nics 信息
