@@ -234,6 +234,9 @@ func (r *virtualRouterImageResource) Read(ctx context.Context, req resource.Read
 // Schema implements resource.Resource.
 func (r *virtualRouterImageResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "This resource allows you to manage virtual router images in ZStack. " +
+			"A virtual router image is a template used to create virtual router instances, which are essential for network services such as routing, NAT, and VPN. " +
+			"You can define the image's properties, such as its name, description, URL, platform, and backup storage locations.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

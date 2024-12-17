@@ -271,6 +271,9 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 // Schema implements resource.Resource.
 func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "This resource allows you to manage images in ZStack. " +
+			"An image represents a virtual machine image format qcow2, raw, vmdk or an ISO file that can be used to create or boot virtual machines. " +
+			"You can define the image's properties, such as its URL, format, architecture, and backup storage locations.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
@@ -294,7 +297,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"media_type": schema.StringAttribute{
 				Optional:    true,
-				Description: "The type of media for the image. Examples include 'ISO' or 'Template'.",
+				Description: "The type of media for the image. Examples include 'ISO' or 'Template' or DataVolumeTemplate.",
 			},
 			"guest_os_type": schema.StringAttribute{
 				Optional:    true,

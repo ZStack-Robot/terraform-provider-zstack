@@ -59,6 +59,9 @@ func (r *vipResource) Metadata(_ context.Context, request resource.MetadataReque
 
 func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
+		Description: "This resource allows you to manage Virtual IP (VIP) addresses in ZStack. " +
+			"A VIP is a dedicated IP address that can be used for various network services, such as load balancing or high availability. " +
+			"You can define the VIP's properties, such as its name, description, associated L3 network, and the IP range it belongs to.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
@@ -82,6 +85,7 @@ func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			},
 			"vip": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "create vip ip address  for this VPC network.",
 			},
 		},
@@ -108,8 +112,12 @@ func (r *vipResource) Create(ctx context.Context, request resource.CreateRequest
 			Description:   plan.Description.ValueString(), //.EndIp.ValueString(),
 			L3NetworkUUID: plan.L3NetworkUuid.ValueString(),
 			IpRangeUUID:   plan.IpRangeUuid.ValueString(),
-			RequiredIp:    plan.VIP.ValueString(),
+			//	RequiredIp:    plan.VIP.ValueString(),
 		},
+	}
+
+	if !plan.VIP.IsNull() && plan.VIP.ValueString() != "" {
+		p.Params.RequiredIp = plan.VIP.ValueString()
 	}
 
 	vip, err := r.client.CreateVip(p)
@@ -147,7 +155,10 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 
 	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
-		tflog.Warn(ctx, "cannot read vpcs, maybe it has been deleted, set uuid to 'empty'. vpcs was no longer managed by terraform. error: "+err.Error())
+		tflog.Warn(ctx, "Unable to query VIPs. It may have been deleted.: "+err.Error())
+		state = vipModel{
+			Uuid: types.StringValue(""),
+		}
 		diags = response.State.Set(ctx, &state)
 		response.Diagnostics.Append(diags...)
 		return
@@ -169,18 +180,12 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 	}
 	if !found {
 		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "vpc not found. It might have been deleted outside of Terraform.")
+		tflog.Warn(ctx, "VIP not found. It might have been deleted outside of Terraform.")
 		state = vipModel{
 			Uuid: types.StringValue(""),
 		}
 	}
-	// 更新 State
-	/*   # 报状态不一致，需修复
-		│ When applying changes to zstack_vip.test, provider
-	│ "provider[\"zstack.io/terraform-provider-zstack/zstack\"]" produced an
-	│ unexpected new value: .vip: was null, but now
-	│ cty.StringVal("192.168.110.229").
-	*/
+
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {

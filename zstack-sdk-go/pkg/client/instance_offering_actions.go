@@ -20,3 +20,15 @@ func (cli *ZSClient) CreateInstanceOffering(params *param.CreateInstanceOffering
 func (cli *ZSClient) DeleteInstanceOffering(uuid string, deleteMode param.DeleteMode) error {
 	return cli.Delete("v1/instance-offerings", uuid, string(deleteMode))
 }
+
+// GetInstanceOffering Get Instance Offering
+func (cli *ZSClient) GetInstanceOffering(uuid string) (*view.InstanceOfferingInventoryView, error) {
+	offering := view.InstanceOfferingInventoryView{}
+	return &offering, cli.Get("v1/instance-offerings", uuid, nil, &offering)
+}
+
+// QueryImage Query Image
+func (cli *ZSClient) QueryInstaceOffering(params param.QueryParam) ([]view.InstanceOfferingInventoryView, error) {
+	var offering []view.InstanceOfferingInventoryView
+	return offering, cli.List("v1/instance-offerings", &params, &offering)
+}

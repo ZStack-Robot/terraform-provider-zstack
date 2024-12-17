@@ -136,6 +136,7 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 // Schema implements datasource.DataSource.
 func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of virtual router images and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router images",

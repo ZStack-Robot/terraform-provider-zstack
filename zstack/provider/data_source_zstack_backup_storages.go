@@ -116,9 +116,10 @@ func (d *backupStorageDataSource) Read(ctx context.Context, req datasource.ReadR
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *backupStorageDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "List all backup storages, or query backup storages by exact name match, or query backup storages by name pattern fuzzy match.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				Description: "Exact name for searching backup storage",
+				Description: "Exact name for searching backup storage.",
 				Optional:    true,
 			},
 			"name_pattern": schema.StringAttribute{

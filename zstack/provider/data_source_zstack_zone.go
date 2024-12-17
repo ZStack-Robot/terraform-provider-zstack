@@ -27,8 +27,9 @@ type zoneDataSource struct {
 }
 
 type zoneDataSourceModel struct {
-	Name  types.String `tfsdk:"name"`
-	Zones []zoneModel  `tfsdk:"zones"`
+	Name        types.String `tfsdk:"name"`
+	NamePattern types.String `tfsdk:"name_pattern"`
+	Zones       []zoneModel  `tfsdk:"zones"`
 }
 
 type zoneModel struct {
@@ -63,7 +64,7 @@ func (d *zoneDataSource) Metadata(_ context.Context, req datasource.MetadataRequ
 
 func (d *zoneDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches the list of zones. ",
+		Description: "Fetches a list of zones and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for Searching  zones",
@@ -104,9 +105,9 @@ func (d *zoneDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	if !name.IsNull() {
 		params.AddQ("name=" + name.ValueString())
+	} else if !state.NamePattern.IsNull() {
+		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
-
-	//images, err := d.client.QueryImage(params)
 
 	zones, err := d.client.QueryZone(params)
 	if err != nil {
@@ -118,7 +119,6 @@ func (d *zoneDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	//map query zones body to mode
 	for _, zone := range zones {
 		zoneState := zoneModel{
 			Name:  types.StringValue(zone.Name),

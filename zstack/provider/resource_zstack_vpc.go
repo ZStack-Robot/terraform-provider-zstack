@@ -82,6 +82,9 @@ func (r *vpcResource) Metadata(_ context.Context, request resource.MetadataReque
 
 func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
 	response.Schema = schema.Schema{
+		Description: "This resource allows you to manage Virtual Private Cloud (VPC) networks in ZStack. " +
+			"A VPC network provides a logically isolated section of the cloud where you can launch resources such as virtual routers, subnets, and DNS services. " +
+			"You can define the VPC's properties, such as its name, description, associated L2 network, and subnet CIDR.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

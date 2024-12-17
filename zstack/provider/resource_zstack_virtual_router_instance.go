@@ -165,6 +165,9 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 // Schema implements resource.Resource.
 func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "This resource allows you to manage virtual router instances in ZStack. " +
+			"A virtual router instance is a virtual machine that provides network services such as routing, NAT, and VPN. " +
+			"You can define the instance's properties, such as its name, description, associated virtual router offering, and deployment location.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,

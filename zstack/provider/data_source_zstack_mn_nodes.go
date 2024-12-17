@@ -59,6 +59,7 @@ func (d *mnNodeDataSource) Metadata(_ context.Context, req datasource.MetadataRe
 
 func (d *mnNodeDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of Management nodes and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"mn_nodes": schema.ListNestedAttribute{
 				Description: "Fetches a list of Management Nodes and their associated attributes from the ZStack environment",

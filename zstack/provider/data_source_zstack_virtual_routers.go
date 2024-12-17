@@ -82,7 +82,7 @@ func (d *vrouterDataSource) Configure(_ context.Context, req datasource.Configur
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *vrouterDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_virtual_routers"
+	resp.TypeName = req.ProviderTypeName + "_virtual_router_instances"
 }
 
 // Read implements datasource.DataSourceWithConfigure.
@@ -161,6 +161,7 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Fetches a list of virtual router instances and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router instance",

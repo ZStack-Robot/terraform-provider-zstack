@@ -3,12 +3,12 @@
 page_title: "zstack_reserved_ip Resource - terraform-provider-zstack"
 subcategory: ""
 description: |-
-  
+  This resource allows you to manage reserved IP ranges in ZStack. A reserved IP range is a block of IP addresses that are set aside for specific purposes, such as static IP allocation or network services. You can define the start and end IP addresses of the range, as well as the L3 network where the range will be reserved.
 ---
 
 # zstack_reserved_ip (Resource)
 
-
+This resource allows you to manage reserved IP ranges in ZStack. A reserved IP range is a block of IP addresses that are set aside for specific purposes, such as static IP allocation or network services. You can define the start and end IP addresses of the range, as well as the L3 network where the range will be reserved.
 
 
 
