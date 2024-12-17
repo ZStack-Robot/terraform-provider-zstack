@@ -6,7 +6,7 @@ description: |-
   It provides a seamless integration with Terraform, enabling you to define and manage your cloud infrastructure as code.
 ---
 
-# ZStack Provider
+# zstack Provider
 
 
 
