@@ -1,9 +1,14 @@
 Terraform Provider For ZStack Cloud
 ==================
 
-- Tutorials: [learn.hashicorp.com](https://learn.hashicorp.com/terraform?track=getting-started#getting-started)
-- Documentation: 
+- [Getting Started](https://registry.terraform.io/providers/ZStack-Robot/zstack/latest)
+- Usage
+  - Documentation
+  - [Examples](https://github.com/ZStack-Robot/terraform-provider-zstack/blob/main/docs/index.md)
 
+The ZStack provider is used to interact with the resources supported by ZStack Cloud, a powerful cloud management platform. 
+This provider allows you to manage various cloud resources such as virtual machines, networks, storage, and more. 
+It provides a seamless integration with Terraform, enabling you to define and manage your cloud infrastructure as code.
 
 Supported Versions
 ------------------
@@ -28,36 +33,22 @@ Using the provider
 Please see [instructions](https://www.zstack.io) on how to configure the ZStack Cloud Provider.
 
 
-## Developing the Provider
----------------------------
+## Contributing to the provider
+
+The ZStack Provider for Terraform is the work of many contributors. We appreciate your help!
 
 If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (version 1.20+ is *required*). You'll also need to correctly setup a [GOPATH](http://golang.org/doc/code.html#GOPATH), as well as adding `$GOPATH/bin` to your `$PATH`.
 
-To compile the provider, run `make build`. This will build the provider and put the provider binary in the `$GOPATH/bin` directory.
 
-```sh
-$ make build
-...
-$ $GOPATH/bin/terraform-provider-zstack
-...
-```
 
-Running `make dev` or `make devlinux` or `devwin` will only build the specified developing provider which matchs the local system.
-And then, it will unarchive the provider binary and then replace the local provider plugin.
+You may also [report an issue](https://github.com/ZStack-Robot/terraform-provider-zstack/issues/new). 
 
-In order to test the provider, you can simply run `make test`.
+    Here is an example of how to clone this repository and switch to the directory:
 
-```sh
-$ make test
-```
-
-In order to run the full suite of Acceptance tests, run `make testacc`.
-
-*Note:* Acceptance tests create real resources, and often cost money to run.
-
-```sh
-$ make testacc
-```
+    ```console
+    $ git clone https://github.com/ZStack-Robot/terraform-provider-zstack.git
+    $ cd terraform-provider-zstack
+    ```
 
 ## Acceptance Testing
 Before making a release, the resources and data sources are tested automatically with acceptance tests (the tests are located in the zstack/*_test.go files).
