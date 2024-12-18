@@ -15,24 +15,13 @@ variables:
 
 build_job:
   stage: build
-  image: golang:${GO_VERSION}  # 使用显式指定的 Go 版本
-  before_script:
-    # Checkout the repository with all tags
-    - "git fetch --unshallow || true"
-    - "git fetch --tags"
-    # Install GoReleaser
-    - "curl -sfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | sh"
-    # Import GPG key
-    - "echo \"$GPG_PRIVATE_KEY\" | gpg --import --batch --yes"
-    - "echo \"passphrase: $PASSPHRASE\""
+  image: golang:${GO_VERSION}
   script:
-    # Run GoReleaser
-    - "./bin/goreleaser release --clean"
-  only:
-    - main
+    - "echo 'Building the application...'"
+    - "go build -o terraform-provider-zstack ."
   artifacts:
     paths:
-      - dist/
+      - dist
 
 release_job:
   stage: release
