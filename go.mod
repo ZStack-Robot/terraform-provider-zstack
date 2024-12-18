@@ -1,6 +1,6 @@
 module terraform-provider-zstack
 
-go 1.22.0
+go 1.22.10
 
 //go 1.23
 
