@@ -6,7 +6,7 @@ variables:
   GPG_PRIVATE_KEY: $GPG_PRIVATE_KEY
   PASSPHRASE: $PASSPHRASE
   GITLAB_TOKEN: $GITLAB_TOKEN
-  GO_VERSION: "1.22.10
+  GO_VERSION: "1.22.10"
 
 before_script:
   # Install the Go version specified in go.mod
