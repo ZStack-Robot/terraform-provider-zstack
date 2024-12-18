@@ -2,7 +2,7 @@ module terraform-provider-zstack
 
 //go 1.22.10
 
-go 1.23.0
+go 1.23
 
 replace zstack.io/zstack-sdk-go => ./zstack-sdk-go
 
