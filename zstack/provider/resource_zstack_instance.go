@@ -323,6 +323,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 }
 
 // Create implements resource.Resource.
+
 func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan vmInstanceDataSourceModel
 	diags := req.Plan.Get(ctx, &plan)
@@ -332,88 +333,92 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	var rootDiskPlan diskModel
+	var dataDisksPlan []diskModel
+	var l3NetworkUuids []string
+	var systemTags []string
+	var primaryStorageUuidForRootVolume *string
 	hostUuid := ""
 	clusterUuid := ""
 	zoneUuid := ""
-
-	// SET ROOT DISK
-	diags = plan.RootDisk.As(ctx, &rootDiskPlan, basetypes.ObjectAsOptions{})
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	if rootDiskPlan.OfferingUuid.IsNull() && rootDiskPlan.Size.IsNull() {
-		resp.Diagnostics.AddError(
-			"Params Error",
-			"rootDiskPlan offering_uuid and size cannot be null at the same time",
-		)
-		return
-	}
-
-	err := isDiskParamValid(r, rootDiskPlan)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Params Error",
-			fmt.Sprintf("invalid rootDiskPlan param, err: %v", err),
-		)
-		return
-	}
-
-	var primaryStorageUuidForRootVolume *string
-	if !rootDiskPlan.PrimaryStorageUuid.IsNull() && rootDiskPlan.PrimaryStorageUuid.ValueString() != "" {
-		primaryStorageUuidForRootVolume = rootDiskPlan.PrimaryStorageUuid.ValueStringPointer()
-	}
-
 	var rootDiskSystemTags []string
-	if !rootDiskPlan.CephPoolName.IsNull() && rootDiskPlan.CephPoolName.ValueString() != "" {
-		rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
-	}
-
-	// SET DATA DISK
-	var dataDisksPlan []diskModel
-	plan.DataDisks.ElementsAs(ctx, &dataDisksPlan, false)
 	var dataDiskSizes []int64
 	var dataDiskOfferingUuids []string
 	var dataVolumeSystemTagsOnIndex []string
+	var dataDiskSystemTags []string
 
-	for _, disk := range dataDisksPlan {
-		if !disk.OfferingUuid.IsNull() {
-			dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
-		} else if !disk.Size.IsNull() {
-			dataDiskSizes = append(dataDiskSizes, disk.Size.ValueInt64())
-			if disk.VirtioSCSI.ValueBool() {
-				dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
-			}
-		} else {
+	// SET ROOT DISK
+	if !plan.RootDisk.IsNull() {
+		diags = plan.RootDisk.As(ctx, &rootDiskPlan, basetypes.ObjectAsOptions{})
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		if rootDiskPlan.OfferingUuid.IsNull() && rootDiskPlan.Size.IsNull() {
 			resp.Diagnostics.AddError(
 				"Params Error",
-				"dataDisk offering_uuid and size cannot be null at the same time",
+				"rootDiskPlan offering_uuid and size cannot be null at the same time",
 			)
 			return
 		}
-	}
-
-	//only support one type data disk now
-	var dataDiskSystemTags []string
-	if len(dataDisksPlan) > 0 {
-		err := isDiskParamValid(r, dataDisksPlan[0])
+		err := isDiskParamValid(r, rootDiskPlan)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Params Error",
-				fmt.Sprintf("invalid dataDisk param, err: %v", err),
+				fmt.Sprintf("invalid rootDiskPlan param, err: %v", err),
 			)
 			return
 		}
-
-		if !dataDisksPlan[0].CephPoolName.IsNull() && dataDisksPlan[0].CephPoolName.ValueString() != "" {
-			dataDiskSystemTags = append(dataDiskSystemTags, fmt.Sprintf("ceph::pool::%s", dataDisksPlan[0].CephPoolName.ValueString()))
+		if !rootDiskPlan.PrimaryStorageUuid.IsNull() && rootDiskPlan.PrimaryStorageUuid.ValueString() != "" {
+			primaryStorageUuidForRootVolume = rootDiskPlan.PrimaryStorageUuid.ValueStringPointer()
 		}
-		dataDiskSystemTags = append(dataDiskSystemTags, dataVolumeSystemTagsOnIndex...)
+
+		if !rootDiskPlan.CephPoolName.IsNull() && rootDiskPlan.CephPoolName.ValueString() != "" {
+			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
+		}
+	}
+
+	// SET DATA DISK
+	if !plan.DataDisks.IsNull() {
+		plan.DataDisks.ElementsAs(ctx, &dataDisksPlan, false)
+
+		for _, disk := range dataDisksPlan {
+			if !disk.OfferingUuid.IsNull() {
+				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
+			} else if !disk.Size.IsNull() {
+				dataDiskSizes = append(dataDiskSizes, disk.Size.ValueInt64())
+				if disk.VirtioSCSI.ValueBool() {
+					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
+				}
+			} else {
+				resp.Diagnostics.AddError(
+					"Params Error",
+					"dataDisk offering_uuid and size cannot be null at the same time",
+				)
+				return
+			}
+		}
+
+		//only support one type data disk now
+
+		if len(dataDisksPlan) > 0 {
+			err := isDiskParamValid(r, dataDisksPlan[0])
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Params Error",
+					fmt.Sprintf("invalid dataDisk param, err: %v", err),
+				)
+				return
+			}
+
+			if !dataDisksPlan[0].CephPoolName.IsNull() && dataDisksPlan[0].CephPoolName.ValueString() != "" {
+				dataDiskSystemTags = append(dataDiskSystemTags, fmt.Sprintf("ceph::pool::%s", dataDisksPlan[0].CephPoolName.ValueString()))
+			}
+			dataDiskSystemTags = append(dataDiskSystemTags, dataVolumeSystemTagsOnIndex...)
+		}
 	}
 
 	// SET NETWORK
-	var l3NetworkUuids []string
+
 	if !plan.L3NetworkUuids.IsNull() && len(plan.L3NetworkUuids.Elements()) > 0 {
 		plan.L3NetworkUuids.ElementsAs(ctx, &l3NetworkUuids, false)
 	} else if !plan.Networks.IsNull() && len(plan.Networks.Elements()) > 0 {
@@ -472,7 +477,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// SET SYSTEM TAG
-	systemTags := []string{"resourceConfig::vm::vm.clock.track::guest", "cdroms::Empty::None::None"}
+	//systemTags := []string{"resourceConfig::vm::vm.clock.track::guest", "cdroms::Empty::None::None"}
 	if plan.Marketplace.ValueBool() {
 		systemTags = append(systemTags, "marketplace::true")
 	}

@@ -27,7 +27,7 @@ func (cli *ZSClient) GetInstanceOffering(uuid string) (*view.InstanceOfferingInv
 	return &offering, cli.Get("v1/instance-offerings", uuid, nil, &offering)
 }
 
-// QueryImage Query Image
+// QueryInstanceOffering Query Instance Offering
 func (cli *ZSClient) QueryInstaceOffering(params param.QueryParam) ([]view.InstanceOfferingInventoryView, error) {
 	var offering []view.InstanceOfferingInventoryView
 	return offering, cli.List("v1/instance-offerings", &params, &offering)

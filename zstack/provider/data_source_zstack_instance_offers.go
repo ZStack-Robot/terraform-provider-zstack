@@ -87,6 +87,8 @@ func (d *instanceOfferingDataSource) Read(ctx context.Context, req datasource.Re
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
+	params.AddQ("type=UserVm")
+
 	instanceOffers, err := d.client.QueryInstaceOffering(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
