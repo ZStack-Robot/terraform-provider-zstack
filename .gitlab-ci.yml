@@ -8,10 +8,10 @@ variables:
   GITLAB_TOKEN: $GITLAB_TOKEN
   GO_VERSION: "1.22.10"
 
-#before_script:
+before_script:
   # Install the Go version specified in go.mod
-#  - "go version"
-#  - "go mod tidy"
+  - "go version"
+  - "go mod tidy"
 
 build_job:
   stage: build
