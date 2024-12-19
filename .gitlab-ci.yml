@@ -16,13 +16,11 @@ default:
 
 before_script:
   # Install the Go version specified in go.mod
-  - "curl -O $MINIO_URL/download/nightly/mc" 
-  - "chmod +x mc"
-  - "mv mc /usr/local/bin/"
   - "mc alias set terraformminio $MINIO_SERVER_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY"
   - "go version"
   - "go mod tidy"
   - "goreleaser --version"
+  - "mc --version"
 
 build_job:
   stage: build
