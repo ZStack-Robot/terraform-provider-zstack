@@ -42,7 +42,7 @@ release_job:
     - "echo \"passphrase: $PASSPHRASE\""
   script:
     # Run GoReleaser
-    - "./bin/goreleaser release --clean"
+    - "/usr/bin/goreleaser release --clean"
   only:
     - main
   artifacts:
