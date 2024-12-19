@@ -24,7 +24,8 @@ build_job:
     - "echo 'Building the application...'"
     - "mkdir -p dist"
     - "go build -o dist/terraform-provider-zstack"
+     - "tar -czf dist/terraform-provider-zstack.tar.gz dist/terraform-provider-zstack" 
   artifacts:
     paths:
-      - dist
+      - dist/terraform-provider-zstack.tar.gz
 
