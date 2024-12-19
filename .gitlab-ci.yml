@@ -23,6 +23,7 @@ build_job:
   image: golang:${GO_VERSION}
   script:
     - "echo 'Building the application...'"
+    - "mkdir -p dist"
     - "go build -o terraform-provider-zstack ."
   artifacts:
     paths:
