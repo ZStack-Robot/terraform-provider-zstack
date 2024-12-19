@@ -17,10 +17,6 @@ before_script:
   - "go version"
   - "go mod tidy"
   - "goreleaser --version"
-  - "export http_proxy=http://zstack.one:8888"
-  - "export https_proxy=http://zstack.one:8888"
-  - "export no_proxy=localhost,127.0.0.1,::1"
-  - "- go env -w GOPROXY=https://goproxy.cn,direct"
 
 build_job:
   stage: build
