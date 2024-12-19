@@ -24,7 +24,7 @@ build_job:
   script:
     - "echo 'Building the application...'"
     - "mkdir -p dist"
-    - "go build -o terraform-provider-zstack ."
+    - "go build -o dist/terraform-provider-zstack"
   artifacts:
     paths:
       - dist
