@@ -6,6 +6,9 @@ variables:
   PASSPHRASE: $PASSPHRASE
   GITLAB_TOKEN: $GITLAB_TOKEN
   GO_VERSION: "1.22.8"
+  MINIO_SERVER_URL: $MINIO_URL
+  MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY 
+  MINIO_SECRET_KEY: $MINIO_SECRET_KEY 
 
 default:
   tags:
@@ -13,6 +16,10 @@ default:
 
 before_script:
   # Install the Go version specified in go.mod
+  - "curl -O $MINIO_URL/download/nightly/mc" 
+  - "chmod +x mc"
+  - "mv mc /usr/local/bin/"
+  - "mc alias set terraformminio $MINIO_SERVER_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY"
   - "go version"
   - "go mod tidy"
   - "goreleaser --version"
@@ -25,7 +32,5 @@ build_job:
     - "mkdir -p dist"
     - "go build -o dist/terraform-provider-zstack"
     - "tar -czf dist/terraform-provider-zstack.tar.gz dist/terraform-provider-zstack" 
-  artifacts:
-    paths:
-      - dist/terraform-provider-zstack.tar.gz
+    - "mc cp dist/terraform-provider-zstack.tar.gz terraformminio/terraform/terraform-provider-zstack.tar.gz"
 
