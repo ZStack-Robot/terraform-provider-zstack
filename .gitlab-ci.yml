@@ -2,8 +2,6 @@ stages:
   - build
 
 variables:
-  GPG_PRIVATE_KEY: $GPG_PRIVATE_KEY
-  PASSPHRASE: $PASSPHRASE
   GITLAB_TOKEN: $GITLAB_TOKEN
   GO_VERSION: "1.22.8"
   MINIO_SERVER_URL: $MINIO_URL
@@ -19,7 +17,6 @@ before_script:
   - "mc alias set terraformminio $MINIO_SERVER_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY"
   - "go version"
   - "go mod tidy"
-  - "goreleaser --version"
   - "mc --version"
 
 build_job:
@@ -30,5 +27,5 @@ build_job:
     - "mkdir -p dist"
     - "go build -o dist/terraform-provider-zstack"
     - "tar -czf dist/terraform-provider-zstack.tar.gz dist/terraform-provider-zstack" 
-    - "mc cp dist/terraform-provider-zstack.tar.gz terraformminio/terraform/terraform-provider-zstack.tar.gz"
+    - "mc cp dist/terraform-provider-zstack terraformminio/terraform/terraform-provider-zstack"
 
