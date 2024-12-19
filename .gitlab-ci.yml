@@ -8,6 +8,10 @@ variables:
   GITLAB_TOKEN: $GITLAB_TOKEN
   GO_VERSION: "1.22.8"
 
+default:
+  tags:
+    - "terraform"
+
 before_script:
   # Install the Go version specified in go.mod
   - "go version"
@@ -26,7 +30,7 @@ build_job:
 
 release_job:
   stage: release
-  image: golang:${GO_VERSION}  # 使用显式指定的 Go 版本
+  #image: golang:${GO_VERSION}  # 使用显式指定的 Go 版本
   before_script:
     # Checkout the repository with all tags
     - "git fetch --unshallow || true"
