@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -37,6 +38,7 @@ type imagesDataSourceModel struct {
 	Name        types.String  `tfsdk:"name"`
 	NamePattern types.String  `tfsdk:"name_pattern"`
 	Images      []imagesModel `tfsdk:"images"`
+	Filter      types.Map     `tfsdk:"filter"`
 }
 
 func ZStackImageDataSource() datasource.DataSource {
@@ -96,7 +98,22 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	for _, image := range images {
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterImages, filterDiags := utils.FilterResource(ctx, images, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, image := range filterImages {
 		imageState := imagesModel{
 			Name:         types.StringValue(image.Name),
 			State:        types.StringValue(image.State),
@@ -131,6 +148,11 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter images. For example, to filter by status, use `Status = \"Ready\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"images": schema.ListNestedAttribute{
 				Description: "List of Images",

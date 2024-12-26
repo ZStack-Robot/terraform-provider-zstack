@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -29,6 +30,7 @@ type clusterDataSource struct {
 type clusterDataSourceModel struct {
 	Name        types.String   `tfsdk:"name"`
 	NamePattern types.String   `tfsdk:"name_pattern"`
+	Filter      types.Map      `tfsdk:"filter"`
 	Clusters    []clusterModel `tfsdk:"clusters"`
 }
 
@@ -73,6 +75,11 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = \"x86_64\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"clusters": schema.ListNestedAttribute{
 				Description: "List of clusters matching the specified filters",
@@ -137,8 +144,23 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	//map query clusters body to mode
-	for _, cluster := range clusters {
+	for _, cluster := range filterClusters {
 		clusterState := clusterModel{
 			HypervisorType: types.StringValue(cluster.HypervisorType),
 			State:          types.StringValue(cluster.State),

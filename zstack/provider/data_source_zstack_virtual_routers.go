@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,6 +22,7 @@ var (
 type vrouterDataSourceModel struct {
 	Name        types.String   `tfsdk:"name"`
 	NamePattern types.String   `tfsdk:"name_pattern"`
+	Filter      types.Map      `tfsdk:"filter"`
 	Vrouter     []vrouterModel `tfsdk:"virtual_router"`
 }
 
@@ -113,7 +115,23 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		)
 		return
 	}
-	for _, vrouter := range vrouters {
+
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterVrouterInstances, filterDiags := utils.FilterResource(ctx, vrouters, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, vrouter := range filterVrouterInstances {
 		vrouterState := vrouterModel{
 			Name:            types.StringValue(vrouter.Name),
 			Uuid:            types.StringValue(vrouter.UUID),
@@ -170,6 +188,11 @@ func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter virtual router instances . For example, to filter by State, use `State = \"Running\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"virtual_router": schema.ListNestedAttribute{
 				Computed: true,

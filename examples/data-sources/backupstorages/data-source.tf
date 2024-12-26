@@ -3,6 +3,10 @@
 data "zstack_backupstorages" "example" {
   #   name  = "backupstorage name"
   #   name_pattern = "image%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = {  # option
+    Status = "Connected"
+    State = "Enabled"
+  }
 }
 
 output "zstack_imagestorages" {

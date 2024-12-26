@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -29,6 +30,7 @@ type vipsDataSource struct {
 type vipsDataSourceModel struct {
 	Name        types.String `tfsdk:"name"`
 	NamePattern types.String `tfsdk:"name_pattern"`
+	Filter      types.Map    `tfsdk:"filter"`
 	VIPs        []vipsModel  `tfsdk:"vips"`
 }
 
@@ -97,7 +99,22 @@ func (d *vipsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	for _, vip := range vips {
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterVips, filterDiags := utils.FilterResource(ctx, vips, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, vip := range filterVips {
 		VIPsState := vipsModel{
 			Uuid:               types.StringValue(vip.UUID),
 			Name:               types.StringValue(vip.Name),
@@ -134,6 +151,11 @@ func (d *vipsDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter L2 networks . For example, to filter by State, use `State = \"Enabled\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"vips": schema.ListNestedAttribute{
 				Description: "List of VIP entries matching the specified filters",

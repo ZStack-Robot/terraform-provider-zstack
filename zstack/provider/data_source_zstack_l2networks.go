@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -25,6 +26,7 @@ type l2NetworkDataSource struct {
 type l2NetworkDataSourceModel struct {
 	Name        types.String      `tfsdk:"name"`
 	NamePattern types.String      `tfsdk:"name_pattern"`
+	Filter      types.Map         `tfsdk:"filter"`
 	L2networks  []l2networksModel `tfsdk:"l2networks"`
 }
 
@@ -95,10 +97,25 @@ func (d *l2NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterL2Networks, filterDiags := utils.FilterResource(ctx, l2networks, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	state.L2networks = []l2networksModel{}
 
 	// Process each L2 network and populate the state
-	for _, l2network := range l2networks {
+	for _, l2network := range filterL2Networks {
 		attachedClusters := []types.String{}
 		for _, clusterUuid := range l2network.AttachedClusterUuids {
 			attachedClusters = append(attachedClusters, types.StringValue(clusterUuid))
@@ -137,6 +154,11 @@ func (d *l2NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter L2 networks . For example, to filter by Vlan, use `Vlan = \"2\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"l2networks": schema.ListNestedAttribute{
 				Description: "List of L2 networks matching the specified filters.",

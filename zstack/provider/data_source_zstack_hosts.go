@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -29,6 +30,7 @@ type hostsDataSource struct {
 type hostsDataSourceModel struct {
 	Name        types.String `tfsdk:"name"`
 	NamePattern types.String `tfsdk:"name_pattern"`
+	Filter      types.Map    `tfsdk:"filter"`
 	Hosts       []hostsModel `tfsdk:"hosts"`
 }
 
@@ -94,7 +96,22 @@ func (d *hostsDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	for _, host := range hosts {
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterHosts, filterDiags := utils.FilterResource(ctx, hosts, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, host := range filterHosts {
 		HostsState := hostsModel{
 			Name:         types.StringValue(host.Name),
 			State:        types.StringValue(host.State),
@@ -130,6 +147,11 @@ func (d *hostsDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter hosts. For example, to filter by State, use `State = \"Enabled\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"hosts": schema.ListNestedAttribute{
 				Description: "List of host entries matching the specified filters",

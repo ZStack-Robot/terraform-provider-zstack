@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -35,6 +36,7 @@ type virtualRouterImagesModel struct {
 type virtualRouterImagesDataSourceModel struct {
 	Name        types.String               `tfsdk:"name"`
 	NamePattern types.String               `tfsdk:"name_pattern"`
+	Filter      types.Map                  `tfsdk:"filter"`
 	Images      []virtualRouterImagesModel `tfsdk:"images"`
 }
 
@@ -108,6 +110,8 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 		return
 	}
 
+	var images []virtualRouterImagesModel
+
 	// Map the results to the model
 	for _, result := range zqlResponse.Results {
 		for _, inventory := range result.Inventories {
@@ -121,8 +125,23 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 				Platform:     types.StringValue(inventory.Platform),
 				Architecture: types.StringValue(inventory.Architecture),
 			}
-			state.Images = append(state.Images, image)
+			images = append(images, image)
 		}
+	}
+
+	if !state.Filter.IsNull() {
+		filters := make(map[string]string)
+		for key, value := range state.Filter.Elements() {
+			filters[key] = value.(types.String).ValueString()
+		}
+		filteredImages, diags := utils.FilterResource(ctx, images, filters)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		state.Images = filteredImages
+	} else {
+		state.Images = images
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -145,6 +164,11 @@ func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasourc
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"images": schema.ListNestedAttribute{
 				Description: "List of virtual router Images",

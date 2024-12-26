@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,6 +22,7 @@ var (
 type vrouterOfferingDataSourceModel struct {
 	Name            types.String           `tfsdk:"name"`
 	NamePattern     types.String           `tfsdk:"name_pattern"`
+	Filter          types.Map              `tfsdk:"filter"`
 	VRouterOffering []vrouterOfferingModel `tfsdk:"virtual_router_offers"`
 }
 
@@ -101,7 +103,23 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 		)
 		return
 	}
-	for _, vrouterOffer := range vrouterOffers {
+
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterVrouterOffers, filterDiags := utils.FilterResource(ctx, vrouterOffers, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, vrouterOffer := range filterVrouterOffers {
 		vrouterOfferState := vrouterOfferingModel{
 			Name:              types.StringValue(vrouterOffer.Name),
 			Uuid:              types.StringValue(vrouterOffer.UUID),
@@ -146,6 +164,11 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter virtual router offering . For example, to filter by State, use `State = \"Enabled\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"virtual_router_offers": schema.ListNestedAttribute{
 				Computed: true,

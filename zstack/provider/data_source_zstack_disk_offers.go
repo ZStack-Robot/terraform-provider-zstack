@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,6 +22,7 @@ var (
 type diskOfferingDataSourceModel struct {
 	Name         types.String        `tfsdk:"name"`
 	NamePattern  types.String        `tfsdk:"name_pattern"`
+	Filter       types.Map           `tfsdk:"filter"`
 	DiskOffering []diskOfferingModel `tfsdk:"disk_offers"`
 }
 
@@ -93,7 +95,23 @@ func (d *diskOfferingDataSource) Read(ctx context.Context, req datasource.ReadRe
 		)
 		return
 	}
-	for _, diskOffer := range diskOffers {
+
+	filters := make(map[string]string)
+	if !state.Filter.IsNull() {
+		diags := state.Filter.ElementsAs(ctx, &filters, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	filterDiskOffers, filterDiags := utils.FilterResource(ctx, diskOffers, filters)
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, diskOffer := range filterDiskOffers {
 		diskOfferState := diskOfferingModel{
 			Name:              types.StringValue(diskOffer.Name),
 			Uuid:              types.StringValue(diskOffer.UUID),
@@ -128,6 +146,11 @@ func (d *diskOfferingDataSource) Schema(ctx context.Context, req datasource.Sche
 			"name_pattern": schema.StringAttribute{
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
+			},
+			"filter": schema.MapAttribute{
+				Description: "Key-value pairs to filter disk offering. For example, to filter by State, use `State = \"Enabled\"`.",
+				Optional:    true,
+				ElementType: types.StringType,
 			},
 			"disk_offers": schema.ListNestedAttribute{
 				Computed: true,
