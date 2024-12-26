@@ -3,7 +3,7 @@
 data "zstack_instance_offers" "example" {
   # name = "InstanceOffering-1"
   # name_pattern = "clu%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = {  # option
+  filter = { # option
     State = "Enabled"
   }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) ZStack.io, Inc.
+
 package utils
 
 import (

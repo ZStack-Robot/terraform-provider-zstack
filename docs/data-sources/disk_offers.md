@@ -17,6 +17,9 @@ Fetches a list of disk offers and their associated attributes from the ZStack en
 data "zstack_disk_offers" "example" {
   name = "smallDiskOffering"
   # name_pattern = "sm%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    State = "Enabled"
+  }
 }
 
 output "zstack_disk_offers" {
@@ -29,6 +32,7 @@ output "zstack_disk_offers" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter disk offering. For example, to filter by State, use `State = "Enabled"`.
 - `name` (String) Exact name for searching  disk offer
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

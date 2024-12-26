@@ -17,6 +17,10 @@ Fetches a list of L3 networks and their associated attributes from the ZStack en
 data "zstack_l3networks" "networks" {
   #   name = "L3 networks name"
   #    name_pattern = "L3 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = {
+    Category  = "Private"
+    IpVersion = 6
+  }
 }
 
 output "zstack_networks" {
@@ -29,6 +33,7 @@ output "zstack_networks" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter L3 networks . For example, to filter by Category, use `Category = "Private"`.
 - `name` (String) Exact name for searching L3 Network.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

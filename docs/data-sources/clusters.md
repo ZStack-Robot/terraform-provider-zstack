@@ -17,6 +17,11 @@ Fetches a list of clusters and their associated attributes.
 data "zstack_clusters" "example" {
   #name = "cluster1"
   #name_pattern = "clu%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    State          = "Enabled"
+    HypervisorType = "KVM"
+    Architecture   = "x86_64"
+  }
 }
 
 output "zstack_clusters" {
@@ -29,6 +34,7 @@ output "zstack_clusters" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = "x86_64"`.
 - `name` (String) Exact name for searching Cluster
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

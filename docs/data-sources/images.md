@@ -17,6 +17,14 @@ Fetches a list of images and their associated attributes from the ZStack environ
 data "zstack_hosts" "example" {
   #  name = "hostname"
   #   name_pattern = "hostname%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    State            = "Enabled"
+    Status           = "Connected"
+    HypervisorType   = "KVM"
+    Architecture     = "x86_64"
+    TotalCpuCapacity = "480"
+    ManagementIp     = "172.30.3.4"
+  }
 }
 
 output "zstack_hosts" {
@@ -29,6 +37,7 @@ output "zstack_hosts" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter images. For example, to filter by status, use `Status = "Ready"`.
 - `name` (String) Exact name for searching images
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

@@ -29,6 +29,7 @@ output "zstack_vrimages" {
 
 ### Optional
 
+- `filter` (Map of String) Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')
 - `name` (String) Exact name for searching virtual router images
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

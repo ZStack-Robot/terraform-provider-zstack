@@ -15,7 +15,11 @@ Fetches a list of vips and their associated attributes from the ZStack environme
 # Copyright (c) ZStack.io, Inc.
 
 data "zstack_vips" "test" {
-
+  filter = { # option
+    State  = "Enabled"
+    Ip     = "172.30.9.47"
+    UseFor = "LoadBalancer"
+  }
 }
 
 output "zstack_vips" {
@@ -28,6 +32,7 @@ output "zstack_vips" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter L2 networks . For example, to filter by State, use `State = "Enabled"`.
 - `name` (String) Exact name for searching VIPs
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

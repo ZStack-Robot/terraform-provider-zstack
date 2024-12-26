@@ -17,6 +17,12 @@ Fetches a list of virtual router instances and their associated attributes from 
 data "zstack_virtual_routers" "test" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual router instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    State          = "Running"
+    Status         = "Connected"
+    HypervisorType = "KVM"
+    Architecture   = "x86_s64"
+  }
 }
 
 
@@ -30,6 +36,7 @@ output "zstack_vrouters" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter virtual router instances . For example, to filter by State, use `State = "Running"`.
 - `name` (String) Exact name for searching virtual router instance
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

@@ -17,6 +17,10 @@ Fetches a list of virtual router offers and their associated attributes from the
 data "zstack_virtual_router_offers" "test" {
   #   name = "name of virtual router offers"
   #    name_pattern = "virtual router offers name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    State  = "Enabled"
+    CpuNum = 2
+  }
 }
 
 output "zstack_offers" {
@@ -29,6 +33,7 @@ output "zstack_offers" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter virtual router offering . For example, to filter by State, use `State = "Enabled"`.
 - `name` (String) Exact name for searching virtual router offer
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

@@ -16,7 +16,11 @@ Fetches a list of L2 networks and their associated attributes from the ZStack en
 
 data "zstack_l2networks" "networks" {
   #   name = "L2 networks name"
-  #    name_pattern = "L2 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  #   name_pattern = "L2 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = {
+    Vlan = 36
+    Type = "L2VlanNetwork"
+  }
 }
 
 output "zstack_l2networks" {
@@ -29,6 +33,7 @@ output "zstack_l2networks" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter L2 networks . For example, to filter by Vlan, use `Vlan = "2"`.
 - `name` (String) Exact name for searching L2 Network.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 

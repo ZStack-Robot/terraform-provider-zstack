@@ -29,7 +29,9 @@ output "zstack_zones" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter Zones . For example, to filter by State, use `State = "Enabled"`.
 - `name` (String) Exact name for Searching  zones
+- `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 

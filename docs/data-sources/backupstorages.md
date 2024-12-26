@@ -17,6 +17,10 @@ List all backup storages, or query backup storages by exact name match, or query
 data "zstack_backupstorages" "example" {
   #   name  = "backupstorage name"
   #   name_pattern = "image%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter = { # option
+    Status = "Connected"
+    State  = "Enabled"
+  }
 }
 
 output "zstack_imagestorages" {
@@ -29,6 +33,7 @@ output "zstack_imagestorages" {
 
 ### Optional
 
+- `filter` (Map of String) Key-value pairs to filter image Storages. For example, to filter by status, use `Status = "Connected"`.
 - `name` (String) Exact name for searching backup storage.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
