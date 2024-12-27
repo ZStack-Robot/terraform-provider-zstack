@@ -22,7 +22,7 @@ var (
 type diskOfferingDataSourceModel struct {
 	Name         types.String        `tfsdk:"name"`
 	NamePattern  types.String        `tfsdk:"name_pattern"`
-	Filter       types.Map           `tfsdk:"filter"`
+	Filter       []Filter            `tfsdk:"filter"`
 	DiskOffering []diskOfferingModel `tfsdk:"disk_offers"`
 }
 
@@ -96,16 +96,18 @@ func (d *diskOfferingDataSource) Read(ctx context.Context, req datasource.ReadRe
 		return
 	}
 
-	filters := make(map[string]string)
-	if !state.Filter.IsNull() {
-		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		filters[filter.Name.ValueString()] = values
 	}
 
-	filterDiskOffers, filterDiags := utils.FilterResource(ctx, diskOffers, filters)
+	filterDiskOffers, filterDiags := utils.FilterResource(ctx, diskOffers, filters, "disk_offer")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -147,11 +149,12 @@ func (d *diskOfferingDataSource) Schema(ctx context.Context, req datasource.Sche
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Key-value pairs to filter disk offering. For example, to filter by State, use `State = \"Enabled\"`.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter disk offering. For example, to filter by State, use `State = \"Enabled\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},*/
 			"disk_offers": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -187,6 +190,24 @@ func (d *diskOfferingDataSource) Schema(ctx context.Context, req datasource.Sche
 						"state": schema.StringAttribute{
 							Computed:    true,
 							Description: "The current state of the disk offering (e.g., Enabled, Disabled).",
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

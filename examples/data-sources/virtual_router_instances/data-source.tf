@@ -3,12 +3,14 @@
 data "zstack_virtual_routers" "test" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual router instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State          = "Running"
-    Status         = "Connected"
-    HypervisorType = "KVM"
-    Architecture   = "x86_s64"
-  }
+  filter {
+    name = "hypervisor_type"
+    values = ["KVM"]
+  } 
+  filter {
+    name = "memory_size"
+    values = ["1073741824"]
+  } 
 }
 
 

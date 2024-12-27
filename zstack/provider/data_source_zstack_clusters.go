@@ -30,17 +30,18 @@ type clusterDataSource struct {
 type clusterDataSourceModel struct {
 	Name        types.String   `tfsdk:"name"`
 	NamePattern types.String   `tfsdk:"name_pattern"`
-	Filter      types.Map      `tfsdk:"filter"`
+	Filter      []Filter       `tfsdk:"filter"`
 	Clusters    []clusterModel `tfsdk:"clusters"`
 }
 
 type clusterModel struct {
 	Name           types.String `tfsdk:"name"`
-	HypervisorType types.String `tfsdk:"hypervisortype"`
+	HypervisorType types.String `tfsdk:"hypervisor_type"`
 	State          types.String `tfsdk:"state"`
 	Type           types.String `tfsdk:"type"`
 	Uuid           types.String `tfsdk:"uuid"`
 	ZoneUuid       types.String `tfsdk:"zone_uuid"`
+	Architecture   types.String `tfsdk:"architecture"`
 }
 
 // Configure implements datasource.DataSourceWithConfigure.
@@ -76,11 +77,13 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = \"x86_64\"`.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = \"x86_64\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"clusters": schema.ListNestedAttribute{
 				Description: "List of clusters matching the specified filters",
 				Computed:    true,
@@ -98,7 +101,7 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 							Computed:    true,
 							Description: "UUID of the zone to which the cluster belongs",
 						},
-						"hypervisortype": schema.StringAttribute{
+						"hypervisor_type": schema.StringAttribute{
 							Computed:    true,
 							Description: "Type of hypervisor used by the cluster (e.g., KVM, ESXi)",
 						},
@@ -109,6 +112,28 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 						"state": schema.StringAttribute{
 							Computed:    true,
 							Description: "State of the cluster (e.g., Enabled, Disabled)",
+						},
+						"architecture": schema.StringAttribute{
+							Computed:    true,
+							Description: "Architecture of the cluster",
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},
@@ -143,22 +168,41 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		)
 		return
 	}
+	/*
+	   filters := make(map[string]string)
 
-	filters := make(map[string]string)
-	if !state.Filter.IsNull() {
-		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	   	if !state.Filter.IsNull() {
+	   		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	   		resp.Diagnostics.Append(diags...)
+	   		if resp.Diagnostics.HasError() {
+	   			return
+	   		}
+	   	}
+
+	   filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters)
+	   resp.Diagnostics.Append(filterDiags...)
+
+	   	if resp.Diagnostics.HasError() {
+	   		return
+	   	}
+	*/
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		filters[filter.Name.ValueString()] = values
 	}
 
-	filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters)
+	// 过滤资源
+	filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters, "cluster")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 	//map query clusters body to mode
 	for _, cluster := range filterClusters {
 		clusterState := clusterModel{
@@ -168,6 +212,7 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			Uuid:           types.StringValue(cluster.Uuid),
 			ZoneUuid:       types.StringValue(cluster.ZoneUuid),
 			Name:           types.StringValue(cluster.Name),
+			Architecture:   types.StringValue(cluster.Architecture),
 		}
 
 		state.Clusters = append(state.Clusters, clusterState)

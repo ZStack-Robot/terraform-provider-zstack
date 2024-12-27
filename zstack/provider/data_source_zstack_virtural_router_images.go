@@ -36,7 +36,7 @@ type virtualRouterImagesModel struct {
 type virtualRouterImagesDataSourceModel struct {
 	Name        types.String               `tfsdk:"name"`
 	NamePattern types.String               `tfsdk:"name_pattern"`
-	Filter      types.Map                  `tfsdk:"filter"`
+	Filter      []Filter                   `tfsdk:"filter"`
 	Images      []virtualRouterImagesModel `tfsdk:"images"`
 }
 
@@ -129,12 +129,19 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 		}
 	}
 
-	if !state.Filter.IsNull() {
-		filters := make(map[string]string)
-		for key, value := range state.Filter.Elements() {
-			filters[key] = value.(types.String).ValueString()
+	// Apply filters if provided
+	if len(state.Filter) > 0 {
+		filters := make(map[string][]string)
+		for _, filter := range state.Filter {
+			var values []string
+			for _, value := range filter.Values.Elements() {
+				values = append(values, value.(types.String).ValueString())
+			}
+			filters[filter.Name.ValueString()] = values
 		}
-		filteredImages, diags := utils.FilterResource(ctx, images, filters)
+
+		// Use FilterResource to filter images
+		filteredImages, diags := utils.FilterResource(ctx, images, filters, "virtual_router_image")
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -145,7 +152,6 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -165,11 +171,13 @@ func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasourc
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"images": schema.ListNestedAttribute{
 				Description: "List of virtual router Images",
 				Computed:    true,
@@ -207,6 +215,24 @@ func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasourc
 						"architecture": schema.StringAttribute{
 							Description: "CPU architecture of the virtual router image, such as x86_64, aarch64, mips64, or longarch64",
 							Computed:    true,
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

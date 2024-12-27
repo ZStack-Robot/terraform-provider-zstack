@@ -38,7 +38,7 @@ type imagesDataSourceModel struct {
 	Name        types.String  `tfsdk:"name"`
 	NamePattern types.String  `tfsdk:"name_pattern"`
 	Images      []imagesModel `tfsdk:"images"`
-	Filter      types.Map     `tfsdk:"filter"`
+	Filter      []Filter      `tfsdk:"filter"`
 }
 
 func ZStackImageDataSource() datasource.DataSource {
@@ -98,16 +98,18 @@ func (d *imageDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	filters := make(map[string]string)
-	if !state.Filter.IsNull() {
-		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		filters[filter.Name.ValueString()] = values
 	}
 
-	filterImages, filterDiags := utils.FilterResource(ctx, images, filters)
+	filterImages, filterDiags := utils.FilterResource(ctx, images, filters, "image")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -149,11 +151,13 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Key-value pairs to filter images. For example, to filter by status, use `Status = \"Ready\"`.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter images. For example, to filter by status, use `Status = \"Ready\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"images": schema.ListNestedAttribute{
 				Description: "List of Images",
 				Computed:    true,
@@ -191,6 +195,24 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 						"architecture": schema.StringAttribute{
 							Description: "CPU architecture of the image, such as x86_64, aarch64, mips64, or longarch64",
 							Computed:    true,
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

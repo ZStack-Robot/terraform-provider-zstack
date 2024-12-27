@@ -26,7 +26,7 @@ type l2NetworkDataSource struct {
 type l2NetworkDataSourceModel struct {
 	Name        types.String      `tfsdk:"name"`
 	NamePattern types.String      `tfsdk:"name_pattern"`
-	Filter      types.Map         `tfsdk:"filter"`
+	Filter      []Filter          `tfsdk:"filter"`
 	L2networks  []l2networksModel `tfsdk:"l2networks"`
 }
 
@@ -97,16 +97,18 @@ func (d *l2NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	filters := make(map[string]string)
-	if !state.Filter.IsNull() {
-		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		filters[filter.Name.ValueString()] = values
 	}
 
-	filterL2Networks, filterDiags := utils.FilterResource(ctx, l2networks, filters)
+	filterL2Networks, filterDiags := utils.FilterResource(ctx, l2networks, filters, "l2network")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -155,11 +157,13 @@ func (d *l2NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Key-value pairs to filter L2 networks . For example, to filter by Vlan, use `Vlan = \"2\"`.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter L2 networks . For example, to filter by Vlan, use `Vlan = \"2\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"l2networks": schema.ListNestedAttribute{
 				Description: "List of L2 networks matching the specified filters.",
 				Computed:    true,
@@ -193,6 +197,24 @@ func (d *l2NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 							Description: "UUIDs of clusters attached to the L2 network.",
 							ElementType: types.StringType,
 							Computed:    true,
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

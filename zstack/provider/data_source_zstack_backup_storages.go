@@ -33,9 +33,10 @@ type backupStorage struct {
 }
 
 type backupStorageDataSourceModel struct {
-	Name          types.String    `tfsdk:"name"`
-	NamePattern   types.String    `tfsdk:"name_pattern"`
-	Filter        types.Map       `tfsdk:"filter"`
+	Name        types.String `tfsdk:"name"`
+	NamePattern types.String `tfsdk:"name_pattern"`
+	//Filter        types.Map       `tfsdk:"filter"`
+	Filter        []Filter        `tfsdk:"filter"`
 	BackupStorges []backupStorage `tfsdk:"backup_storages"`
 }
 
@@ -94,20 +95,41 @@ func (d *backupStorageDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	filters := make(map[string]string)
-	if !state.Filter.IsNull() {
-		diags := state.Filter.ElementsAs(ctx, &filters, false)
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+		filters[filter.Name.ValueString()] = values
 	}
 
-	filterImageStorage, filterDiags := utils.FilterResource(ctx, backupstorages, filters)
+	// 过滤资源
+	filterImageStorage, filterDiags := utils.FilterResource(ctx, backupstorages, filters, "backup_storage")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	/*
+
+		filters := make(map[string]string)
+		if !state.Filter.IsNull() {
+			diags := state.Filter.ElementsAs(ctx, &filters, false)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+		}
+
+		filterImageStorage, filterDiags := utils.FilterResource(ctx, backupstorages, filters)
+		resp.Diagnostics.Append(filterDiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	*/
 
 	for _, backupstorage := range filterImageStorage {
 		backupStorageState := backupStorage{
@@ -143,11 +165,29 @@ func (d *backupStorageDataSource) Schema(ctx context.Context, req datasource.Sch
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
-			"filter": schema.MapAttribute{
-				Description: "Key-value pairs to filter image Storages. For example, to filter by status, use `Status = \"Connected\"`.",
-				Optional:    true,
-				ElementType: types.StringType,
-			},
+			/*
+					"filter": schema.MapAttribute{
+						Description: "Key-value pairs to filter image Storages. For example, to filter by status, use `Status = \"Connected\"`.",
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+				"filter": schema.SetNestedAttribute{
+					Description: "Key-value pairs to filter backup storages. For example, to filter by status, use `name = \"status\"` and `values = [\"Connected\"]`.",
+					Optional:    true,
+					NestedObject: schema.NestedAttributeObject{
+						Attributes: map[string]schema.Attribute{
+							"name": schema.StringAttribute{
+								Description: "Name of the filter field (e.g., status, state).",
+								Required:    true,
+							},
+							"values": schema.SetAttribute{
+								Description: "Values to filter by.",
+								Required:    true,
+								ElementType: types.StringType,
+							},
+						},
+					},
+				},*/
 			"backup_storages": schema.ListNestedAttribute{
 				Description: "List of backup storage entries",
 				Computed:    true,
@@ -177,6 +217,24 @@ func (d *backupStorageDataSource) Schema(ctx context.Context, req datasource.Sch
 						"available_capacity": schema.Int64Attribute{
 							Description: "Available capacity of the backup storage in bytes",
 							Computed:    true,
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},
