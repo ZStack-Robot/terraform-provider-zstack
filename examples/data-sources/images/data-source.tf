@@ -14,11 +14,11 @@ data "zstack_images" "example" {
   filter {
     name   = "status"
     values = ["Ready", "Deleted"]
-  } 
+  }
   filter {
     name   = "guest_os_type"
     values = ["Linux"]
-  } 
+  }
 }
 
 output "zstack_images" {

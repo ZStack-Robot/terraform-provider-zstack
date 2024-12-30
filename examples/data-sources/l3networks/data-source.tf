@@ -6,7 +6,7 @@ data "zstack_l3networks" "networks" {
   filter {
     name   = "category"
     values = ["Private", "Public"]
-  } 
+  }
 }
 
 output "zstack_networks" {

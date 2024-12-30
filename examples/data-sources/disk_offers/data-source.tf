@@ -5,7 +5,7 @@ data "zstack_disk_offers" "example" {
   # name_pattern = "sm%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
   filter {
     name   = "name"
-    values = ["name1","name2"]
+    values = ["name1", "name2"]
   }
   filter {
     name   = "state"

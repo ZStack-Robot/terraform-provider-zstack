@@ -14,11 +14,11 @@ data "zstack_hosts" "example" {
   filter {
     name   = "status"
     values = ["Disconnected"]
-  } 
+  }
   filter {
     name   = "cluster_uuid"
     values = ["37c25209578c495ca176f60ad0cd97fa"]
-  } 
+  }
 }
 
 output "zstack_hosts" {

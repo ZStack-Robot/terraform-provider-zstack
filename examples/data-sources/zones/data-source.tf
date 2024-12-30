@@ -4,9 +4,9 @@ data "zstack_zones" "zones" {
   name_regex = "ZONE-1"
   # name_pattern = "zone name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
   filter {
-    name = "state"
+    name   = "state"
     values = ["Enabled"]
-  } 
+  }
 }
 
 output "zstack_zones" {

@@ -17,9 +17,9 @@ Fetches a list of L3 networks and their associated attributes from the ZStack en
 data "zstack_l3networks" "networks" {
   #   name = "L3 networks name"
   #    name_pattern = "L3 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = {
-    Category  = "Private"
-    IpVersion = 6
+  filter {
+    name   = "category"
+    values = ["Private", "Public"]
   }
 }
 
@@ -33,13 +33,22 @@ output "zstack_networks" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter L3 networks . For example, to filter by Category, use `Category = "Private"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching L3 Network.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `l3networks` (Attributes List) List of L3 networks matching the specified filters. (see [below for nested schema](#nestedatt--l3networks))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--l3networks"></a>
 ### Nested Schema for `l3networks`

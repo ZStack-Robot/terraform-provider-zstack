@@ -17,8 +17,21 @@ Fetches a list of instance offers and their associated attributes from the ZStac
 data "zstack_instance_offers" "example" {
   # name = "InstanceOffering-1"
   # name_pattern = "clu%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State = "Enabled"
+  filter {
+    name   = "allocator_strategy"
+    values = ["LeastVmPreferredHostAllocatorStrategy"]
+  }
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+  filter {
+    name   = "memory_size"
+    values = ["1073741824"]
+  }
+  filter {
+    name   = "cpu_num"
+    values = [1]
   }
 }
 
@@ -32,13 +45,22 @@ output "zstack_instance_offers" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter instance offering. For example, to filter by State, use `State = "Enabled"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching  instance offer
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `instance_offers` (Attributes List) (see [below for nested schema](#nestedatt--instance_offers))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--instance_offers"></a>
 ### Nested Schema for `instance_offers`

@@ -10,7 +10,7 @@ data "zstack_l2networks" "networks" {
   filter {
     name   = "physical_interface"
     values = ["ens29f1"]
-  } 
+  }
 }
 
 output "zstack_l2networks" {

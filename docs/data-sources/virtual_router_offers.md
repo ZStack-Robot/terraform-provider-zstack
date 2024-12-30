@@ -17,9 +17,13 @@ Fetches a list of virtual router offers and their associated attributes from the
 data "zstack_virtual_router_offers" "test" {
   #   name = "name of virtual router offers"
   #    name_pattern = "virtual router offers name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State  = "Enabled"
-    CpuNum = 2
+  filter {
+    name   = "cpu_num"
+    values = ["1"]
+  }
+  filter {
+    name   = "memory_size"
+    values = [1073741824]
   }
 }
 
@@ -33,13 +37,22 @@ output "zstack_offers" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter virtual router offering . For example, to filter by State, use `State = "Enabled"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching virtual router offer
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `virtual_router_offers` (Attributes List) (see [below for nested schema](#nestedatt--virtual_router_offers))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--virtual_router_offers"></a>
 ### Nested Schema for `virtual_router_offers`

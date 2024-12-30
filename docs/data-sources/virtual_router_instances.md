@@ -17,11 +17,13 @@ Fetches a list of virtual router instances and their associated attributes from 
 data "zstack_virtual_routers" "test" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual router instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State          = "Running"
-    Status         = "Connected"
-    HypervisorType = "KVM"
-    Architecture   = "x86_s64"
+  filter {
+    name   = "hypervisor_type"
+    values = ["KVM"]
+  }
+  filter {
+    name   = "memory_size"
+    values = ["1073741824"]
   }
 }
 
@@ -36,13 +38,22 @@ output "zstack_vrouters" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter virtual router instances . For example, to filter by State, use `State = "Running"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching virtual router instance
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `virtual_router` (Attributes List) (see [below for nested schema](#nestedatt--virtual_router))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--virtual_router"></a>
 ### Nested Schema for `virtual_router`

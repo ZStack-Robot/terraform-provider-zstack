@@ -15,10 +15,9 @@ Fetches a list of vips and their associated attributes from the ZStack environme
 # Copyright (c) ZStack.io, Inc.
 
 data "zstack_vips" "test" {
-  filter = { # option
-    State  = "Enabled"
-    Ip     = "172.30.9.47"
-    UseFor = "LoadBalancer"
+  filter {
+    name   = "use_for"
+    values = ["LoadBalancer"]
   }
 }
 
@@ -32,13 +31,22 @@ output "zstack_vips" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter L2 networks . For example, to filter by State, use `State = "Enabled"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching VIPs
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `vips` (Attributes List) List of VIP entries matching the specified filters (see [below for nested schema](#nestedatt--vips))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--vips"></a>
 ### Nested Schema for `vips`

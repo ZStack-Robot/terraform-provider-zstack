@@ -17,6 +17,14 @@ Fetches a list of virtual router images and their associated attributes from the
 data "zstack_virtual_router_images" "test" {
   #   name = "name of virtual router images"
   #    name_pattern = "virtual router images name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter {
+    name   = "guest_os_type"
+    values = ["VyOS 1.1.7"]
+  }
+  filter {
+    name   = "status"
+    values = ["Ready"]
+  }
 }
 
 output "zstack_vrimages" {
@@ -29,13 +37,22 @@ output "zstack_vrimages" {
 
 ### Optional
 
-- `filter` (Map of String) Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching virtual router images
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `images` (Attributes List) List of virtual router Images (see [below for nested schema](#nestedatt--images))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--images"></a>
 ### Nested Schema for `images`

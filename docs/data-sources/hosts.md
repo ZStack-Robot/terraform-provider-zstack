@@ -17,11 +17,21 @@ Fetches a list of hosts and their associated attributes from the ZStack environm
 data "zstack_images" "example" {
   #  name = "imageName"
   #   name_pattern = "hostname%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = {
-    Status       = "Ready"
-    State        = "Enabled"
-    Platform     = "Linux"
-    Architecture = "x86_64"
+  filter {
+    name   = "architecture"
+    values = ["aarch64", "x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+  filter {
+    name   = "status"
+    values = ["Ready", "Deleted"]
+  }
+  filter {
+    name   = "guest_os_type"
+    values = ["Linux"]
   }
 }
 
@@ -35,13 +45,22 @@ output "zstack_images" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter hosts. For example, to filter by State, use `State = "Enabled"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching hosts
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `hosts` (Attributes List) List of host entries matching the specified filters (see [below for nested schema](#nestedatt--hosts))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--hosts"></a>
 ### Nested Schema for `hosts`

@@ -17,10 +17,17 @@ Fetches a list of clusters and their associated attributes.
 data "zstack_clusters" "example" {
   #name = "cluster1"
   #name_pattern = "clu%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State          = "Enabled"
-    HypervisorType = "KVM"
-    Architecture   = "x86_64"
+  filter {
+    name   = "architecture"
+    values = ["aarch64", "x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+  filter {
+    name   = "hypervisor_type"
+    values = ["KVM"]
   }
 }
 
@@ -34,7 +41,7 @@ output "zstack_clusters" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = "x86_64"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching Cluster
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
@@ -42,12 +49,22 @@ output "zstack_clusters" {
 
 - `clusters` (Attributes List) List of clusters matching the specified filters (see [below for nested schema](#nestedatt--clusters))
 
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
+
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`
 
 Read-Only:
 
-- `hypervisortype` (String) Type of hypervisor used by the cluster (e.g., KVM, ESXi)
+- `architecture` (String) Architecture of the cluster
+- `hypervisor_type` (String) Type of hypervisor used by the cluster (e.g., KVM, ESXi)
 - `name` (String) Name of the cluster
 - `state` (String) State of the cluster (e.g., Enabled, Disabled)
 - `type` (String) ype of the cluster

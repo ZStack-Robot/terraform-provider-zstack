@@ -17,9 +17,17 @@ Fetches a list of VM instances and their associated attributes from the ZStack e
 data "zstack_instances" "vminstances" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual machine instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = { # option
-    State  = "Running"
-    CPUNum = "3"
+  filter {
+    name   = "architecture"
+    values = ["aarch64", "x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["Running", "Stopped"]
+  }
+  filter {
+    name   = "hypervisor_type"
+    values = ["KVM"]
   }
 }
 
@@ -34,13 +42,22 @@ output "zstack_vminstances" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter instance . For example, to filter by State, use `State = "Running"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching VM instance
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `vminstances` (Attributes List) (see [below for nested schema](#nestedatt--vminstances))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--vminstances"></a>
 ### Nested Schema for `vminstances`

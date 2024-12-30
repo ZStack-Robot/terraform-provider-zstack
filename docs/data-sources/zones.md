@@ -17,6 +17,10 @@ Fetches a list of zones and their associated attributes from the ZStack environm
 data "zstack_zones" "zones" {
   name_regex = "ZONE-1"
   # name_pattern = "zone name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
 }
 
 output "zstack_zones" {
@@ -29,13 +33,22 @@ output "zstack_zones" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter Zones . For example, to filter by State, use `State = "Enabled"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for Searching  zones
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `zones` (Attributes List) (see [below for nested schema](#nestedatt--zones))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--zones"></a>
 ### Nested Schema for `zones`

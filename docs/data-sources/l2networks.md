@@ -17,9 +17,13 @@ Fetches a list of L2 networks and their associated attributes from the ZStack en
 data "zstack_l2networks" "networks" {
   #   name = "L2 networks name"
   #   name_pattern = "L2 networks name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
-  filter = {
-    Vlan = 36
-    Type = "L2VlanNetwork"
+  filter {
+    name   = "vlan"
+    values = [36]
+  }
+  filter {
+    name   = "physical_interface"
+    values = ["ens29f1"]
   }
 }
 
@@ -33,13 +37,22 @@ output "zstack_l2networks" {
 
 ### Optional
 
-- `filter` (Map of String) Key-value pairs to filter L2 networks . For example, to filter by Vlan, use `Vlan = "2"`.
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching L2 Network.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `l2networks` (Attributes List) List of L2 networks matching the specified filters. (see [below for nested schema](#nestedatt--l2networks))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--l2networks"></a>
 ### Nested Schema for `l2networks`

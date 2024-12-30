@@ -14,11 +14,11 @@ data "zstack_instance_offers" "example" {
   filter {
     name   = "memory_size"
     values = ["1073741824"]
-  } 
+  }
   filter {
     name   = "cpu_num"
     values = [1]
-  } 
+  }
 }
 
 output "zstack_instance_offers" {
