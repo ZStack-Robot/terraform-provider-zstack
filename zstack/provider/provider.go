@@ -342,22 +342,26 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Optional:    true,
 			},
 			"account_name": schema.StringAttribute{
-				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.",
-				Optional:    true,
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable." +
+					"  Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
+				Optional: true,
 			},
 			"account_password": schema.StringAttribute{
-				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.",
-				Optional:    true,
-				Sensitive:   true,
+				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable." +
+					" Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
+				Optional:  true,
+				Sensitive: true,
 			},
 			"access_key_id": schema.StringAttribute{
-				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable.",
-				Optional:    true,
+				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable." +
+					" Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.",
+				Optional: true,
 			},
 			"access_key_secret": schema.StringAttribute{
-				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable.",
-				Optional:    true,
-				Sensitive:   true,
+				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable." +
+					" Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.",
+				Optional:  true,
+				Sensitive: true,
 			},
 		},
 	}

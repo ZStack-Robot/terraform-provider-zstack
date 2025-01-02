@@ -135,7 +135,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				Description: "The unique identifier of the VM instance.",
 			},
 			"name": schema.StringAttribute{
-				Optional:    true,
+				Required:    true,
 				Description: "The name of the VM instance.",
 			},
 			"vm_nics": schema.ListNestedAttribute{
@@ -163,8 +163,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				Description: "The IP address assigned to the VM instance.",
 			},
 			"instance_offering_uuid": schema.StringAttribute{
-				Optional:    true,
-				Description: "The UUID of the instance offering used by the VM.",
+				Optional: true,
+				Description: "The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances. " +
+					"  Mutually exclusive with `cpu_num` and `memory_size`.",
 			},
 			"image_uuid": schema.StringAttribute{
 				Required:    true,
@@ -172,7 +173,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			},
 			"l3_network_uuids": schema.ListAttribute{
 				ElementType: types.StringType,
-				Optional:    true,
+				Required:    true,
 				Description: "A list of UUIDs for the L3 networks associated with the VM instance.",
 			},
 			"networks": schema.ListNestedAttribute{
@@ -294,12 +295,12 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"memory_size": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The memory size allocated to the VM instance in bytes.",
+				Description: "The memory size allocated to the VM instance in bytes. When used together with `cpu_num`, the `instance_offering_uuid` is not required.",
 			},
 			"cpu_num": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The number of CPUs allocated to the VM instance.",
+				Description: "The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.",
 			},
 			"strategy": schema.StringAttribute{
 				Optional:    true,
