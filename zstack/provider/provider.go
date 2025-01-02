@@ -243,42 +243,6 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	tflog.Info(ctx, "Configured ZStack client", map[string]any{"success": true})
 }
 
-/*
-	if account_name != "" && account_password != "" {
-		ctx = tflog.SetField(ctx, "ZStack_accountName", account_name)
-		ctx = tflog.SetField(ctx, "ZStack_accountPassword", account_password)
-		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accountPassword")
-
-		tflog.Debug(ctx, "Creating ZStack client with account")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(account_name, account_password).ReadOnly(false).Debug(true))
-		_, err := cli.Login()
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Create ZStack API Client",
-				"An unexpected error occurred when creating the ZStack API client. "+
-					"It might be due to an incorrect account name and password being set"+
-					"If the error is not clear, please contact the provider developers.\n\n"+
-					"ZStack Client Error: "+err.Error(),
-			)
-			return
-		}
-	} else if access_key_id != "" && access_key_secret != "" {
-		ctx = tflog.SetField(ctx, "ZStack_accessKeyId", access_key_id)
-		ctx = tflog.SetField(ctx, "ZStack_accessKeySecret", access_key_secret)
-		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accessKeySecret")
-
-		tflog.Debug(ctx, "Creating ZStack client with access key")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(access_key_id, access_key_secret).ReadOnly(false).Debug(true))
-		// no authorization validation! this access key may be invalid！
-	}
-	resp.DataSourceData = cli
-	resp.ResourceData = cli
-
-	tflog.Info(ctx, "Configured ZStack client", map[string]any{"success": true})
-
-}
-*/
-
 // DataSources implements provider.Provider.
 func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
@@ -342,20 +306,24 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Optional:    true,
 			},
 			"account_name": schema.StringAttribute{
-				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.",
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.
+				 Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
 				Optional:    true,
 			},
 			"account_password": schema.StringAttribute{
-				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.",
+				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.
+				 Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
 				Optional:    true,
 				Sensitive:   true,
 			},
 			"access_key_id": schema.StringAttribute{
-				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable.",
+				Description: "AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable.
+				 Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.",
 				Optional:    true,
 			},
 			"access_key_secret": schema.StringAttribute{
-				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable.",
+				Description: "AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable.
+				 Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.",
 				Optional:    true,
 				Sensitive:   true,
 			},
