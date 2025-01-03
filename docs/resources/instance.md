@@ -46,21 +46,21 @@ output "zstack_vm" {
 ### Required
 
 - `image_uuid` (String) The UUID of the image used to create the VM instance.
+- `l3_network_uuids` (List of String) A list of UUIDs for the L3 networks associated with the VM instance.
+- `name` (String) The name of the VM instance.
 
 ### Optional
 
 - `cluster_uuid` (String) The UUID of the cluster where the VM instance is deployed.
-- `cpu_num` (Number) The number of CPUs allocated to the VM instance.
+- `cpu_num` (Number) The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.
 - `data_disks` (Attributes List) The configuration for additional data disks. (see [below for nested schema](#nestedatt--data_disks))
 - `description` (String) A description of the VM instance.
 - `gpu_device_specs` (Attributes) The GPU specifications for the VM instance. (see [below for nested schema](#nestedatt--gpu_device_specs))
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
-- `instance_offering_uuid` (String) The UUID of the instance offering used by the VM.
-- `l3_network_uuids` (List of String) A list of UUIDs for the L3 networks associated with the VM instance.
+- `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
-- `memory_size` (Number) The memory size allocated to the VM instance in bytes.
-- `name` (String) The name of the VM instance.
+- `memory_size` (Number) The memory size allocated to the VM instance in bytes. When used together with `cpu_num`, the `instance_offering_uuid` is not required.
 - `networks` (Attributes List) The network configurations associated with the VM instance. (see [below for nested schema](#nestedatt--networks))
 - `never_stop` (Boolean) Whether the VM instance should never stop automatically.
 - `root_disk` (Attributes) The configuration for the root disk of the VM instance. (see [below for nested schema](#nestedatt--root_disk))

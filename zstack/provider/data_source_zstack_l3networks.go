@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -25,6 +26,7 @@ type l3NetworkDataSource struct {
 type l3NetworkDataSourceModel struct {
 	Name        types.String      `tfsdk:"name"`
 	NamePattern types.String      `tfsdk:"name_pattern"`
+	Filter      []Filter          `tfsdk:"filter"`
 	L3networks  []l3networksModel `tfsdk:"l3networks"`
 }
 type l3networksModel struct {
@@ -112,9 +114,26 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		filters[filter.Name.ValueString()] = values
+	}
+
+	filterL3Networks, filterDiags := utils.FilterResource(ctx, l3networks, filters, "l2network")
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Process each L3 network in the result
 	//l3freeIps, err := d.client.GetFreeIp(uuid, param.QueryParam{})
-	for _, l3network := range l3networks {
+	for _, l3network := range filterL3Networks {
 		// Query free IPs for the current L3 network UUID
 		l3freeIps, err := d.client.GetFreeIp(l3network.UUID, param.QueryParam{})
 		if err != nil {
@@ -189,6 +208,13 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter L3 networks . For example, to filter by Category, use `Category = \"Private\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"l3networks": schema.ListNestedAttribute{
 				Description: "List of L3 networks matching the specified filters.",
 				Computed:    true,
@@ -273,6 +299,24 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 									},
 								},
 							},
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

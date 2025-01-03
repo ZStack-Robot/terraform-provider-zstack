@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -21,6 +22,7 @@ var (
 type instanceOfferingDataSourceModel struct {
 	Name             types.String            `tfsdk:"name"`
 	NamePattern      types.String            `tfsdk:"name_pattern"`
+	Filter           []Filter                `tfsdk:"filter"`
 	InstanceOffering []instanceOfferingModel `tfsdk:"instance_offers"`
 }
 
@@ -87,6 +89,8 @@ func (d *instanceOfferingDataSource) Read(ctx context.Context, req datasource.Re
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
+	params.AddQ("type=UserVm")
+
 	instanceOffers, err := d.client.QueryInstaceOffering(params)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -95,7 +99,25 @@ func (d *instanceOfferingDataSource) Read(ctx context.Context, req datasource.Re
 		)
 		return
 	}
-	for _, instanceOffer := range instanceOffers {
+
+	filters := make(map[string][]string)
+	for _, filter := range state.Filter {
+		values := make([]string, 0, len(filter.Values.Elements()))
+		diags := filter.Values.ElementsAs(ctx, &values, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		filters[filter.Name.ValueString()] = values
+	}
+
+	filterInstanceOffers, filterDiags := utils.FilterResource(ctx, instanceOffers, filters, "instance_offer")
+	resp.Diagnostics.Append(filterDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, instanceOffer := range filterInstanceOffers {
 		instanceOfferState := instanceOfferingModel{
 			Name:              types.StringValue(instanceOffer.Name),
 			Uuid:              types.StringValue(instanceOffer.UUID),
@@ -133,6 +155,13 @@ func (d *instanceOfferingDataSource) Schema(ctx context.Context, req datasource.
 				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
 				Optional:    true,
 			},
+			/*
+				"filter": schema.MapAttribute{
+					Description: "Key-value pairs to filter instance offering. For example, to filter by State, use `State = \"Enabled\"`.",
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			*/
 			"instance_offers": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -176,6 +205,24 @@ func (d *instanceOfferingDataSource) Schema(ctx context.Context, req datasource.
 						"state": schema.StringAttribute{
 							Computed:    true,
 							Description: "The current state of the instance offering (e.g., Enabled, Disabled).",
+						},
+					},
+				},
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"filter": schema.ListNestedBlock{
+				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				NestedObject: schema.NestedBlockObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Description: "Name of the field to filter by (e.g., status, state).",
+							Required:    true,
+						},
+						"values": schema.SetAttribute{
+							Description: "Values to filter by. Multiple values will be treated as an OR condition.",
+							Required:    true,
+							ElementType: types.StringType,
 						},
 					},
 				},

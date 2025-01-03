@@ -1,0 +1,33 @@
+# Copyright (c) ZStack.io, Inc.
+
+stages:
+  - build
+
+variables:
+  GITLAB_TOKEN: $GITLAB_TOKEN
+  GO_VERSION: "1.22.8"
+  MINIO_SERVER_URL: $MINIO_URL
+  MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY 
+  MINIO_SECRET_KEY: $MINIO_SECRET_KEY 
+
+default:
+  tags:
+    - "terraform"
+
+before_script:
+  # Install the Go version specified in go.mod
+  - "mc alias set terraformminio $MINIO_SERVER_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY"
+  - "go version"
+  - "go mod tidy"
+  - "mc --version"
+
+build_job:
+  stage: build
+  #image: golang:${GO_VERSION}
+  script:
+    - "echo 'Building the application...'"
+    - "mkdir -p dist"
+    - "go build -o dist/terraform-provider-zstack"
+    - "tar -czf dist/terraform-provider-zstack.tar.gz dist/terraform-provider-zstack" 
+    - "mc cp dist/terraform-provider-zstack terraformminio/terraform/terraform-provider-zstack"
+

@@ -17,6 +17,22 @@ Fetches a list of images and their associated attributes from the ZStack environ
 data "zstack_hosts" "example" {
   #  name = "hostname"
   #   name_pattern = "hostname%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  filter {
+    name   = "architecture"
+    values = ["aarch64", "x86_64"]
+  }
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+  filter {
+    name   = "status"
+    values = ["Disconnected"]
+  }
+  filter {
+    name   = "cluster_uuid"
+    values = ["37c25209578c495ca176f60ad0cd97fa"]
+  }
 }
 
 output "zstack_hosts" {
@@ -29,12 +45,22 @@ output "zstack_hosts" {
 
 ### Optional
 
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching images
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `images` (Attributes List) List of Images (see [below for nested schema](#nestedatt--images))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--images"></a>
 ### Nested Schema for `images`

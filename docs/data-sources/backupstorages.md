@@ -17,6 +17,19 @@ List all backup storages, or query backup storages by exact name match, or query
 data "zstack_backupstorages" "example" {
   #   name  = "backupstorage name"
   #   name_pattern = "image%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+  # optional support schema  filter
+  filter {
+    name   = "status"
+    values = ["Connected"]
+  }
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+  filter {
+    name   = "total_capacity"
+    values = ["7999424823296"]
+  }
 }
 
 output "zstack_imagestorages" {
@@ -29,12 +42,22 @@ output "zstack_imagestorages" {
 
 ### Optional
 
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching backup storage.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
 ### Read-Only
 
 - `backup_storages` (Attributes List) List of backup storage entries (see [below for nested schema](#nestedatt--backup_storages))
+
+<a id="nestedblock--filter"></a>
+### Nested Schema for `filter`
+
+Required:
+
+- `name` (String) Name of the field to filter by (e.g., status, state).
+- `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
+
 
 <a id="nestedatt--backup_storages"></a>
 ### Nested Schema for `backup_storages`
