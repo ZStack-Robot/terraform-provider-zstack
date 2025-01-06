@@ -51,7 +51,7 @@ func NewZSConfig(hostname string, port int, contextPath string) *ZSConfig {
 		port:          port,
 		contextPath:   contextPath,
 		retryInterval: 2,
-		retryTimes:    150,
+		retryTimes:    1800,
 	}
 }
 

@@ -42,6 +42,21 @@ func (cli *ZSClient) AddImage(imageParam param.AddImageParam) (*view.ImageView, 
 	return &image, cli.Post("v1/images", imageParam, &image)
 }
 
+func (cli *ZSClient) AddImageAsync(imageParam param.AddImageParam) (string, error) {
+	// 调用 PostWithAsync，传入必要的参数
+	resource := "v1/images"
+	responseKey := ""      // 不需要解析具体的返回数据，只获取 ApiId
+	var retVal interface{} // retVal 为 nil，因为异步情况下不需要解析具体数据
+
+	// 调用异步函数
+	apiId, err := cli.PostWithAsync(resource, responseKey, imageParam, retVal, true)
+	if err != nil {
+		return "", err
+	}
+
+	return apiId, nil
+}
+
 // UpdateImage Edit Image
 func (cli *ZSClient) UpdateImage(uuid string, params param.UpdateImageParam) (view.ImageView, error) {
 	image := view.ImageView{}
@@ -156,10 +171,16 @@ func (cli *ZSClient) SetImageBootMode(params param.SetImageBootModeRequest) erro
 }
 
 // GetUploadImageJobDetails Get Upload Image Job Details
-func (cli *ZSClient) GetUploadImageJobDetails(params param.GetUploadImageJobDetailsParam) (bool, error) {
+func (cli *ZSClient) GetUploadImageJobDetails(params param.GetUploadImageJobDetailsParam) (*view.GetUploadImageJobDetailsResponse, error) {
 	//resp := make([]view.ExistingJobDetails, 0)
-	success := false
-	return success, cli.GetWithSpec("v1/images/upload-job/details", params.ImageId, "", "success", nil, &success)
+	//success := false
+	var response view.GetUploadImageJobDetailsResponse
+	err := cli.GetWithSpec("v1/images/upload-job/details", params.ImageId, "", "", nil, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get upload image job details: %v", err)
+	}
+	return &response, nil
+	//return success, cli.GetWithSpec("v1/images/upload-job/details", params.ImageId, "", "success", nil, &success)
 }
 
 // GetCandidateVmForAttachingIso Get Candidate VMs for Attaching ISO

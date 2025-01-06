@@ -166,7 +166,7 @@ func TestZSClient_CreateImage(t *testing.T) {
 		Params: param.AddImageDetailParam{
 			Name:               "CentOS-6.8-i386-LiveCD",
 			Description:        "接口image",
-			Url:                "http://storage.zstack.io/mirror/nightly/diskimages/CentOS7.9.qcow2",
+			Url:                "http://172.20.15.213/rds/V3.14.1-p2/zstack-rds-3.14.1-p2_x86.qcow2",
 			MediaType:          param.RootVolumeTemplate,
 			GuestOsType:        "Linux",
 			System:             false,
@@ -180,14 +180,18 @@ func TestZSClient_CreateImage(t *testing.T) {
 		},
 	}
 
+	var apiId string
+	//_, err = accountLoginCli.AddImage(imageParam)
 	_, err = accountLoginCli.AddImage(imageParam)
 	if err != nil {
 		golog.Errorf("ZSClient.CreateImage error:%v", err)
 		return
 	}
+
 	//golog.Infof("%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s", r.UUID, r.Name, r.Platform, r.GuestOsType, r.Format, r.Status, r.Size, r.Description)
 
 	golog.Infof("======================================")
+	golog.Infof(apiId)
 	//创建失败情况
 	/*
 		imageParam = param.AddImageParam{
@@ -510,13 +514,24 @@ func TestSetImageBootMode(t *testing.T) {
 }
 
 func TestGetUploadImageJobDetails(t *testing.T) {
-	data, err := accountLoginCli.GetUploadImageJobDetails(param.GetUploadImageJobDetailsParam{
+	response, err := accountLoginCli.GetUploadImageJobDetails(param.GetUploadImageJobDetailsParam{
 		BaseParam: param.BaseParam{},
-		ImageId:   "5d12268928af486a9379a7a737bf68d2",
+		ImageId:   "6718db9f407f4c58b5a7bbae689080bb",
 	})
+
 	if err != nil {
 		golog.Errorf("TestGetUploadImageJobDetails error:%v", err)
 	}
-	fmt.Println(data)
 
+	if response == nil {
+		t.Fatal("TestGetUploadImageJobDetails failed: response is nil") // 确保 response 不为 nil
+	}
+
+	if response.Success {
+		jobDetail := response.ExistingJobDetails
+		fmt.Printf("Job UUID: %s, State: %s, Image UUID: %s, Upload URL: %s, Offset: %d\n",
+			jobDetail.LongJobUuid, jobDetail.LongJobState, jobDetail.ImageUuid, jobDetail.ImageUploadUrl, jobDetail.Offset)
+	} else {
+		fmt.Println("Failed to retrieve job details.")
+	}
 }
