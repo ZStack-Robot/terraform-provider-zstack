@@ -128,7 +128,7 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 			Description:       types.StringValue(vrouterOffer.Description),
 			CpuNum:            types.Int32Value(int32(vrouterOffer.CpuNum)),
 			CpuSpeed:          types.Int32Value(int32(vrouterOffer.CpuSpeed)),
-			MemorySize:        types.Int64Value(int64(vrouterOffer.MemorySize)),
+			MemorySize:        types.Int64Value(utils.BytesToMB(vrouterOffer.MemorySize)),
 			Type:              types.StringValue(vrouterOffer.Type),
 			AllocatorStrategy: types.StringValue(vrouterOffer.AllocatorStrategy),
 
@@ -200,7 +200,7 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The memory size allocated to the virtual router, in bytes.",
+							Description: "The memory size allocated to the virtual router, in megabytes (MB).",
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,

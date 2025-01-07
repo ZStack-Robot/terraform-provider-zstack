@@ -28,20 +28,17 @@ type virtualRouterImageResource struct {
 }
 
 type virtualRouterImageResourceModel struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Url         types.String `tfsdk:"url"`
-	MediaType   types.String `tfsdk:"media_type"`
-	GuestOsType types.String `tfsdk:"guest_os_type"`
-	//System             types.String `tfsdk:"system"`
-	Platform types.String `tfsdk:"platform"`
-	//Format             types.String `tfsdk:"format"`
+	Uuid               types.String `tfsdk:"uuid"`
+	Name               types.String `tfsdk:"name"`
+	Description        types.String `tfsdk:"description"`
+	Url                types.String `tfsdk:"url"`
+	MediaType          types.String `tfsdk:"media_type"`
+	GuestOsType        types.String `tfsdk:"guest_os_type"`
+	Platform           types.String `tfsdk:"platform"`
 	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
 	Architecture       types.String `tfsdk:"architecture"`
 	Virtio             types.Bool   `tfsdk:"virtio"`
-	//Type               types.String `tfsdk:"type"`
-	BootMode types.String `tfsdk:"boot_mode"`
+	BootMode           types.String `tfsdk:"boot_mode"`
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -131,13 +128,12 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 			MediaType:          param.RootVolumeTemplate,
 			GuestOsType:        plan.GuestOsType.ValueString(),
 			System:             true,
-			Format:             param.Qcow2,                 //param.ImageFormat(plan.Format.ValueString()), // param.Qcow2,
-			Platform:           plan.Platform.ValueString(), //plan.Platform.ValueString(),
+			Format:             param.Qcow2,
+			Platform:           plan.Platform.ValueString(),
 			BackupStorageUuids: backupStorageUuids,
-			//Type:               string(param.ApplianceVm), //"ApplianceVm",
-			ResourceUuid: "",
-			Architecture: param.Architecture(plan.Architecture.ValueString()),
-			Virtio:       plan.Virtio.ValueBool(),
+			ResourceUuid:       "",
+			Architecture:       param.Architecture(plan.Architecture.ValueString()),
+			Virtio:             plan.Virtio.ValueBool(),
 		},
 	}
 
@@ -154,11 +150,7 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 	plan.Name = types.StringValue(image.Name)
 	plan.Description = types.StringValue(image.Description)
 	plan.Url = types.StringValue(image.Url)
-	//	plan.GuestOsType = types.StringValue(image.GuestOsType)
-	//plan.System = types.StringValue(image.System)
 	plan.Platform = types.StringValue(image.Platform)
-	//plan.Type = types.StringValue(image.Type)
-	//plan.LastUpdated = types.StringValue(image.LastOpDate.String())
 	ctx = tflog.SetField(ctx, "url", image.Url)
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)

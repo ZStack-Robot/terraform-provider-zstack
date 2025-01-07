@@ -91,16 +91,7 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 	plan.Name = types.StringValue(vrInstance.Name)
 	plan.Description = types.StringValue(vrInstance.Description)
 	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUUID)
-	/*
-		plan.State = types.StringValue(vrInstance.State)
-		plan.Status = types.StringValue(vrInstance.Status)
-		plan.HostUuid = types.StringValue(vrInstance.HostUuid)
-		plan.ZoneUuid = types.StringValue(vrInstance.ZoneUuid)
-		plan.ClusterUUID = types.StringValue(vrInstance.ClusterUUID)
-	*/
-	//plan.PrimaryStorageUuidForRootVolume = types.StringValue(vrInstance.)
 
-	//ctx = tflog.SetField(ctx, "url", image.Url)
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {

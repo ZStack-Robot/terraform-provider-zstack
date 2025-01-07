@@ -31,8 +31,11 @@ resource "zstack_vm" "vm" {
   root_disk = {
     offering_uuid = "e002a969bb3041c087e355c77e997be5"
   }
-  memory_size = 1147483640
-  cpu_num     = 1
+  memory_size = 1024 # in megabytes, MB
+  data_disks = [{
+    size = 100 # in gigabytes (GB)
+  }]
+  cpu_num = 1
 }
 
 output "zstack_vm" {
@@ -60,7 +63,7 @@ output "zstack_vm" {
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
-- `memory_size` (Number) The memory size allocated to the VM instance in bytes. When used together with `cpu_num`, the `instance_offering_uuid` is not required.
+- `memory_size` (Number) The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.
 - `networks` (Attributes List) The network configurations associated with the VM instance. (see [below for nested schema](#nestedatt--networks))
 - `never_stop` (Boolean) Whether the VM instance should never stop automatically.
 - `root_disk` (Attributes) The configuration for the root disk of the VM instance. (see [below for nested schema](#nestedatt--root_disk))
@@ -81,7 +84,7 @@ Optional:
 - `ceph_pool_name` (String) The Ceph pool name for the data disk.
 - `offering_uuid` (String) The UUID of the disk offering for the data disk.
 - `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
-- `size` (Number) The size of the data disk in bytes.
+- `size` (Number) The size of the data disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the data disk uses Virtio-SCSI.
 
 
@@ -120,7 +123,7 @@ Optional:
 - `ceph_pool_name` (String) The Ceph pool name for the root disk.
 - `offering_uuid` (String) The UUID of the disk offering for the root disk.
 - `primary_storage_uuid` (String) The UUID of the primary storage for the root disk.
-- `size` (Number) The size of the root disk in bytes.
+- `size` (Number) The size of the root disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the root disk uses Virtio-SCSI.
 
 

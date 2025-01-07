@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -74,7 +75,7 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 			Name:                  plan.Name.ValueString(),
 			Description:           plan.Description.ValueString(),
 			CpuNum:                int(plan.CpuNum.ValueInt64()),
-			MemorySize:            plan.MemorySize.ValueInt64(),
+			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()), //plan.MemorySize.ValueInt64(),
 			ManagementNetworkUuid: plan.ManagementNetworkUuid.ValueString(),
 			ZoneUuid:              plan.ZoneUuid.ValueString(),
 			ImageUuid:             plan.ImageUuid.ValueString(),
@@ -98,7 +99,7 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 	plan.Name = types.StringValue(virtual_router.Name)
 	plan.Description = types.StringValue(virtual_router.Description)
 	plan.CpuNum = types.Int64Value(int64(virtual_router.CpuNum))
-	plan.MemorySize = types.Int64Value(int64(virtual_router.MemorySize))
+	plan.MemorySize = types.Int64Value(utils.BytesToMB(virtual_router.MemorySize))
 	plan.Type = types.StringValue(virtual_router.Type)
 
 	diags = resp.State.Set(ctx, plan)
@@ -162,7 +163,7 @@ func (r *virtualRouterOfferingResource) Read(ctx context.Context, req resource.R
 	state.Description = types.StringValue(virtual_router.Description)
 	state.Name = types.StringValue(virtual_router.Name)
 	state.CpuNum = types.Int64Value(int64(virtual_router.CpuNum))
-	state.MemorySize = types.Int64Value(virtual_router.MemorySize)
+	state.MemorySize = types.Int64Value(utils.BytesToMB(virtual_router.MemorySize))
 	state.Type = types.StringValue(virtual_router.Type)
 
 	diags = resp.State.Set(ctx, &state)
@@ -197,7 +198,7 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 			},
 			"memory_size": schema.Int64Attribute{
 				Required:    true,
-				Description: "The amount of memory (in bytes) allocated to the virtual router offering. This is a mandatory field.",
+				Description: "The amount of memory  allocated to the virtual router offering. This is a mandatory field, in megabytes (MB)",
 			},
 			"management_network_uuid": schema.StringAttribute{
 				Required:    true,

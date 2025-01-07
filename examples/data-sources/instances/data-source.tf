@@ -15,6 +15,14 @@ data "zstack_instances" "vminstances" {
     name   = "hypervisor_type"
     values = ["KVM"]
   }
+  filter {
+    name   = "cpu_num"
+    values = [1]
+  }
+  filter {
+    name   = "memory_size"
+    values = ["1024"] # in megabytes, MB
+  }
 }
 
 

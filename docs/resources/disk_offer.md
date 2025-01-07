@@ -17,7 +17,7 @@ This resource allows you to manage disk offerings in ZStack. An disk offering de
 resource "zstack_disk_offer" "test" {
   name        = "largeDiskOffering-test"
   description = "An example disk offer"
-  disk_size   = 1073741824
+  disk_size   = 100 # in gigabytes (GB)
 }
 
 output "zstack_disk_offer" {
@@ -30,7 +30,7 @@ output "zstack_disk_offer" {
 
 ### Required
 
-- `disk_size` (Number) The amount of disk size (in bytes) allocated to the disk offering. This is a mandatory field.
+- `disk_size` (Number) The amount of disk size allocated to the disk offering. This is a mandatory field, in gigabytes (GB).
 - `name` (String) The name of the disk offering. This is a mandatory field.
 
 ### Optional

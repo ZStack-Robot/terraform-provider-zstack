@@ -13,7 +13,7 @@ data "zstack_instance_offers" "example" {
   }
   filter {
     name   = "memory_size"
-    values = ["1073741824"]
+    values = ["1024"] # in megabytes, MB
   }
   filter {
     name   = "cpu_num"

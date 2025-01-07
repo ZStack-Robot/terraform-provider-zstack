@@ -9,10 +9,13 @@ data "zstack_virtual_routers" "test" {
   }
   filter {
     name   = "memory_size"
-    values = ["1073741824"]
+    values = ["1024"] # in megabytes, MB
+  }
+  filter {
+    name   = "cpu_num"
+    values = [1]
   }
 }
-
 
 output "zstack_vrouters" {
   value = data.zstack_virtual_routers.test

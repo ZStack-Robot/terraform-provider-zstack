@@ -29,6 +29,14 @@ data "zstack_instances" "vminstances" {
     name   = "hypervisor_type"
     values = ["KVM"]
   }
+  filter {
+    name   = "cpu_num"
+    values = [1]
+  }
+  filter {
+    name   = "memory_size"
+    values = ["1024"] # in megabytes, MB
+  }
 }
 
 
@@ -71,7 +79,7 @@ Read-Only:
 - `host_uuid` (String) The UUID of the host on which the VM is running.
 - `hypervisor_type` (String) The type of hypervisor on which the VM is running (e.g., KVM, VMware).
 - `image_uuid` (String) The UUID of the image used to create the VM.
-- `memory_size` (Number) The amount of memory (in bytes) allocated to the VM.
+- `memory_size` (Number) The amount of memory allocated to the VM, in megabytes (MB).
 - `name` (String) The name of the VM instance.
 - `platform` (String) The platform (e.g., Linux, Windows) on which the VM is running.
 - `state` (String) The current state of the VM (e.g., Running, Stopped).
@@ -85,10 +93,10 @@ Read-Only:
 
 Read-Only:
 
-- `volume_actual_size` (Number) The actual size of the volume (in bytes), which might differ from the requested size.
+- `volume_actual_size` (Number) The actual size of the volume, which might differ from the requested size, in gigabytes (GB).
 - `volume_description` (String) The description of the volume attached to the VM.
 - `volume_format` (String) The format of the volume (e.g., RAW, QCOW2).
-- `volume_size` (Number) The size of the volume (in bytes).
+- `volume_size` (Number) The size of the volume, in gigabytes (GB).
 - `volume_state` (String) The state of the volume (e.g., Enabled, Disabled).
 - `volume_status` (String) The status of the volume (e.g., Ready, NoReady).
 - `volume_type` (String) The type of the volume (e.g., root, data).

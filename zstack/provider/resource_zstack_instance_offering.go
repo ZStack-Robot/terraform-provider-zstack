@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -71,7 +72,7 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 			Name:        plan.Name.ValueString(),
 			Description: plan.Description.ValueStringPointer(),
 			CpuNum:      int(plan.CpuNum.ValueInt64()),
-			MemorySize:  plan.MemorySize.ValueInt64(),
+			MemorySize:  utils.MBToBytes(plan.MemorySize.ValueInt64()),
 			Type:        &offerType,
 		},
 	}
@@ -89,7 +90,7 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 	plan.Name = types.StringValue(instance_offer.Name)
 	plan.Description = types.StringValue(instance_offer.Description)
 	plan.CpuNum = types.Int64Value(int64(instance_offer.CpuNum))
-	plan.MemorySize = types.Int64Value(int64(instance_offer.MemorySize))
+	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance_offer.MemorySize))
 	plan.Type = types.StringValue(instance_offer.Type)
 
 	diags = resp.State.Set(ctx, plan)
@@ -153,7 +154,7 @@ func (r *instanceOfferingResource) Read(ctx context.Context, req resource.ReadRe
 	state.Description = types.StringValue(instance_offer.Description)
 	state.Name = types.StringValue(instance_offer.Name)
 	state.CpuNum = types.Int64Value(int64(instance_offer.CpuNum))
-	state.MemorySize = types.Int64Value(instance_offer.MemorySize)
+	state.MemorySize = types.Int64Value(utils.BytesToMB(instance_offer.MemorySize))
 	state.Type = types.StringValue(instance_offer.Type)
 
 	diags = resp.State.Set(ctx, &state)
@@ -188,7 +189,7 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 			},
 			"memory_size": schema.Int64Attribute{
 				Required:    true,
-				Description: "The amount of memory (in bytes) allocated to the instance offering. This is a mandatory field.",
+				Description: "The amount of memory (in megabytes, MB) allocated to the instance offering. This is a mandatory field.",
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,

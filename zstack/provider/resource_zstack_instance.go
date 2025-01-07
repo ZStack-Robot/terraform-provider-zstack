@@ -79,13 +79,12 @@ type vmInstanceDataSourceModel struct {
 	Strategy             types.String `tfsdk:"strategy"`
 	MemorySize           types.Int64  `tfsdk:"memory_size"`
 	CPUNum               types.Int64  `tfsdk:"cpu_num"`
-	//IP                   types.String `tfsdk:"ip"`
-	NeverStop   types.Bool   `tfsdk:"never_stop"`
-	Marketplace types.Bool   `tfsdk:"marketplace"`
-	GPUDevices  types.List   `tfsdk:"gpu_devices"`
-	GPUSpecs    types.Object `tfsdk:"gpu_device_specs"`
-	UserData    types.String `tfsdk:"user_data"`
-	VMNics      types.List   `tfsdk:"vm_nics"`
+	NeverStop            types.Bool   `tfsdk:"never_stop"`
+	Marketplace          types.Bool   `tfsdk:"marketplace"`
+	GPUDevices           types.List   `tfsdk:"gpu_devices"`
+	GPUSpecs             types.Object `tfsdk:"gpu_device_specs"`
+	UserData             types.String `tfsdk:"user_data"`
+	VMNics               types.List   `tfsdk:"vm_nics"`
 }
 
 type NicsModel struct {
@@ -196,7 +195,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 					},
 					"size": schema.Int64Attribute{
 						Optional:    true,
-						Description: "The size of the root disk in bytes.",
+						Description: "The size of the root disk in gigabytes (GB).",
 					},
 					"primary_storage_uuid": schema.StringAttribute{
 						Optional:    true,
@@ -223,7 +222,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 						},
 						"size": schema.Int64Attribute{
 							Optional:    true,
-							Description: "The size of the data disk in bytes.",
+							Description: "The size of the data disk in gigabytes (GB).",
 						},
 						"primary_storage_uuid": schema.StringAttribute{
 							Optional:    true,
@@ -295,7 +294,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"memory_size": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The memory size allocated to the VM instance in bytes. When used together with `cpu_num`, the `instance_offering_uuid` is not required.",
+				Description: "The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.",
 			},
 			"cpu_num": schema.Int64Attribute{
 				Optional:    true,
@@ -376,6 +375,10 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		if !rootDiskPlan.CephPoolName.IsNull() && rootDiskPlan.CephPoolName.ValueString() != "" {
 			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
 		}
+
+		if !rootDiskPlan.Size.IsNull() {
+			rootDiskPlan.Size = types.Int64Value(utils.GBToBytes(rootDiskPlan.Size.ValueInt64()))
+		}
 	}
 
 	// SET DATA DISK
@@ -386,7 +389,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			if !disk.OfferingUuid.IsNull() {
 				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
 			} else if !disk.Size.IsNull() {
-				dataDiskSizes = append(dataDiskSizes, disk.Size.ValueInt64())
+				//	dataDiskSizes = append(dataDiskSizes, disk.Size.ValueInt64())
+				dataDiskSizes = append(dataDiskSizes, utils.GBToBytes(disk.Size.ValueInt64()))
 				if disk.VirtioSCSI.ValueBool() {
 					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
 				}
@@ -570,7 +574,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			return
 		}
 
-		memorySize = plan.MemorySize.ValueInt64()
+		memorySize = utils.MBToBytes(plan.MemorySize.ValueInt64())
 		cpuNum = plan.CPUNum.ValueInt64()
 	}
 
@@ -617,7 +621,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.Uuid = types.StringValue(instance.UUID)
 	plan.Name = types.StringValue(instance.Name)
 	plan.Description = types.StringValue(instance.Description)
-	plan.MemorySize = types.Int64Value(instance.MemorySize)
+	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 	plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
 	//plan.IP = types.StringValue(instance.VMNics[0].IP)
 
@@ -667,7 +671,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.Name = types.StringValue(vm.Name)
 	state.Description = types.StringValue(vm.Description)
 	state.ImageUuid = types.StringValue(vm.ImageUUID)
-	state.MemorySize = types.Int64Value(vm.MemorySize)
+	state.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
 	state.CPUNum = types.Int64Value(int64(vm.CPUNum))
 
 	var vmNics []NicsModel
@@ -727,7 +731,8 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		updateVm = true
 	}
 	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
-		updateVmInstanceParam.UpdateVmInstance.MemorySize = utils.TfInt64ToInt64Pointer(plan.MemorySize)
+		memorySizeBytes := utils.MBToBytes(plan.MemorySize.ValueInt64())
+		updateVmInstanceParam.UpdateVmInstance.MemorySize = &memorySizeBytes
 		updateVm = true
 	}
 
@@ -743,7 +748,7 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		plan.Uuid = types.StringValue(instance.UUID)
 		plan.Name = types.StringValue(instance.Name)
 		plan.Description = types.StringValue(instance.Description)
-		plan.MemorySize = types.Int64Value(instance.MemorySize)
+		plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 		plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
 		//plan.IP = types.StringValue(instance.VMNics[0].IP)
 

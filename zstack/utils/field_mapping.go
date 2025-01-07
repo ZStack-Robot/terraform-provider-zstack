@@ -13,8 +13,9 @@ var FieldMapping = map[string]map[string]string{
 	},
 
 	"instance": {
-		"cluster_uuid":    "clusterUuid",
-		"cpu_num":         "cpuNum",
+		"cluster_uuid": "clusterUuid",
+		//"cpu_num":         "cpuNum",
+		"cpu_num":         "CPUNum",
 		"host_uuid":       "hostUuid",
 		"hypervisor_type": "hypervisorType",
 		"image_uuid":      "imageUuid",
@@ -64,10 +65,11 @@ var FieldMapping = map[string]map[string]string{
 		"zone_uuid":               "zoneUuid",
 	},
 	"virtual_router_instance": {
-		"agent_port":              "agentPort",
-		"appliance_vm_type":       "applianceVmType",
-		"cluster_uuid":            "clusterUuid",
-		"cpu_num":                 "cpuNum",
+		"agent_port":        "agentPort",
+		"appliance_vm_type": "applianceVmType",
+		"cluster_uuid":      "clusterUuid",
+		//"cpu_num":                 "cpuNum",
+		"cpu_num":                 "CPUNum",
 		"ha_status":               "haStatus",
 		"host_uuid":               "hostUuid",
 		"hypervisor_type":         "hypervisorType",

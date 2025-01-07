@@ -124,7 +124,7 @@ func (d *instanceOfferingDataSource) Read(ctx context.Context, req datasource.Re
 			Description:       types.StringValue(instanceOffer.Description),
 			CpuNum:            types.Int32Value(int32(instanceOffer.CpuNum)),
 			CpuSpeed:          types.Int32Value(int32(instanceOffer.CpuSpeed)),
-			MemorySize:        types.Int64Value(int64(instanceOffer.MemorySize)),
+			MemorySize:        types.Int64Value(utils.BytesToMB(instanceOffer.MemorySize)),
 			Type:              types.StringValue(instanceOffer.Type),
 			AllocatorStrategy: types.StringValue(instanceOffer.AllocatorStrategy),
 			SortKey:           types.Int32Value(int32(instanceOffer.SortKey)),
@@ -188,7 +188,7 @@ func (d *instanceOfferingDataSource) Schema(ctx context.Context, req datasource.
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The memory size allocated to the instance, in bytes.",
+							Description: "The memory size allocated to the instance, in megabytes (MB).",
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,

@@ -80,7 +80,6 @@ func (d *diskOfferingDataSource) Read(ctx context.Context, req datasource.ReadRe
 
 	params := param.NewQueryParam()
 
-	// 优先检查 `name` 精确查询
 	if !state.Name.IsNull() {
 		params.AddQ("name=" + state.Name.ValueString())
 	} else if !state.NamePattern.IsNull() {
@@ -118,7 +117,7 @@ func (d *diskOfferingDataSource) Read(ctx context.Context, req datasource.ReadRe
 			Name:              types.StringValue(diskOffer.Name),
 			Uuid:              types.StringValue(diskOffer.UUID),
 			Description:       types.StringValue(diskOffer.Description),
-			DiskSize:          types.Int64Value(int64(diskOffer.DiskSize)),
+			DiskSize:          types.Int64Value(utils.BytesToGB(int64(diskOffer.DiskSize))),
 			Type:              types.StringValue(diskOffer.Type),
 			AllocatorStrategy: types.StringValue(diskOffer.AllocatorStrategy),
 			SortKey:           types.Int32Value(int32(diskOffer.SortKey)),
@@ -173,7 +172,7 @@ func (d *diskOfferingDataSource) Schema(ctx context.Context, req datasource.Sche
 						},
 						"disk_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The disk size allocated to the disk offering, in bytes.",
+							Description: "The disk size allocated to the disk offering, in gigabytes (GB).",
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,

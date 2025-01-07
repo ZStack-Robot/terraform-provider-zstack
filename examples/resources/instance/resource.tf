@@ -17,8 +17,11 @@ resource "zstack_vm" "vm" {
   root_disk = {
     offering_uuid = "e002a969bb3041c087e355c77e997be5"
   }
-  memory_size = 1147483640
-  cpu_num     = 1
+  memory_size = 1024 # in megabytes, MB
+  data_disks = [{
+    size = 100 # in gigabytes (GB)
+  }]
+  cpu_num = 1
 }
 
 output "zstack_vm" {

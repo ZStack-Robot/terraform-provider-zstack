@@ -29,7 +29,6 @@ resource "zstack_virtual_router_image" "test" {
   guest_os_type        = "VyOS 1.1.7" #Attribute guest_os_type value must be one of: ["VyOS 1.1.7" "openEuler 22.03"]
 }
 
-
 output "zstack_vrimage" {
   value = zstack_virtual_router_image.test
 }

@@ -27,7 +27,7 @@ data "zstack_instance_offers" "example" {
   }
   filter {
     name   = "memory_size"
-    values = ["1073741824"]
+    values = ["1024"] # in megabytes, MB
   }
   filter {
     name   = "cpu_num"
@@ -71,7 +71,7 @@ Read-Only:
 - `cpu_num` (Number) The number of CPUs allocated to the instance offer.
 - `cpu_speed` (Number) The speed of each CPU in MHz.
 - `description` (String) A brief description of the instance offering.
-- `memory_size` (Number) The memory size allocated to the instance, in bytes.
+- `memory_size` (Number) The memory size allocated to the instance, in megabytes (MB).
 - `name` (String) The name of the instance offering.
 - `sort_key` (Number) The sort key used for ordering instance offerings.
 - `state` (String) The current state of the instance offering (e.g., Enabled, Disabled).

@@ -151,7 +151,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 			Platform:       types.StringValue(vminstance.Platform),
 			Architecture:   types.StringValue(vminstance.Architecture),
 			CPUNum:         types.Int64Value(int64(vminstance.CPUNum)),
-			MemorySize:     types.Int64Value(int64(vminstance.MemorySize)),
+			MemorySize:     types.Int64Value(utils.BytesToMB(vminstance.MemorySize)),
 		}
 
 		for _, vmnics := range vminstance.VMNics {
@@ -170,8 +170,8 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 				VolumeDescription: types.StringValue(allvolumes.Description),
 				VolumeType:        types.StringValue(allvolumes.Type),
 				VolumeFormat:      types.StringValue(allvolumes.Format),
-				VolumeSize:        types.Int64Value(int64(allvolumes.Size)),
-				VolumeActualSize:  types.Int64Value(int64(allvolumes.ActualSize)),
+				VolumeSize:        types.Int64Value(utils.BytesToGB(int64(allvolumes.Size))),
+				VolumeActualSize:  types.Int64Value(utils.BytesToGB(int64(allvolumes.ActualSize))),
 				VolumeState:       types.StringValue(allvolumes.State),
 				VolumeStatus:      types.StringValue(allvolumes.Status),
 			})
@@ -262,7 +262,7 @@ func (d *vmsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The amount of memory (in bytes) allocated to the VM.",
+							Description: "The amount of memory allocated to the VM, in megabytes (MB). ",
 						},
 						"vm_nics": schema.ListNestedAttribute{
 							Computed: true,
@@ -313,11 +313,11 @@ func (d *vmsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 									},
 									"volume_size": schema.Int64Attribute{
 										Computed:    true,
-										Description: "The size of the volume (in bytes).",
+										Description: "The size of the volume, in gigabytes (GB).",
 									},
 									"volume_actual_size": schema.Int64Attribute{
 										Computed:    true,
-										Description: "The actual size of the volume (in bytes), which might differ from the requested size.",
+										Description: "The actual size of the volume, which might differ from the requested size, in gigabytes (GB).",
 									},
 									"volume_state": schema.StringAttribute{
 										Computed:    true,

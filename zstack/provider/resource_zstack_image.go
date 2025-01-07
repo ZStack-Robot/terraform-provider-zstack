@@ -345,56 +345,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 }
 
 func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	/*
-		var imageplan imageResourceModel
-		diags := req.Plan.Get(ctx, &imageplan)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
 
-		//uuid := imageplan.UUID.ValueString()
-		//params := param.UpdateImageParam{
-		//	UpdateImage: param.UpdateImageDetailParam{
-		//		Name:        imageplan.Name.ValueString(), // "image4chenjtest",
-		//		Description: &desc,                        //imageplan.Description.ValueStringPointer(),
-		//	},
-		//}
-		//_, err := r.client.UpdateImage(uuid, params)
-		//if err != nil {
-		//	resp.Diagnostics.AddError(
-		//		"", ""+err.Error(),
-		//	)
-		//	return
-		//}
-		//
-		//image, err := r.client.GetImage(imageplan.UUID.ValueString())
-		//if err != nil {
-		//	resp.Diagnostics.AddError("", ""+err.Error())
-		//	return
-		//}
-		//imageplan.UUID = types.StringValue(image.UUID)
-		//imageplan.Name = types.StringValue(image.Name)
-		//imageplan.Description = types.StringValue(image.Description)
-		//imageplan.url = types.StringValue(image.Url)
-		//imageplan.MediaType = types.StringValue(image.MediaType)
-		//imageplan.GuestOsType = types.StringValue(image.GuestOsType)
-		//imageplan.System = types.StringValue(image.System)
-		////in ceph backup storage, the image format is always raw
-		////imageplan.Format = types.StringValue(image.Format)
-		//imageplan.Platform = types.StringValue(image.Platform)
-		//imageplan.Type = types.StringValue(image.Type)
-		//imageplan.Architecture = types.StringValue(string(image.Architecture))
-		//imageplan.Virtio = types.BoolValue(image.Virtio)
-		//imageplan.BackupStorageUuid = types.StringValue(string(image.BackupStorageRefs[0].BackupStorageUuid))
-		//imageplan.LastUpdated = types.StringValue(image.LastOpDate.String())
-		//
-		//diags = resp.State.Set(ctx, imageplan)
-		//resp.Diagnostics.Append(diags...)
-		//if resp.Diagnostics.HasError() {
-		//	return
-		//}
-	*/
 }
 
 func removeStringFromSlice(slice []string, s string) []string {

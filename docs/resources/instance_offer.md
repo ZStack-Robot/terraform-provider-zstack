@@ -18,7 +18,7 @@ resource "zstack_instance_offer" "example" {
   name        = "instanceoffertest"
   description = "An example instance offer"
   cpu_num     = 1
-  memory_size = 1073741824
+  memory_size = 1024 # in megabytes, MB
 }
 
 output "zstack_instance_offer" {
@@ -32,7 +32,7 @@ output "zstack_instance_offer" {
 ### Required
 
 - `cpu_num` (Number) The number of CPUs allocated to the instance offering. This is a mandatory field.
-- `memory_size` (Number) The amount of memory (in bytes) allocated to the instance offering. This is a mandatory field.
+- `memory_size` (Number) The amount of memory (in megabytes, MB) allocated to the instance offering. This is a mandatory field.
 - `name` (String) The name of the instance offering. This is a mandatory field.
 
 ### Optional

@@ -23,7 +23,7 @@ data "zstack_virtual_router_offers" "test" {
   }
   filter {
     name   = "memory_size"
-    values = [1073741824]
+    values = [1024] # in megabytes, MB
   }
 }
 
@@ -66,7 +66,7 @@ Read-Only:
 - `image_uuid` (String) The UUID of the image used by the virtual router offer.
 - `is_default` (Boolean) Indicates whether this virtual router offering is the default configuration.
 - `management_network_uuid` (String) The UUID of the management network connected to the virtual router.
-- `memory_size` (Number) The memory size allocated to the virtual router, in bytes.
+- `memory_size` (Number) The memory size allocated to the virtual router, in megabytes (MB).
 - `name` (String) The name of the virtual router offering.
 - `public_network_uuid` (String) The UUID of the public network connected to the virtual router.
 - `reserved_memory_size` (String) The amount of memory reserved for the virtual router, in bytes.

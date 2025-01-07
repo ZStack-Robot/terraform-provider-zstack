@@ -25,6 +25,10 @@ data "zstack_disk_offers" "example" {
     name   = "state"
     values = ["Enabled"]
   }
+  filter {
+    name   = "disk_size"
+    values = ["20"] # in gigabytes (GB)
+  }
 }
 
 output "zstack_disk_offers" {
@@ -61,7 +65,7 @@ Read-Only:
 
 - `allocator_strategy` (String) The strategy used for allocating resources to the disk.
 - `description` (String) A brief description of the disk offering.
-- `disk_size` (Number) The disk size allocated to the disk offering, in bytes.
+- `disk_size` (Number) The disk size allocated to the disk offering, in gigabytes (GB).
 - `name` (String) The name of the disk offering.
 - `sort_key` (Number) The sort key used for ordering disk offerings.
 - `state` (String) The current state of the disk offering (e.g., Enabled, Disabled).
