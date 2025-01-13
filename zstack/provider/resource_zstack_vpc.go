@@ -196,7 +196,7 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 		BaseParam: param.BaseParam{},
 		Params: param.CreateL3NetworkDetailParam{
 			Name:          plan.Name.ValueString(),
-			Description:   plan.Description.ValueString(), //.EndIp.ValueString(),
+			Description:   plan.Description.ValueString(),
 			L2NetworkUuid: plan.L2NetworkUuid.ValueString(),
 			Type:          "L3VpcNetwork",
 			EnableIPAM:    plan.EnableIPAM.ValueBool(),
@@ -206,7 +206,7 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	pvc, err := r.client.CreateL3Network(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to L3 network",
+			"Fail to create L3VpcNetwork",
 			"Error "+err.Error(),
 		)
 		return

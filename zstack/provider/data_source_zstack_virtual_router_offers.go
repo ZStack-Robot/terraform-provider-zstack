@@ -248,11 +248,11 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 		},
 		Blocks: map[string]schema.Block{
 			"filter": schema.ListNestedBlock{
-				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				Description: "Filter resources based on any field in the schema. For example, to filter by state, use `name = \"state\"` and `values = [\"Enabled\"]`.",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Description: "Name of the field to filter by (e.g., status, state).",
+							Description: "Name of the field to filter by (e.g., cpu_num, memory_size, state).",
 							Required:    true,
 						},
 						"values": schema.SetAttribute{

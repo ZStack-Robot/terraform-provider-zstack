@@ -24,13 +24,13 @@ type virtualRouterInstanceResource struct {
 }
 
 type virtualRouterInstanceResourceModel struct {
-	Uuid                            types.String `tfsdk:"uuid"`
-	Name                            types.String `tfsdk:"name"`
-	State                           types.String `tfsdk:"state"`
-	Status                          types.String `tfsdk:"status"`
-	Description                     types.String `tfsdk:"description"`
-	VirtualRouterOfferingUuid       types.String `tfsdk:"virtual_router_offering_uuid"`
-	ResourceUuid                    types.String `tfsdk:"resource_uuid" `                       // Resource UUID, if specified, the VM will use this value as its UUID.
+	Uuid                      types.String `tfsdk:"uuid"`
+	Name                      types.String `tfsdk:"name"`
+	State                     types.String `tfsdk:"state"`
+	Status                    types.String `tfsdk:"status"`
+	Description               types.String `tfsdk:"description"`
+	VirtualRouterOfferingUuid types.String `tfsdk:"virtual_router_offering_uuid"`
+	//ResourceUuid                    types.String `tfsdk:"resource_uuid" `                       // Resource UUID, if specified, the VM will use this value as its UUID.
 	ZoneUuid                        types.String `tfsdk:"zone_uuid" `                           // Zone UUID, if specified, the VM will be created in the specified zone.
 	ClusterUUID                     types.String `tfsdk:"cluster_uuid" `                        // Cluster UUID, if specified, the VM will be created in the specified cluster, higher priority than zoneUuid.
 	HostUuid                        types.String `tfsdk:"host_uuid" `                           // Host UUID, if specified, the VM will be created on the specified host, higher priority than zoneUuid and clusterUuid.
@@ -79,6 +79,10 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 		},
 	}
 
+	if !plan.Description.IsNull() {
+		virtualRouterInstanceParam.Params.Description = plan.Description.ValueString()
+	}
+
 	vrInstance, err := r.client.CreateVirtualRouterInstance(virtualRouterInstanceParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -89,8 +93,11 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 
 	plan.Uuid = types.StringValue(vrInstance.UUID)
 	plan.Name = types.StringValue(vrInstance.Name)
-	plan.Description = types.StringValue(vrInstance.Description)
 	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUUID)
+
+	if !plan.Description.IsNull() {
+		plan.Description = types.StringValue(vrInstance.Description)
+	}
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -144,7 +151,13 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 
 	state.Uuid = types.StringValue(vrInstance.UUID)
 	state.Name = types.StringValue(vrInstance.Name)
-	state.Description = types.StringValue(vrInstance.Description)
+
+	if vrInstance.Description != "" {
+		state.Description = types.StringValue(vrInstance.Description)
+	} else {
+		state.Description = types.StringNull()
+	}
+	//state.Description = types.StringValue(vrInstance.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -184,10 +197,12 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 				Optional:    true,
 				Description: "The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.",
 			},
-			"resource_uuid": schema.StringAttribute{
-				Optional:    true,
-				Description: "The UUID of the resource. If specified, the instance will use this value as its identifier.",
-			},
+			/*
+				"resource_uuid": schema.StringAttribute{
+					Optional:    true,
+					Description: "The UUID of the resource. If specified, the instance will use this value as its identifier.",
+				},
+			*/
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the zone where the virtual router instance will be deployed. Ensures the instance is placed within a specific zone.",

@@ -82,6 +82,13 @@ var FieldMapping = map[string]map[string]string{
 		"guest_os_type": "guestOsType",
 	},
 	"zone": {},
+	"primary_storage": {
+		"total_capacity":              "totalCapacity",
+		"available_capacity":          "availableCapacity",
+		"total_physical_capacity":     "totalPhysicalCapacity",
+		"available_physical_capacity": "availablePhysicalCapacity",
+		"system_used_capacity":        "systemUsedCapacity",
+	},
 }
 
 // GetFieldMapping

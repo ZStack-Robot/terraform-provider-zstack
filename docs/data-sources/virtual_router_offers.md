@@ -37,7 +37,7 @@ output "zstack_offers" {
 
 ### Optional
 
-- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
+- `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by state, use `name = "state"` and `values = ["Enabled"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching virtual router offer
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
 
@@ -50,7 +50,7 @@ output "zstack_offers" {
 
 Required:
 
-- `name` (String) Name of the field to filter by (e.g., status, state).
+- `name` (String) Name of the field to filter by (e.g., cpu_num, memory_size, state).
 - `values` (Set of String) Values to filter by. Multiple values will be treated as an OR condition.
 
 

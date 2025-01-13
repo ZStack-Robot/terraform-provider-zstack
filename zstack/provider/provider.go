@@ -297,6 +297,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackVIPsDataSource,
 		ZStackInstanceOfferingDataSource,
 		ZStackDiskOfferingDataSource,
+		ZStackPrimaryStorageDataSource,
 	}
 
 }
