@@ -224,10 +224,12 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 							Optional:    true,
 							Description: "The size of the data disk in gigabytes (GB).",
 						},
+
 						"primary_storage_uuid": schema.StringAttribute{
-							Optional:    true,
+							Computed:    true,
 							Description: "The UUID of the primary storage for the data disk.",
 						},
+
 						"ceph_pool_name": schema.StringAttribute{
 							Optional:    true,
 							Description: "The Ceph pool name for the data disk.",
@@ -414,11 +416,11 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 				)
 				return
 			}
-
-			if !dataDisksPlan[0].PrimaryStorageUuid.IsNull() && dataDisksPlan[0].PrimaryStorageUuid.ValueString() != "" {
-				systemTags = append(systemTags, fmt.Sprintf("primaryStorageUuidForDataVolume::%s", dataDisksPlan[0].PrimaryStorageUuid.ValueString()))
-			}
-
+			/*
+				if !dataDisksPlan[0].PrimaryStorageUuid.IsNull() && dataDisksPlan[0].PrimaryStorageUuid.ValueString() != "" {
+					systemTags = append(systemTags, fmt.Sprintf("primaryStorageUuidForDataVolume::%s", dataDisksPlan[0].PrimaryStorageUuid.ValueString()))
+				}
+			*/
 			if !dataDisksPlan[0].CephPoolName.IsNull() && dataDisksPlan[0].CephPoolName.ValueString() != "" {
 				dataDiskSystemTags = append(dataDiskSystemTags, fmt.Sprintf("ceph::pool::%s", dataDisksPlan[0].CephPoolName.ValueString()))
 			}
@@ -628,6 +630,35 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 	plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
 	//plan.IP = types.StringValue(instance.VMNics[0].IP)
+
+	var diskModelAttrTypes = map[string]attr.Type{
+		"offering_uuid":        types.StringType,
+		"size":                 types.Int64Type,
+		"primary_storage_uuid": types.StringType,
+		"ceph_pool_name":       types.StringType,
+		"virtio_scsi":          types.BoolType,
+	}
+
+	if !plan.DataDisks.IsNull() {
+		var dataDisksPlan []diskModel
+		plan.DataDisks.ElementsAs(ctx, &dataDisksPlan, false)
+
+		for i, disk := range instance.AllVolumes {
+			if i < len(dataDisksPlan) {
+				dataDisksPlan[i].PrimaryStorageUuid = types.StringValue(disk.PrimaryStorageUUID)
+			}
+		}
+
+		dataDisksList, diags := types.ListValueFrom(ctx, types.ObjectType{
+			AttrTypes: diskModelAttrTypes, // 使用 diskModelAttrTypes
+		}, dataDisksPlan)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		plan.DataDisks = dataDisksList
+
+	}
 
 	// 处理所有网卡信息
 	var vmNics []NicsModel
