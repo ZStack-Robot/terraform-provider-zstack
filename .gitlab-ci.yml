@@ -35,5 +35,3 @@ build_job:
 
     - "mc cp dist/terraform-provider-zstack-x86_64.tar.gz terraformminio/terraform/terraform-provider-zstack-x86_64.tar.gz"
     - "mc cp dist/terraform-provider-zstack-aarch64.tar.gz terraformminio/terraform/terraform-provider-zstack-aarch64.tar.gz"
-
-

@@ -100,6 +100,9 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 	plan.Name = types.StringValue(vrInstance.Name)
 	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUUID)
 
+	plan.State = types.StringValue(vrInstance.State)
+	plan.Status = types.StringValue(vrInstance.Status)
+
 	if !plan.Description.IsNull() {
 		plan.Description = types.StringValue(vrInstance.Description)
 	}
@@ -156,6 +159,8 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 
 	state.Uuid = types.StringValue(vrInstance.UUID)
 	state.Name = types.StringValue(vrInstance.Name)
+	state.State = types.StringValue(vrInstance.State)
+	state.Status = types.StringValue(vrInstance.Status)
 
 	if vrInstance.Description != "" {
 		state.Description = types.StringValue(vrInstance.Description)
