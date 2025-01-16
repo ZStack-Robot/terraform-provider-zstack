@@ -415,6 +415,10 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 				return
 			}
 
+			if !dataDisksPlan[0].PrimaryStorageUuid.IsNull() && dataDisksPlan[0].PrimaryStorageUuid.ValueString() != "" {
+				systemTags = append(systemTags, fmt.Sprintf("primaryStorageUuidForDataVolume::%s", dataDisksPlan[0].PrimaryStorageUuid.ValueString()))
+			}
+
 			if !dataDisksPlan[0].CephPoolName.IsNull() && dataDisksPlan[0].CephPoolName.ValueString() != "" {
 				dataDiskSystemTags = append(dataDiskSystemTags, fmt.Sprintf("ceph::pool::%s", dataDisksPlan[0].CephPoolName.ValueString()))
 			}
