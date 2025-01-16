@@ -25,9 +25,15 @@ build_job:
   stage: build
   #image: golang:${GO_VERSION}
   script:
-    - "echo 'Building the application...'"
+    - "echo 'Building the application for x86_64...'"
     - "mkdir -p dist"
-    - "go build -o dist/terraform-provider-zstack"
-    - "tar -czf dist/terraform-provider-zstack.tar.gz dist/terraform-provider-zstack" 
-    - "mc cp dist/terraform-provider-zstack terraformminio/terraform/terraform-provider-zstack"
+    - "GOARCH=amd64 go build -o dist/terraform-provider-zstack"
+    - "tar -czf dist/terraform-provider-zstack-x86_64.tar.gz dist/terraform-provider-zstack" 
+    - "echo 'Building the application for aarch64...'"
+    - "GOARCH=arm64 go build -o dist/terraform-provider-zstack-aarch64"
+    - "tar -czf dist/terraform-provider-zstack-aarch64.tar.gz dist/terraform-provider-zstack-aarch64"
+
+    - "mc cp dist/terraform-provider-zstack-x86_64.tar.gz terraformminio/terraform/terraform-provider-zstack-x86_64.tar.gz"
+    - "mc cp dist/terraform-provider-zstack-aarch64.tar.gz terraformminio/terraform/terraform-provider-zstack-aarch64.tar.gz"
+
 

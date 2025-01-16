@@ -76,11 +76,16 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 			Name:                      plan.Name.ValueString(),
 			Description:               plan.Description.ValueString(),
 			VirtualRouterOfferingUuid: plan.VirtualRouterOfferingUuid.ValueString(),
+			//PrimaryStorageUuidForRootVolume: plan.PrimaryStorageUuidForRootVolume.ValueStringPointer(),
 		},
 	}
 
 	if !plan.Description.IsNull() {
 		virtualRouterInstanceParam.Params.Description = plan.Description.ValueString()
+	}
+
+	if !plan.PrimaryStorageUuidForRootVolume.IsNull() {
+		virtualRouterInstanceParam.Params.PrimaryStorageUuidForRootVolume = plan.PrimaryStorageUuidForRootVolume.ValueStringPointer()
 	}
 
 	vrInstance, err := r.client.CreateVirtualRouterInstance(virtualRouterInstanceParam)
@@ -190,19 +195,13 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 				Description: "The UUID of the virtual router offering associated with this instance. Specifies the configuration and resource settings for the virtual router.",
 			},
 			"state": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "The current state of the virtual router instance. Possible values include 'Enabled', 'Disabled', etc.",
 			},
 			"status": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.",
 			},
-			/*
-				"resource_uuid": schema.StringAttribute{
-					Optional:    true,
-					Description: "The UUID of the resource. If specified, the instance will use this value as its identifier.",
-				},
-			*/
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the zone where the virtual router instance will be deployed. Ensures the instance is placed within a specific zone.",
