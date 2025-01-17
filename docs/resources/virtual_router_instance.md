@@ -39,12 +39,12 @@ output "zstack_virtual_router_instance" {
 - `description` (String) An optional description of the virtual router instance. Provides additional context or purpose of this instance.
 - `host_uuid` (String) The UUID of the host where the virtual router instance will be deployed. Takes precedence over both 'zone_uuid' and 'cluster_uuid' if specified.
 - `primary_storage_uuid_for_rootvolume` (String) The UUID of the primary storage where the root volume of the virtual router instance will be created. Ensures the root volume is placed on the specified storage.
-- `state` (String) The current state of the virtual router instance. Possible values include 'Enabled', 'Disabled', etc.
-- `status` (String) The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.
 - `zone_uuid` (String) The UUID of the zone where the virtual router instance will be deployed. Ensures the instance is placed within a specific zone.
 
 ### Read-Only
 
+- `state` (String) The current state of the virtual router instance. Possible values include 'Enabled', 'Disabled', etc.
+- `status` (String) The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.
 - `uuid` (String) The UUID of the virtual router instance, uniquely identifying this resource in ZStack. Automatically generated upon creation.
 
 

@@ -41,12 +41,12 @@ output "zstack_vpc" {
 - `description` (String) A description for the VPC network.
 - `l2_network_uuid` (String) The UUID of the L2 network associated with this VPC network.
 - `name` (String) The name of the VPC network.
+- `subnet_cidr` (Attributes) Details of the subnet CIDR to be configured in the VPC network. (see [below for nested schema](#nestedatt--subnet_cidr))
 
 ### Optional
 
 - `dns` (String) Attach Dns Server for this VPC network.
 - `enable_ipam` (Boolean) Enable IP Address Management (IPAM) for this VPC network.
-- `subnet_cidr` (Attributes) Details of the subnet CIDR to be configured in the VPC network. (see [below for nested schema](#nestedatt--subnet_cidr))
 - `virtual_router_uuid` (String) Attach virtual router  for this VPC network.
 
 ### Read-Only

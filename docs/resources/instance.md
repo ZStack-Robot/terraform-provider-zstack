@@ -83,9 +83,12 @@ Optional:
 
 - `ceph_pool_name` (String) The Ceph pool name for the data disk.
 - `offering_uuid` (String) The UUID of the disk offering for the data disk.
-- `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
 - `size` (Number) The size of the data disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the data disk uses Virtio-SCSI.
+
+Read-Only:
+
+- `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
 
 
 <a id="nestedatt--gpu_device_specs"></a>
