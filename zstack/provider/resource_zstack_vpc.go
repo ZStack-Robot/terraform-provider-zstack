@@ -115,7 +115,7 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "Attach virtual router  for this VPC network.",
 			},
 			"subnet_cidr": schema.SingleNestedAttribute{
-				Optional: true,
+				Required: true,
 				Attributes: map[string]schema.Attribute{
 					"name": schema.StringAttribute{
 						Required:    true,

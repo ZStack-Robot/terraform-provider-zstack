@@ -89,6 +89,12 @@ var FieldMapping = map[string]map[string]string{
 		"available_physical_capacity": "availablePhysicalCapacity",
 		"system_used_capacity":        "systemUsedCapacity",
 	},
+	"disks": {
+		"disk_offering_uuid":   "diskOfferingUuid",
+		"is_shareable":         "isShareable",
+		"primary_storage_uuid": "primaryStorageUuid",
+		"vm_instance_uuid":     "vmInstanceUuid",
+	},
 }
 
 // GetFieldMapping

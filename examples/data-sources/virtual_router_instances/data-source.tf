@@ -1,6 +1,6 @@
 # Copyright (c) ZStack.io, Inc.
 
-data "zstack_virtual_routers" "test" {
+data "zstack_virtual_router_instances" "test" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual router instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
   filter {
@@ -18,7 +18,7 @@ data "zstack_virtual_routers" "test" {
 }
 
 output "zstack_vrouters" {
-  value = data.zstack_virtual_routers.test
+  value = data.zstack_virtual_router_instances.test
 }
 
 
