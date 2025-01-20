@@ -313,13 +313,17 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				},
 			*/
 			"account_name": schema.StringAttribute{
-				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable." +
-					"  Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable. " +
+					"Required if using Account authentication.  Only supports the platform administrator account (`admin`). " +
+					"Mutually exclusive with `access_key_id` and `access_key_secret`. " +
+					"Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.",
 				Optional: true,
 			},
 			"account_password": schema.StringAttribute{
 				Description: "Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable." +
-					" Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.",
+					"Required if using Account authentication.  Only supports the platform administrator account (`admin`). " +
+					"Mutually exclusive with `access_key_id` and `access_key_secret`. " +
+					"Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.",
 				Optional:  true,
 				Sensitive: true,
 			},
