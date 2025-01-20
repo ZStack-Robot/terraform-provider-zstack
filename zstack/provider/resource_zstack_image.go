@@ -40,8 +40,8 @@ type imageResourceModel struct {
 	Architecture       types.String `tfsdk:"architecture"`
 	Virtio             types.Bool   `tfsdk:"virtio"`
 	Type               types.String `tfsdk:"type"`
-	Marketplace        types.Bool   `tfsdk:"marketplace"`
-	BootMode           types.String `tfsdk:"boot_mode"`
+	//Marketplace        types.Bool   `tfsdk:"marketplace"`
+	BootMode types.String `tfsdk:"boot_mode"`
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -115,53 +115,64 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			return
 		}
 	}
+	/*
+		if imagePlan.Marketplace.ValueBool() {
 
-	if imagePlan.Marketplace.ValueBool() {
+			// for marketplace image, if the image with same name status is Ready and state is Enabled, then skip add it.
+			qparam := param.NewQueryParam()
+			qparam.AddQ("name=" + imagePlan.Name.ValueString())
+			//qparam.AddQ("url=" + imagePlan.Url.ValueString())
+			qparam.AddQ("architecture=" + imagePlan.Architecture.ValueString())
+			qparam.AddQ("status=Ready")
+			qparam.AddQ("state=Enabled")
 
-		// for marketplace image, if the image with same name status is Ready and state is Enabled, then skip add it.
-		qparam := param.NewQueryParam()
-		qparam.AddQ("name=" + imagePlan.Name.ValueString())
-		//qparam.AddQ("url=" + imagePlan.Url.ValueString())
-		qparam.AddQ("architecture=" + imagePlan.Architecture.ValueString())
-		qparam.AddQ("status=Ready")
-		qparam.AddQ("state=Enabled")
-
-		images, err := r.client.QueryImage(qparam)
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"fail to get image",
-				fmt.Sprintf("fail to get image: %v", err),
-			)
-			return
-		}
-
-		tflog.Info(ctx, fmt.Sprintf("find %d images", len(images)))
-		for _, image := range images {
-			for _, backupStorageRef := range image.BackupStorageRefs {
-				backupStorageUuids = removeStringFromSlice(backupStorageUuids, backupStorageRef.BackupStorageUuid)
-			}
-
-			if len(backupStorageUuids) == 0 {
-				tflog.Info(ctx, "image has been imported to all backup storage")
-
-				imagePlan.Uuid = types.StringValue(image.UUID)
-				imagePlan.Name = types.StringValue(image.Name)
-				imagePlan.Description = types.StringValue(image.Description)
-				imagePlan.Url = types.StringValue(image.Url)
-				imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
-				imagePlan.System = types.StringValue(image.System)
-				imagePlan.Platform = types.StringValue(image.Platform)
-				imagePlan.Type = types.StringValue(image.Type)
-				imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
-				ctx = tflog.SetField(ctx, "url", image.Url)
-				diags = resp.State.Set(ctx, imagePlan)
-				resp.Diagnostics.Append(diags...)
+			images, err := r.client.QueryImage(qparam)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"fail to get image",
+					fmt.Sprintf("fail to get image: %v", err),
+				)
 				return
 			}
-		}
 
-		tflog.Info(ctx, fmt.Sprintf("unimported backupStorageUuids: %v", backupStorageUuids))
-		systemTags = append(systemTags, "marketplace::true")
+			tflog.Info(ctx, fmt.Sprintf("find %d images", len(images)))
+			for _, image := range images {
+				for _, backupStorageRef := range image.BackupStorageRefs {
+					backupStorageUuids = removeStringFromSlice(backupStorageUuids, backupStorageRef.BackupStorageUuid)
+				}
+
+				if len(backupStorageUuids) == 0 {
+					tflog.Info(ctx, "image has been imported to all backup storage")
+
+					imagePlan.Uuid = types.StringValue(image.UUID)
+					imagePlan.Name = types.StringValue(image.Name)
+					imagePlan.Description = types.StringValue(image.Description)
+					imagePlan.Url = types.StringValue(image.Url)
+					imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
+					imagePlan.System = types.StringValue(image.System)
+					imagePlan.Platform = types.StringValue(image.Platform)
+					imagePlan.Type = types.StringValue(image.Type)
+					imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
+					ctx = tflog.SetField(ctx, "url", image.Url)
+					diags = resp.State.Set(ctx, imagePlan)
+					resp.Diagnostics.Append(diags...)
+					return
+				}
+			}
+
+			tflog.Info(ctx, fmt.Sprintf("unimported backupStorageUuids: %v", backupStorageUuids))
+			systemTags = append(systemTags, "marketplace::true")
+		}
+	*/
+
+	if imagePlan.Description.IsNull() {
+		imagePlan.Description = types.StringValue("")
+	}
+	if imagePlan.GuestOsType.IsNull() {
+		imagePlan.GuestOsType = types.StringValue("Linux")
+	}
+	if imagePlan.Platform.IsNull() {
+		imagePlan.Platform = types.StringValue("Linux")
 	}
 
 	tflog.Info(ctx, "Configuring ZStack client")
@@ -261,6 +272,16 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.LastUpdated = types.StringValue(image.LastOpDate.GoString())
 	//state.Description = types.StringValue(image.Description)
 
+	if !state.Description.IsNull() {
+		state.Description = types.StringValue(image.Description)
+	}
+	if !state.GuestOsType.IsNull() {
+		state.GuestOsType = types.StringValue(image.GuestOsType)
+	}
+	if !state.Platform.IsNull() {
+		state.Platform = types.StringValue(image.Platform)
+	}
+
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -289,6 +310,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the image, providing additional context or details.",
 			},
 			"url": schema.StringAttribute{
@@ -301,6 +323,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"guest_os_type": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The guest operating system type that the image is optimized for.",
 			},
 			"system": schema.StringAttribute{
@@ -309,6 +332,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"platform": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The platform that the image is intended for, such as 'Linux', 'Windows', or others.",
 			},
 			"format": schema.StringAttribute{
@@ -332,10 +356,12 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 				Optional:    true,
 				Description: "Indicates if the VirtIO drivers are required for the image.",
 			},
-			"marketplace": schema.BoolAttribute{
-				Optional:    true,
-				Description: "Specifies whether the image is from a marketplace.",
-			},
+			/*
+				"marketplace": schema.BoolAttribute{
+					Optional:    true,
+					Description: "Specifies whether the image is from a marketplace.",
+				},
+			*/
 			"boot_mode": schema.StringAttribute{
 				Optional:    true,
 				Description: "The boot mode supported by the image, such as 'Legacy' or 'UEFI'.",
@@ -348,6 +374,8 @@ func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 }
 
+/*
+
 func removeStringFromSlice(slice []string, s string) []string {
 	for i, v := range slice {
 		if v == s {
@@ -357,3 +385,4 @@ func removeStringFromSlice(slice []string, s string) []string {
 	}
 	return slice
 }
+*/

@@ -66,6 +66,10 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 
 	offerType := "UserVm"
 	tflog.Info(ctx, "Configuring ZStack client")
+	if plan.Description.IsNull() {
+		plan.Description = types.StringValue("")
+	}
+
 	offerParam := param.CreateInstanceOfferingParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreateInstanceOfferingDetailParam{
@@ -181,6 +185,7 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the instance offering, providing additional context or details about the configuration.",
 			},
 			"cpu_num": schema.Int64Attribute{

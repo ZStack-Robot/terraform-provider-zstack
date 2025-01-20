@@ -73,6 +73,7 @@ func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description for the VIP network service.",
 			},
 			"l3_network_uuid": schema.StringAttribute{
@@ -98,6 +99,10 @@ func (r *vipResource) Create(ctx context.Context, request resource.CreateRequest
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
+	}
+
+	if plan.Description.IsNull() {
+		plan.Description = types.StringValue("")
 	}
 
 	if r.client == nil {
