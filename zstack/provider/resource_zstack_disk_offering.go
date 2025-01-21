@@ -169,6 +169,7 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the disk offering, providing additional context or details about the configuration.",
 			},
 			"disk_size": schema.Int64Attribute{

@@ -72,6 +72,7 @@ func (r *eipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description for the VIP network service.",
 			},
 			"vip_uuid": schema.StringAttribute{

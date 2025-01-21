@@ -95,7 +95,8 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "The name of the VPC network.",
 			},
 			"description": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "A description for the VPC network.",
 			},
 			"l2_network_uuid": schema.StringAttribute{

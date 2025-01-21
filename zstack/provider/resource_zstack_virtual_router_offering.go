@@ -190,6 +190,7 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the virtual router offering, providing additional context or details about the configuration.",
 			},
 			"cpu_num": schema.Int64Attribute{

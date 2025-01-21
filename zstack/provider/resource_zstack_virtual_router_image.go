@@ -240,6 +240,7 @@ func (r *virtualRouterImageResource) Schema(_ context.Context, req resource.Sche
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the virtual router image, providing additional context or details.",
 			},
 			"url": schema.StringAttribute{
