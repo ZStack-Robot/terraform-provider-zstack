@@ -7,6 +7,7 @@ resource "zstack_virtual_router_offer" "test" {
   memory_size             = 1024 # in megabytes, MB
   zone_uuid               = "d29f4847a99f4dea83bc446c8fe6e64c"
   management_network_uuid = "50e8c0d69681447fbe347c8dae2b1bef"
+  public_network_uuid     = "50e8c0d69681447fbe347c8dae2b1bef"
   image_uuid              = "93005c8a2a314a489635eca8c30794d4"
 }
 

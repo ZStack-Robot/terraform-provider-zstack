@@ -55,7 +55,6 @@ output "zstack_image" {
 - `boot_mode` (String) The boot mode supported by the image, such as 'Legacy' or 'UEFI'.
 - `description` (String) A description of the image, providing additional context or details.
 - `guest_os_type` (String) The guest operating system type that the image is optimized for.
-- `marketplace` (Boolean) Specifies whether the image is from a marketplace.
 - `media_type` (String) The type of media for the image. Examples include 'ISO' or 'Template' or DataVolumeTemplate.
 - `platform` (String) The platform that the image is intended for, such as 'Linux', 'Windows', or others.
 - `virtio` (Boolean) Indicates if the VirtIO drivers are required for the image.

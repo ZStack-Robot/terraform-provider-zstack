@@ -31,6 +31,7 @@ type virtualRouterOfferingResourceModel struct {
 	CpuNum                types.Int64  `tfsdk:"cpu_num"`
 	MemorySize            types.Int64  `tfsdk:"memory_size"`
 	ManagementNetworkUuid types.String `tfsdk:"management_network_uuid"`
+	PublicNetworkUuid     types.String `tfsdk:"public_network_uuid"`
 	ZoneUuid              types.String `tfsdk:"zone_uuid"`
 	ImageUuid             types.String `tfsdk:"image_uuid"`
 	IsDefault             types.Bool   `tfsdk:"is_default"`
@@ -77,6 +78,7 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 			CpuNum:                int(plan.CpuNum.ValueInt64()),
 			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()), //plan.MemorySize.ValueInt64(),
 			ManagementNetworkUuid: plan.ManagementNetworkUuid.ValueString(),
+			PublicNetworkUuid:     plan.PublicNetworkUuid.ValueString(),
 			ZoneUuid:              plan.ZoneUuid.ValueString(),
 			ImageUuid:             plan.ImageUuid.ValueString(),
 			IsDefault:             bool(plan.IsDefault.ValueBool()),
@@ -204,6 +206,10 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 			"management_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the management network associated with the virtual router offering. This is a mandatory field.",
+			},
+			"public_network_uuid": schema.StringAttribute{
+				Required:    true,
+				Description: "The UUID of the public network associated with the virtual router offering. If not specified, it will share the same network UUID as the management network or vice versa, depending on the configuration.",
 			},
 			"zone_uuid": schema.StringAttribute{
 				Required:    true,

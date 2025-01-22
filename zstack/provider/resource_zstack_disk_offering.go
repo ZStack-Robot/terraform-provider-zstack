@@ -25,11 +25,11 @@ type diskOfferingResource struct {
 }
 
 type diskOfferingResourceModel struct {
-	Name              types.String `tfsdk:"name"`
-	Uuid              types.String `tfsdk:"uuid"`
-	Description       types.String `tfsdk:"description"`
-	DiskSize          types.Int64  `tfsdk:"disk_size"`
-	AllocatorStrategy types.String `tfsdk:"allocator_strategy"` // Allocation strategy
+	Name        types.String `tfsdk:"name"`
+	Uuid        types.String `tfsdk:"uuid"`
+	Description types.String `tfsdk:"description"`
+	DiskSize    types.Int64  `tfsdk:"disk_size"`
+	//AllocatorStrategy types.String `tfsdk:"allocator_strategy"` // Allocation strategy
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -67,10 +67,10 @@ func (r *diskOfferingResource) Create(ctx context.Context, req resource.CreateRe
 	offerParam := param.CreateDiskOfferingParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreateDiskOfferingDetailParam{
-			Name:              plan.Name.ValueString(),
-			Description:       plan.Description.ValueStringPointer(),
-			DiskSize:          diskSizeBytes,
-			AllocatorStrategy: plan.AllocatorStrategy.ValueStringPointer(),
+			Name:        plan.Name.ValueString(),
+			Description: plan.Description.ValueStringPointer(),
+			DiskSize:    diskSizeBytes,
+			//AllocatorStrategy: plan.AllocatorStrategy.ValueStringPointer(),
 		},
 	}
 
@@ -87,7 +87,7 @@ func (r *diskOfferingResource) Create(ctx context.Context, req resource.CreateRe
 	plan.Name = types.StringValue(disk_offer.Name)
 	plan.Description = types.StringValue(disk_offer.Description)
 	plan.DiskSize = types.Int64Value(utils.BytesToGB(int64(disk_offer.DiskSize)))
-	plan.AllocatorStrategy = types.StringValue(disk_offer.AllocatorStrategy)
+	//	plan.AllocatorStrategy = types.StringValue(disk_offer.AllocatorStrategy)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -143,7 +143,7 @@ func (r *diskOfferingResource) Read(ctx context.Context, req resource.ReadReques
 	state.Description = types.StringValue(disk_offer.Description)
 	state.Name = types.StringValue(disk_offer.Name)
 	state.DiskSize = types.Int64Value(utils.BytesToGB(int64(disk_offer.DiskSize)))
-	state.AllocatorStrategy = types.StringValue(disk_offer.AllocatorStrategy)
+	//state.AllocatorStrategy = types.StringValue(disk_offer.AllocatorStrategy)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -176,11 +176,13 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 				Required:    true,
 				Description: "The amount of disk size allocated to the disk offering. This is a mandatory field, in gigabytes (GB).",
 			},
-			"allocator_strategy": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "The type of the allocator_strategy. ",
-			},
+			/*
+				"allocator_strategy": schema.StringAttribute{
+					Optional:    true,
+					Computed:    true,
+					Description: "The type of the allocator_strategy. ",
+				},
+			*/
 		},
 	}
 }

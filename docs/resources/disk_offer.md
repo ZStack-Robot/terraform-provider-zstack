@@ -35,7 +35,6 @@ output "zstack_disk_offer" {
 
 ### Optional
 
-- `allocator_strategy` (String) The type of the allocator_strategy.
 - `description` (String) A description of the disk offering, providing additional context or details about the configuration.
 
 ### Read-Only
