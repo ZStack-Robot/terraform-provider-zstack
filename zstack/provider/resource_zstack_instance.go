@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -251,7 +253,10 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 					},
 					"type": schema.StringAttribute{
 						Optional:    true,
-						Description: "The type of the GPU device.",
+						Description: "The type of the GPU device. Must be one of: `mdevDevice` or `pciDevice`.",
+						Validators: []validator.String{
+							stringvalidator.OneOf("mdevDevice", "pciDevice"),
+						},
 					},
 					"number": schema.Int64Attribute{
 						Optional:    true,
