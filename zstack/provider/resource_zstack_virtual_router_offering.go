@@ -208,7 +208,7 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 				Description: "The UUID of the management network associated with the virtual router offering. This is a mandatory field.",
 			},
 			"public_network_uuid": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "The UUID of the public network associated with the virtual router offering. If not specified, it will share the same network UUID as the management network or vice versa, depending on the configuration.",
 			},
 			"zone_uuid": schema.StringAttribute{
