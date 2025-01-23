@@ -40,13 +40,13 @@ output "zstack_vroffer" {
 - `management_network_uuid` (String) The UUID of the management network associated with the virtual router offering. This is a mandatory field.
 - `memory_size` (Number) The amount of memory  allocated to the virtual router offering. This is a mandatory field, in megabytes (MB)
 - `name` (String) The name of the virtual router offering. This is a mandatory field and must be unique.
-- `public_network_uuid` (String) The UUID of the public network associated with the virtual router offering. If not specified, it will share the same network UUID as the management network or vice versa, depending on the configuration.
 - `zone_uuid` (String) The UUID of the zone where the virtual router offering is deployed. This is a mandatory field.
 
 ### Optional
 
 - `description` (String) A description of the virtual router offering, providing additional context or details about the configuration.
 - `is_default` (Boolean) Indicates whether this virtual router offering is the default offering. Defaults to `false` if not specified.
+- `public_network_uuid` (String) The UUID of the public network associated with the virtual router offering. If not specified, it will share the same network UUID as the management network or vice versa, depending on the configuration.
 - `type` (String) The type of the virtual router offering. Defaults to 'VirtualRouter' if not specified.
 
 ### Read-Only

@@ -97,7 +97,7 @@ Read-Only:
 Optional:
 
 - `number` (Number) The number of GPU devices assigned.
-- `type` (String) The type of the GPU device.
+- `type` (String) The type of the GPU device. Must be one of: `mdevDevice` or `pciDevice`.
 - `uuid` (String) The UUID of the GPU device.
 
 
@@ -106,7 +106,7 @@ Optional:
 
 Optional:
 
-- `type` (String) The type of the GPU device.
+- `type` (String) The type of the GPU device.  Must be one of: `mdevDevice` or `pciDevice`.
 - `uuid` (String) The UUID of the GPU device.
 
 

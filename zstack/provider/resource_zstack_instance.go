@@ -275,7 +275,10 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 						},
 						"type": schema.StringAttribute{
 							Optional:    true,
-							Description: "The type of the GPU device.",
+							Description: "The type of the GPU device.  Must be one of: `mdevDevice` or `pciDevice`.",
+							Validators: []validator.String{
+								stringvalidator.OneOf("mdevDevice", "pciDevice"),
+							},
 						},
 					},
 				},
