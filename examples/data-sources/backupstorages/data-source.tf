@@ -19,7 +19,7 @@ data "zstack_backupstorages" "example" {
 }
 
 output "zstack_imagestorages" {
-  value = data.zstack_backupstorage.example
+  value = data.zstack_backupstorages.example
 }
 
 

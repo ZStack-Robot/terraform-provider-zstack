@@ -12,10 +12,10 @@ Fetches a list of images and their associated attributes from the ZStack environ
 ## Example Usage
 
 ```terraform
-# Copyright (c) ZStack.io, Inc.
+#  Copyright (c) ZStack.io, Inc.
 
-data "zstack_hosts" "example" {
-  #  name = "hostname"
+data "zstack_images" "example" {
+  #  name = "imageName"
   #   name_pattern = "hostname%"  # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
   filter {
     name   = "architecture"
@@ -27,16 +27,16 @@ data "zstack_hosts" "example" {
   }
   filter {
     name   = "status"
-    values = ["Disconnected"]
+    values = ["Ready", "Deleted"]
   }
   filter {
-    name   = "cluster_uuid"
-    values = ["37c25209578c495ca176f60ad0cd97fa"]
+    name   = "guest_os_type"
+    values = ["Linux"]
   }
 }
 
-output "zstack_hosts" {
-  value = data.zstack_hosts.example
+output "zstack_images" {
+  value = data.zstack_images.example
 }
 ```
 
