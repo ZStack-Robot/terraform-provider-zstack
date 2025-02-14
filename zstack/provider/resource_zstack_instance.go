@@ -299,6 +299,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the VM instance.",
 			},
 			"memory_size": schema.Int64Attribute{
