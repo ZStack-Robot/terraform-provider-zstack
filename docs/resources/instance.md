@@ -25,13 +25,14 @@ data "zstack_instance_offers" "offer" {
 }
 
 resource "zstack_instance" "example_vm" {
-  name                   = "example-v"
-  image_uuid             = data.zstack_images.centos.images[0].uuid
-  l3_network_uuids       = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
-  description            = "jumper server"
-  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
-  memory_size            = 4096
-  cpu_num                = 4
+  name             = "example-v"
+  image_uuid       = data.zstack_images.centos.images[0].uuid
+  l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
+  description      = "jumper server"
+  #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  memory_size = 4096
+  cpu_num     = 4
+  expunge     = true
 }
 
 output "zstack_instance" {
@@ -54,6 +55,7 @@ output "zstack_instance" {
 - `cpu_num` (Number) The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.
 - `data_disks` (Attributes List) The configuration for additional data disks. (see [below for nested schema](#nestedatt--data_disks))
 - `description` (String) A description of the VM instance.
+- `expunge` (Boolean) Indicates if the instance should be expunged after deletion.
 - `gpu_device_specs` (Attributes) The GPU specifications for the VM instance. (see [below for nested schema](#nestedatt--gpu_device_specs))
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
 - `host_uuid` (String) The UUID of the host where the VM instance is running.

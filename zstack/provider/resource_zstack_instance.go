@@ -87,6 +87,7 @@ type vmInstanceDataSourceModel struct {
 	GPUSpecs             types.Object `tfsdk:"gpu_device_specs"`
 	UserData             types.String `tfsdk:"user_data"`
 	VMNics               types.List   `tfsdk:"vm_nics"`
+	Expunge              types.Bool   `tfsdk:"expunge"`
 }
 
 type NicsModel struct {
@@ -323,6 +324,10 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"never_stop": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Whether the VM instance should never stop automatically.",
+			},
+			"expunge": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Indicates if the instance should be expunged after deletion.",
 			},
 			"marketplace": schema.BoolAttribute{
 				Optional:    true,
@@ -873,25 +878,34 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		}
 	}
 
-	//Expunge vm instance
-	err = r.client.ExpungeVmInstance(state.Uuid.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Could not expunge vm instance", "Error: "+err.Error(),
-		)
-		return
+	expunge := false
+	if !state.Expunge.IsNull() && !state.Expunge.IsUnknown() {
+		expunge = state.Expunge.ValueBool()
 	}
 
-	//Expunge vm data volume
-	for _, uuid := range volumeUuids {
-		err = r.client.ExpungeDataVolume(uuid)
+	if expunge {
+		tflog.Info(ctx, fmt.Sprintf("expunge instance %s", state.Uuid.ValueString()))
+		//Expunge vm instance
+		err = r.client.ExpungeVmInstance(state.Uuid.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Could not expunge data volume", "Error: "+err.Error(),
+				"Could not expunge vm instance", "Error: "+err.Error(),
 			)
 			return
 		}
+
+		//Expunge vm data volume
+		for _, uuid := range volumeUuids {
+			err = r.client.ExpungeDataVolume(uuid)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Could not expunge data volume", "Error: "+err.Error(),
+				)
+				return
+			}
+		}
 	}
+
 }
 
 func isDiskParamValid(r *vmResource, model diskModel) error {

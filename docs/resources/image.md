@@ -32,6 +32,7 @@ resource "zstack_image" "image" {
   virtio               = false
   backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
   boot_mode            = "legacy"
+  expunge              = true
 }
 
 output "zstack_image" {
@@ -54,6 +55,7 @@ output "zstack_image" {
 - `backup_storage_uuids` (List of String) A list of UUIDs for the backup storages where the image is stored.
 - `boot_mode` (String) The boot mode supported by the image, such as 'Legacy' or 'UEFI'.
 - `description` (String) A description of the image, providing additional context or details.
+- `expunge` (Boolean) Indicates if the image should be expunged after deletion.
 - `guest_os_type` (String) The guest operating system type that the image is optimized for.
 - `media_type` (String) The type of media for the image. Examples include 'ISO' or 'Template' or DataVolumeTemplate.
 - `platform` (String) The platform that the image is intended for, such as 'Linux', 'Windows', or others.

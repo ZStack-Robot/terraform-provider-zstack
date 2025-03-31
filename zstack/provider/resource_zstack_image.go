@@ -42,6 +42,7 @@ type imageResourceModel struct {
 	Type               types.String `tfsdk:"type"`
 	//Marketplace        types.Bool   `tfsdk:"marketplace"`
 	BootMode types.String `tfsdk:"boot_mode"`
+	Expunge  types.Bool   `tfsdk:"expunge"`
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -232,6 +233,11 @@ func (r *imageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		return
 	}
 
+	expunge := false
+	if !state.Expunge.IsNull() && !state.Expunge.IsUnknown() {
+		expunge = state.Expunge.ValueBool()
+	}
+
 	if state.Uuid == types.StringValue("") {
 		tflog.Warn(ctx, "image uuid is empty, so nothing to delete, skip it")
 		return
@@ -242,6 +248,18 @@ func (r *imageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	if err != nil {
 		resp.Diagnostics.AddError("fail to delete image", ""+err.Error())
 		return
+	}
+
+	if expunge {
+		tflog.Info(ctx, fmt.Sprintf("expunge image %s", state.Uuid.ValueString()))
+
+		err = r.client.ExpungeImage(state.Uuid.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to expunge image", "Error: "+err.Error(),
+			)
+			return
+		}
 	}
 }
 
@@ -356,12 +374,10 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 				Optional:    true,
 				Description: "Indicates if the VirtIO drivers are required for the image.",
 			},
-			/*
-				"marketplace": schema.BoolAttribute{
-					Optional:    true,
-					Description: "Specifies whether the image is from a marketplace.",
-				},
-			*/
+			"expunge": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Indicates if the image should be expunged after deletion.",
+			},
 			"boot_mode": schema.StringAttribute{
 				Optional:    true,
 				Description: "The boot mode supported by the image, such as 'Legacy' or 'UEFI'.",
