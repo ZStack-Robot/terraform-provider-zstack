@@ -8,8 +8,10 @@ import (
 
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"zstack.io/zstack-sdk-go/pkg/client"
@@ -185,7 +187,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			Name:               imagePlan.Name.ValueString(),
 			Description:        imagePlan.Description.ValueString(),
 			Url:                imagePlan.Url.ValueString(),
-			MediaType:          param.RootVolumeTemplate,
+			MediaType:          param.MediaType(imagePlan.MediaType.ValueString()), // param.RootVolumeTemplate,
 			GuestOsType:        imagePlan.GuestOsType.ValueString(),
 			System:             false,
 			Format:             param.ImageFormat(imagePlan.Format.ValueString()), // param.Qcow2,
@@ -338,6 +340,9 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"media_type": schema.StringAttribute{
 				Optional:    true,
 				Description: "The type of media for the image. Examples include 'ISO' or 'Template' or DataVolumeTemplate.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("ISO", "Template", "DataVolumeTemplate"),
+				},
 			},
 			"guest_os_type": schema.StringAttribute{
 				Optional:    true,
@@ -352,10 +357,16 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				Description: "The platform that the image is intended for, such as 'Linux', 'Windows', or others.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Linux", "Windows", "Other"),
+				},
 			},
 			"format": schema.StringAttribute{
 				Required:    true,
 				Description: "The format of the image file, such as 'qcow2', 'raw', or 'vmdk'.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("qcow2", "iso", "raw", "vmdk"),
+				},
 			},
 			"backup_storage_uuids": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -364,7 +375,10 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"architecture": schema.StringAttribute{
 				Optional:    true,
-				Description: "The architecture of the image, such as 'x86_64' or 'arm64'.",
+				Description: "The architecture of the image, such as 'x86_64' or 'aarch64'.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("x86_64", "aarch64", "mips64el", "loongarch64"),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
@@ -381,6 +395,9 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"boot_mode": schema.StringAttribute{
 				Optional:    true,
 				Description: "The boot mode supported by the image, such as 'Legacy' or 'UEFI'.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Legacy", "UEFI"),
+				},
 			},
 		},
 	}

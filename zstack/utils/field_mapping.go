@@ -36,7 +36,12 @@ var FieldMapping = map[string]map[string]string{
 		" allocator_strategy": "allocatorStrategy",
 	},
 	"image": {
-		"guest_os_type": "guestOsType",
+		"guest_os_type":        "guestOsType",
+		"image_format":         "imageFormat",
+		"image_type":           "imageType",
+		"media_type":           "mediaType",
+		"boot_mode":            "bootMode",
+		"backup_storage_uuids": "backupStorageUuids",
 	},
 	"instance_offer": {
 		"cpu_num":            "cpuNum",

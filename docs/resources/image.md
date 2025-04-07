@@ -51,7 +51,7 @@ output "zstack_image" {
 
 ### Optional
 
-- `architecture` (String) The architecture of the image, such as 'x86_64' or 'arm64'.
+- `architecture` (String) The architecture of the image, such as 'x86_64' or 'aarch64'.
 - `backup_storage_uuids` (List of String) A list of UUIDs for the backup storages where the image is stored.
 - `boot_mode` (String) The boot mode supported by the image, such as 'Legacy' or 'UEFI'.
 - `description` (String) A description of the image, providing additional context or details.
