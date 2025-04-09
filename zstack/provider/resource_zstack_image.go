@@ -339,7 +339,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			},
 			"media_type": schema.StringAttribute{
 				Optional:    true,
-				Description: "The type of media for the image. Examples include 'ISO' or 'Template' or DataVolumeTemplate.",
+				Description: "The type of media for the image. Examples include 'ISO' or 'RootVolumeTemplate' or DataVolumeTemplate.",
 				Validators: []validator.String{
 					stringvalidator.OneOf("ISO", "RootVolumeTemplate", "DataVolumeTemplate"),
 				},
