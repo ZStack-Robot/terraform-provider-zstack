@@ -41,7 +41,7 @@ type imageResourceModel struct {
 	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
 	Architecture       types.String `tfsdk:"architecture"`
 	Virtio             types.Bool   `tfsdk:"virtio"`
-	Type               types.String `tfsdk:"type"`
+	//	Type               types.String `tfsdk:"type"`
 	//Marketplace        types.Bool   `tfsdk:"marketplace"`
 	BootMode types.String `tfsdk:"boot_mode"`
 	Expunge  types.Bool   `tfsdk:"expunge"`
@@ -118,55 +118,6 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			return
 		}
 	}
-	/*
-		if imagePlan.Marketplace.ValueBool() {
-
-			// for marketplace image, if the image with same name status is Ready and state is Enabled, then skip add it.
-			qparam := param.NewQueryParam()
-			qparam.AddQ("name=" + imagePlan.Name.ValueString())
-			//qparam.AddQ("url=" + imagePlan.Url.ValueString())
-			qparam.AddQ("architecture=" + imagePlan.Architecture.ValueString())
-			qparam.AddQ("status=Ready")
-			qparam.AddQ("state=Enabled")
-
-			images, err := r.client.QueryImage(qparam)
-			if err != nil {
-				resp.Diagnostics.AddError(
-					"fail to get image",
-					fmt.Sprintf("fail to get image: %v", err),
-				)
-				return
-			}
-
-			tflog.Info(ctx, fmt.Sprintf("find %d images", len(images)))
-			for _, image := range images {
-				for _, backupStorageRef := range image.BackupStorageRefs {
-					backupStorageUuids = removeStringFromSlice(backupStorageUuids, backupStorageRef.BackupStorageUuid)
-				}
-
-				if len(backupStorageUuids) == 0 {
-					tflog.Info(ctx, "image has been imported to all backup storage")
-
-					imagePlan.Uuid = types.StringValue(image.UUID)
-					imagePlan.Name = types.StringValue(image.Name)
-					imagePlan.Description = types.StringValue(image.Description)
-					imagePlan.Url = types.StringValue(image.Url)
-					imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
-					imagePlan.System = types.StringValue(image.System)
-					imagePlan.Platform = types.StringValue(image.Platform)
-					imagePlan.Type = types.StringValue(image.Type)
-					imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
-					ctx = tflog.SetField(ctx, "url", image.Url)
-					diags = resp.State.Set(ctx, imagePlan)
-					resp.Diagnostics.Append(diags...)
-					return
-				}
-			}
-
-			tflog.Info(ctx, fmt.Sprintf("unimported backupStorageUuids: %v", backupStorageUuids))
-			systemTags = append(systemTags, "marketplace::true")
-		}
-	*/
 
 	if imagePlan.Description.IsNull() {
 		imagePlan.Description = types.StringValue("")
@@ -193,10 +144,10 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 			Format:             param.ImageFormat(imagePlan.Format.ValueString()), // param.Qcow2,
 			Platform:           imagePlan.Platform.ValueString(),
 			BackupStorageUuids: backupStorageUuids,
-			Type:               imagePlan.Type.ValueString(),
-			ResourceUuid:       "",
-			Architecture:       param.Architecture(imagePlan.Architecture.ValueString()),
-			Virtio:             imagePlan.Virtio.ValueBool(),
+			//Type:               imagePlan.Type.ValueString(),
+			ResourceUuid: "",
+			Architecture: param.Architecture(imagePlan.Architecture.ValueString()),
+			Virtio:       imagePlan.Virtio.ValueBool(),
 		},
 	}
 
@@ -216,7 +167,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
 	imagePlan.System = types.StringValue(image.System)
 	imagePlan.Platform = types.StringValue(image.Platform)
-	imagePlan.Type = types.StringValue(image.Type)
+	//imagePlan.Type = types.StringValue(image.Type)
 	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
 	ctx = tflog.SetField(ctx, "url", image.Url)
 	diags = resp.State.Set(ctx, imagePlan)
@@ -380,10 +331,12 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 					stringvalidator.OneOf("x86_64", "aarch64", "mips64el", "loongarch64"),
 				},
 			},
-			"type": schema.StringAttribute{
-				Computed:    true,
-				Description: "The type of the image, for example, 'ISO' or 'RootVolumeTemplate'.",
-			},
+			/*
+				"type": schema.StringAttribute{
+					Computed:    true,
+					Description: "The type of the image, for example, 'ISO' or 'RootVolumeTemplate'.",
+				},
+			*/
 			"virtio": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Indicates if the VirtIO drivers are required for the image.",
