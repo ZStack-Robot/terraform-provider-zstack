@@ -551,8 +551,7 @@ func (cli *ZSHttpClient) getAccessKeyHeader(url, method string) (http.Header, er
 	//loc, _ := time.LoadLocation("Asia/Shanghai")
 	//date := time.Now().In(loc).Format("Mon, 02 Jan 2006 15:04:05 MST")
 
-	loc, _ := time.LoadLocation("UTC")
-	date := time.Now().In(loc).Format("Mon, 02 Jan 2006 15:04:05 UTC")
+	date := time.Now().Local().Format("Mon, 02 Jan 2006 15:04:05 MST")
 
 	contextPath := fmt.Sprintf("/%s", cli.contextPath)
 	uri := url[strings.Index(url, contextPath)+len(contextPath):]
