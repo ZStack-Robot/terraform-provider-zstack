@@ -15,11 +15,12 @@ const (
 	// The ZStack Cloud Basic Edition supports login authentication for AccessKey, super admin, and sub-accounts.
 	// The ZStack Cloud Enterprise Edition supports login authentication for AccessKey, super admin, sub-accounts, and enterprise users.
 
-	accountLoginHostname        = "ip address" //ZStack Cloud API endpoint IP address
+	accountLoginHostname        = "172.30.3.3" //ZStack Cloud API endpoint IP address
 	accountLoginAccountName     = "admin"
 	accountLoginAccountPassword = "password"
-	accountLoginMasterHostname  = "IPOfCloudAPIEndpoint"
-	accountLoginSlaveHostname   = "IPOfCloudAPIEndpoint"
+
+	accountLoginMasterHostname = "IPOfCloudAPIEndpoint"
+	accountLoginSlaveHostname  = "IPOfCloudAPIEndpoint"
 
 	accessKeyAuthHostname        = "IPOfCloudAPIEndpoint"
 	accessKeyAuthAccessKeyId     = "AccessKeyId"

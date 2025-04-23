@@ -6,11 +6,11 @@ type VipAllocatorStrategy string
 
 const (
 	DefaultHostAllocatorStrategy            VipAllocatorStrategy = "DefaultHostAllocatorStrategy"
-	LastHostPreferredAllocatorStrategy                           = "LastHostPreferredAllocatorStrategy"
-	LeastVmPreferredHostAllocatorStrategy                        = "LeastVmPreferredHostAllocatorStrategy"
-	MinimumCPUUsageHostAllocatorStrategy                         = "MinimumCPUUsageHostAllocatorStrategy"
-	MinimumMemoryUsageHostAllocatorStrategy                      = "MinimumMemoryUsageHostAllocatorStrategy"
-	MaxInstancePerHostHostAllocatorStrategy                      = "MaxInstancePerHostHostAllocatorStrategy"
+	LastHostPreferredAllocatorStrategy      VipAllocatorStrategy = "LastHostPreferredAllocatorStrategy"
+	LeastVmPreferredHostAllocatorStrategy   VipAllocatorStrategy = "LeastVmPreferredHostAllocatorStrategy"
+	MinimumCPUUsageHostAllocatorStrategy    VipAllocatorStrategy = "MinimumCPUUsageHostAllocatorStrategy"
+	MinimumMemoryUsageHostAllocatorStrategy VipAllocatorStrategy = "MinimumMemoryUsageHostAllocatorStrategy"
+	MaxInstancePerHostHostAllocatorStrategy VipAllocatorStrategy = "MaxInstancePerHostHostAllocatorStrategy"
 )
 
 type CreateVipParam struct {

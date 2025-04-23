@@ -100,6 +100,17 @@ var FieldMapping = map[string]map[string]string{
 		"primary_storage_uuid": "primaryStorageUuid",
 		"vm_instance_uuid":     "vmInstanceUuid",
 	},
+	"qga": {
+		"instance_uuid":       "instanceUuid",
+		"guest_tools_version": "guestToolsVersion",
+		"guest_tools_status":  "guestToolsStatus",
+	},
+	"script": {
+		"script_type":    "scriptType",
+		"script_content": "scriptContent",
+		"render_params":  "renderParams",
+		"script_timeout": "scriptTimeout",
+	},
 }
 
 // GetFieldMapping

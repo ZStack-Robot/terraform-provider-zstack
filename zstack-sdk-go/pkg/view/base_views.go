@@ -15,6 +15,11 @@ type BaseTimeView struct {
 	LastOpDate time.Time `json:"lastOpDate"` // Last modification time
 }
 
+type BaseExecTimeView struct {
+	StartTime time.Time `json:"startTime"` // Start time
+	EndTime   time.Time `json:"endTime"`   // End time
+}
+
 type ErrorCodeView struct {
 	Code        string                 `json:"code"`        // Error code number, global unique identifier for the error, e.g., SYS.1000, HOST.1001
 	Description string                 `json:"description"` // Brief description of the error

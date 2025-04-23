@@ -266,6 +266,8 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackDiskOfferingDataSource,
 		ZStackPrimaryStorageDataSource,
 		ZStackDisksDataSource,
+		ZStackInstanceScriptDataSource,
+		ZStackGuestToolsDataSource,
 	}
 
 }
@@ -291,6 +293,9 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		EIPResource,
 		InstanceOfferingResource,
 		DiskOfferingResource,
+		GuestToolsResource,
+		ScriptResource,
+		ScriptExecutionResource,
 	}
 }
 
