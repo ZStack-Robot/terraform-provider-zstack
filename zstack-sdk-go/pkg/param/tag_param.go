@@ -32,3 +32,37 @@ type UpdateSystemTagParam struct {
 type UpdateTagDetailParam struct {
 	Tag string `json:"tag"`
 }
+
+type CreateResourceTagParam struct {
+	BaseParam
+	Params CreateResourceTagDetailParam `json:"params"`
+}
+type CreateResourceTagDetailParam struct {
+	Name        string `json:"name"`
+	Value       string `json:"value"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+	Type        string `json:"type"` // type 为 simple 不允许更新其 validValues = {"simple", "withToken"})
+}
+
+type UpdateResourceTagParam struct {
+	BaseParam
+	UpdateResourceTag UpdateResourceTagDetailParam `json:"updateTag"`
+}
+
+type UpdateResourceTagDetailParam struct {
+	Name        string `json:"name"`
+	Value       string `json:"value"` //不允许更改 simple Pattern 的 value，仅允许更改 withToken Pattern 的 key 值，如果是withToken 那么 name::{key1}::{key2} … ::{keyN}
+	Description string `json:"description"`
+	Color       string `json:"color"`
+}
+
+type AttachTagToResourceParam struct {
+	BaseParam
+	Params AttachTagToResourceDetailParam `json:"params"`
+}
+
+type AttachTagToResourceDetailParam struct {
+	ResourceUuids []string               `json:"resourceUuids"`
+	Tokens        map[string]interface{} `json:"tokens,omitempty"`
+}

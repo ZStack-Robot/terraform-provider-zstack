@@ -93,9 +93,10 @@ func (d *guestToolsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	guest_tools, err := d.client.GetVmGuestToolsInfo(state.InstanceUuid.ValueString())
 
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Guest Tools Info",
-			err.Error(),
+		resp.Diagnostics.AddWarning(
+			"Unable to read guest tools info",
+			fmt.Sprintf("Failed to read guest tools info for instance UUID: %s, error: %s",
+				state.InstanceUuid.ValueString(), err.Error()),
 		)
 		return
 	}
