@@ -268,6 +268,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackDisksDataSource,
 		ZStackInstanceScriptDataSource,
 		ZStackGuestToolsDataSource,
+		ZStackTagDataSource,
 	}
 
 }

@@ -111,6 +111,15 @@ var FieldMapping = map[string]map[string]string{
 		"render_params":  "renderParams",
 		"script_timeout": "scriptTimeout",
 	},
+	"user_tags": {
+		"resource_type": "resourceType",
+		"resource_uuid": "resourceUuid",
+	},
+	"system_tags": {
+		"resource_type": "resourceType",
+		"resource_uuid": "resourceUuid",
+	},
+	"tag": {},
 }
 
 // GetFieldMapping
