@@ -38,14 +38,13 @@ type TagInventory struct {
 }
 
 type TagPatternView struct {
-	Uuid        string `json:"uuid"`        // Tag pattern UUID
-	Name        string `json:"name"`        // Name of the tag pattern
-	Value       string `json:"value"`       // Actual tag value (e.g. withToken::{xxx})
-	Description string `json:"description"` // Description of the tag
-	Color       string `json:"color"`       // Color associated with the tag
-	Type        string `json:"type"`        // Tag type: simple | withToken
-	CreateDate  string `json:"createDate"`  // Creation timestamp
-	LastOpDate  string `json:"lastOpDate"`  // Last update timestamp
+	Uuid       string `json:"uuid"`       // Tag pattern UUID
+	Name       string `json:"name"`       // Name of the tag pattern
+	Value      string `json:"value"`      // Actual tag value (e.g. withToken::{xxx})
+	Color      string `json:"color"`      // Color associated with the tag
+	Type       string `json:"type"`       // Tag type: simple | withToken
+	CreateDate string `json:"createDate"` // Creation timestamp
+	LastOpDate string `json:"lastOpDate"` // Last update timestamp
 }
 
 type AttachTagToResourceResult struct {

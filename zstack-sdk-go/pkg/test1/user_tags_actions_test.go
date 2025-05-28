@@ -10,9 +10,9 @@ import (
 	"zstack.io/zstack-sdk-go/pkg/param"
 )
 
-func TestZSClient_GetUserTag(t *testing.T) {
+func TestZSClient_QueryUserTag(t *testing.T) {
 	queryParam := param.NewQueryParam()
-	queryParam.AddQ("resourceUuid=1e7e24218e314b2b80f3c0e655efc3cf")
+	queryParam.AddQ("tagPatternUuid=fbe3c0f934ce417995cebbe79d415cc0")
 	tags, err := accountLoginCli.QueryUserTag(queryParam)
 	if err != nil {
 		t.Errorf("TestQuerySystemTags %v", err)
@@ -99,9 +99,17 @@ func TestListAllTags(t *testing.T) {
 }
 
 func TestGetTag(t *testing.T) {
-	tag, err := accountLoginCli.GetTag("0b0a50adfcba457db09629b3c365d66f")
+	tag, err := accountLoginCli.GetTag("15b4769130f542b18e0296da4ef2ef80")
 	if err != nil {
 		t.Errorf("TestGetTag %v", err)
+	}
+	golog.Info(tag)
+}
+
+func TestGetUserTag(t *testing.T) {
+	tag, err := accountLoginCli.GetUserTag("15b4769130f542b18e0296da4ef2ef80")
+	if err != nil {
+		t.Errorf("TestGetUserTag %v", err)
 	}
 	golog.Info(tag)
 }
@@ -115,7 +123,7 @@ func TestAttachTagToResource(t *testing.T) {
 }
 
 func TestAttachTagToResourceWithToken(t *testing.T) {
-	tag, err := accountLoginCli.AttachTagToResource("0b0a50adfcba457db09629b3c365d66f", []string{"1e7e24218e314b2b80f3c0e655efc3cf"}, "withToken", `{"performance1":"low"}`)
+	tag, err := accountLoginCli.AttachTagToResource("fbe3c0f934ce417995cebbe79d415cc0", []string{"1bfd7c3dd7ba48b29b9c13cf26ec7037"}, "withToken", `{"performance1":"low"}`)
 	if err != nil {
 		t.Errorf("TestAttachTagToResourceWithToken %v", err)
 	}

@@ -36,6 +36,13 @@ func (cli *ZSClient) GetTag(uuid string) (view.TagInventoryView, error) {
 	return resp, cli.Get("v1/tags/", uuid, nil, &resp)
 }
 
+func (cli *ZSClient) GetUserTag(uuid string) ([]view.TagInventory, error) {
+	var tags []view.TagInventory
+	queryParam := param.NewQueryParam()
+	queryParam.AddQ("tagPatternUuid=" + uuid)
+	return tags, cli.ListAll("v1/user-tags", &queryParam, &tags)
+}
+
 // QueryTag
 func (cli *ZSClient) QueryTag(params param.QueryParam) ([]view.TagInventoryView, error) {
 	var tags []view.TagInventoryView
