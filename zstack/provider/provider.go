@@ -297,6 +297,7 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		GuestToolsResource,
 		ScriptResource,
 		ScriptExecutionResource,
+		TagResource,
 	}
 }
 
