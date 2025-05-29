@@ -36,6 +36,7 @@ type scriptModel struct {
 	Platform      types.String `tfsdk:"platform"`
 	ScriptType    types.String `tfsdk:"script_type"`
 	ScriptTimeout types.Int64  `tfsdk:"script_timeout"`
+	EncodingType  types.String `tfsdk:"encoding_type"` // Optional, default is empty
 }
 
 func ScriptResource() resource.Resource {
@@ -77,6 +78,13 @@ func (r *scriptResource) Schema(_ context.Context, request resource.SchemaReques
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Description: "The description of the script.",
+			},
+			"encoding_type": schema.StringAttribute{
+				Required:    true,
+				Description: "The encoding type of the script content. Supports: Base64, PlainText.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Base64", "PlainText"),
+				},
 			},
 			"script_content": schema.StringAttribute{
 				Required:    true,
@@ -151,6 +159,8 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 		description = plan.Description.ValueString()
 	}
 
+	//encodingType := plan.EncodingType.ValueString()
+
 	ok, pattern := isScriptContentSafe(plan.ScriptContent.ValueString())
 	if !ok {
 		response.Diagnostics.AddError(
@@ -158,6 +168,11 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 			fmt.Sprintf("The script content contains dangerous commands and is not allowed. %s", pattern),
 		)
 		return
+	}
+
+	encodingType := "Base64" // Default encoding type
+	if !plan.EncodingType.IsNull() && !plan.EncodingType.IsUnknown() && plan.EncodingType.ValueString() != "" {
+		encodingType = plan.EncodingType.ValueString()
 	}
 
 	var systemTags []string
@@ -170,6 +185,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 			Name:          plan.Name.ValueString(),
 			Description:   description,
 			ScriptContent: plan.ScriptContent.ValueString(),
+			EncodingType:  encodingType,
 			Platform:      plan.Platform.ValueString(),
 			ScriptType:    plan.ScriptType.ValueString(),
 			ScriptTimeout: int(scriptTimeout),
@@ -194,6 +210,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	plan.Platform = types.StringValue(script.Platform)
 	plan.ScriptType = types.StringValue(script.ScriptType)
 	plan.ScriptTimeout = types.Int64Value(int64(script.ScriptTimeout))
+	plan.EncodingType = types.StringValue(script.EncodingType)
 
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
@@ -280,29 +297,48 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 		description = plan.Description.ValueString()
 	}
 
-	ok, pattern := isScriptContentSafe(plan.ScriptContent.ValueString())
-	if !ok {
-		response.Diagnostics.AddError(
-			"Dangerous script content detected",
-			fmt.Sprintf("The script content contains dangerous commands and is not allowed. %s", pattern),
-		)
-		return
+	if !plan.ScriptContent.IsNull() && !plan.ScriptContent.IsUnknown() {
+		ok, pattern := isScriptContentSafe(plan.ScriptContent.ValueString())
+		if !ok {
+			response.Diagnostics.AddError(
+				"Dangerous script content detected",
+				fmt.Sprintf("The script content contains dangerous commands and is not allowed. %s", pattern),
+			)
+			return
+		}
+
 	}
 
 	var systemTags []string
+	detailParam := param.UpdateVmInstanceScriptDetailParam{
+		Name:          plan.Name.ValueString(),
+		Description:   description,
+		Platform:      plan.Platform.ValueString(),
+		ScriptType:    plan.ScriptType.ValueString(),
+		ScriptTimeout: int(scriptTimeout),
+		RenderParams:  renderParams,
+	}
+
+	scriptContent := plan.ScriptContent.ValueString()
+	encodingType := plan.EncodingType.ValueString()
+
+	if scriptContent != "" || encodingType != "" {
+		if scriptContent == "" || encodingType == "" {
+			response.Diagnostics.AddError(
+				"Update Script Error",
+				"Both scriptContent and encodingType must be provided together during update, or both must be omitted.",
+			)
+			return
+		}
+		detailParam.ScriptContent = scriptContent
+		detailParam.EncodingType = encodingType
+	}
+
 	Param := param.UpdateVmInstanceScriptParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
-		Params: param.UpdateVmInstanceScriptDetailParam{
-			Name:          plan.Name.ValueString(),
-			Description:   description,
-			ScriptContent: plan.ScriptContent.ValueString(),
-			Platform:      plan.Platform.ValueString(),
-			ScriptType:    plan.ScriptType.ValueString(),
-			ScriptTimeout: int(scriptTimeout),
-			RenderParams:  renderParams,
-		},
+		Params: detailParam,
 	}
 
 	tflog.Debug(ctx, "Updating VM instance script", map[string]interface{}{

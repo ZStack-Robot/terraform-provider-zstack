@@ -17,6 +17,7 @@ type CreateVmInstanceScriptDetailParam struct {
 	Name          string   `json:"name"`
 	Description   string   `json:"description"`            // 描述
 	ScriptContent string   `json:"scriptContent"`          // 脚本内容
+	EncodingType  string   `json:"encodingType"`           // 编码类型 Supports: UTF8, GBK, GB2312, Big5, ISO8859-1
 	Platform      string   `json:"platform"`               // 平台类型
 	ScriptType    string   `json:"scriptType"`             // script Type Supports: Shell, Python, Perl, Bat, Powershell
 	ScriptTimeout int      `json:"scriptTimeout"`          // 超时时间（秒）
@@ -33,6 +34,7 @@ type UpdateVmInstanceScriptDetailParam struct {
 	Name          string `json:"name,omitempty"`          // 资源名称
 	Description   string `json:"description,omitempty"`   // 资源描述
 	ScriptContent string `json:"scriptContent,omitempty"` // 脚本内容
+	EncodingType  string `json:"encodingType,omitempty"`  // 编码类型
 	Platform      string `json:"platform,omitempty"`      // 平台类型
 	ScriptType    string `json:"scriptType,omitempty"`    // 脚本类型
 	ScriptTimeout int    `json:"scriptTimeout,omitempty"` // 超时时间（秒）

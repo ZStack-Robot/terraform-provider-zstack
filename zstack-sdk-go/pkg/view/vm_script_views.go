@@ -12,6 +12,7 @@ type VmInstanceScriptInventoryView struct {
 	Platform      string `json:"platform"`      // 平台类型，如 Linux
 	ScriptType    string `json:"scriptType"`    // 脚本类型，如 Shell
 	ScriptTimeout int    `json:"scriptTimeout"` // 超时时间（秒）
+	EncodingType  string `json:"encodingType"`  // 编码类型，如 base64, planText
 }
 
 type VmInstanceScriptResultInventoryView struct {

@@ -22,6 +22,7 @@ resource "zstack_script" "example" {
   platform       = "Linux"
   script_type    = "Shell"
   script_timeout = 50
+  encoding_type  = "Base64"
 }
 
 
@@ -35,6 +36,7 @@ output "zstack_script_out" {
 
 ### Required
 
+- `encoding_type` (String) The encoding type of the script content. Supports: Base64, PlainText.
 - `name` (String) The name of the script.
 - `script_content` (String) The content of the script.
 - `script_type` (String) The type of the script (e.g., 'Shell', 'Python', 'PowerShell').

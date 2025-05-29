@@ -8,6 +8,7 @@ resource "zstack_script" "example" {
   platform       = "Linux"
   script_type    = "Shell"
   script_timeout = 50
+  encoding_type  = "Base64"
 }
 
 
