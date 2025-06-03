@@ -550,8 +550,10 @@ func (cli *ZSHttpClient) getAccessKeyHeader(url, method string) (http.Header, er
 
 	//loc, _ := time.LoadLocation("Asia/Shanghai")
 	//date := time.Now().In(loc).Format("Mon, 02 Jan 2006 15:04:05 MST")
+	//date := time.Now().In(time.UTC).Format("Mon, 02 Jan 2006 15:04:05 MST")
+	//date := time.Now().Local().Format("Mon, 02 Jan 2006 15:04:05 MST")
 
-	date := time.Now().Local().Format("Mon, 02 Jan 2006 15:04:05 MST")
+	date := formatDateForZStack(time.Now().Local())
 
 	contextPath := fmt.Sprintf("/%s", cli.contextPath)
 	uri := url[strings.Index(url, contextPath)+len(contextPath):]
@@ -592,7 +594,19 @@ func (cli *ZSHttpClient) Wait(location, responseKey string, retVal interface{}) 
 }
 
 func (cli *ZSHttpClient) httpWait(header http.Header, action string, requestURL string, params jsonutils.JSONObject, location string) (http.Header, jsonutils.JSONObject, error) {
+
+	configHost := fmt.Sprintf("%s:%d", cli.hostname, cli.port)
+	if !strings.Contains(location, configHost) {
+		splitRegex := "/zstack/v1/api-jobs"
+		parts := strings.Split(location, splitRegex)
+		if len(parts) > 1 {
+			location = fmt.Sprintf("http://%s%s%s", configHost, splitRegex, parts[1])
+			golog.Debugf("Replaced callback URL from %s to %s", location, location)
+		}
+	}
+
 	return retryCallback(func() (http.Header, jsonutils.JSONObject, error) {
+
 		resp, err := httputils.Request(cli.httpClient, context.TODO(), httputils.GET, location, header, nil, cli.debug)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, fmt.Sprintf("wait location %s", location))
@@ -646,4 +660,23 @@ func retryCallback(fn func() (http.Header, jsonutils.JSONObject, error), action,
 
 func jsonMarshal(params interface{}) jsonutils.JSONObject {
 	return jsonutils.Marshal(params)
+}
+
+var offsetToAbbr = map[int]string{
+	6*3600 + 30*60: "MMT", // +0630 Myanmar Time
+	7 * 3600:       "ICT", // +0700 Indochina Time
+}
+
+func formatDateForZStack(t time.Time) string {
+	loc := t.Location()
+	zoneName, zoneOffset := t.Zone()
+
+	if (strings.HasPrefix(zoneName, "+") || strings.HasPrefix(zoneName, "-")) && len(zoneName) == 5 {
+		if abbr, ok := offsetToAbbr[zoneOffset]; ok {
+			loc = time.FixedZone(abbr, zoneOffset)
+		}
+	}
+
+	t = t.In(loc)
+	return t.Format("Mon, 02 Jan 2006 15:04:05 MST")
 }
