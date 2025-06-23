@@ -25,11 +25,23 @@ data "zstack_instance_offers" "offer" {
 }
 
 resource "zstack_instance" "example_vm" {
-  name             = "example-v"
-  image_uuid       = data.zstack_images.centos.images[0].uuid
-  l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
-  description      = "jumper server"
+  name       = "example-v"
+  image_uuid = data.zstack_images.centos.images[0].uuid
+  # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] #Deprecated 
+  description = "jumper server"
   #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  network_interfaces = [
+    {
+      l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid
+      # default_l3      = true
+      static_ip = "172.30.3.154"
+    },
+    {
+      l3_network_uuid = data.zstack_l3networks.vpc_net.l3networks.0.uuid
+      default_l3      = true
+      static_ip       = "192.168.2.20"
+    }
+  ]
   memory_size = 4096
   cpu_num     = 4
   expunge     = true
@@ -46,7 +58,6 @@ output "zstack_instance" {
 ### Required
 
 - `image_uuid` (String) The UUID of the image used to create the VM instance.
-- `l3_network_uuids` (List of String) A list of UUIDs for the L3 networks associated with the VM instance.
 - `name` (String) The name of the VM instance.
 
 ### Optional
@@ -60,9 +71,11 @@ output "zstack_instance" {
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
+- `l3_network_uuids` (List of String) Deprecated. Use `network_interfaces` instead. A list of UUIDs for the L3 networks associated with the VM instance.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
 - `memory_size` (Number) The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.
-- `networks` (Attributes List) The network configurations associated with the VM instance. (see [below for nested schema](#nestedatt--networks))
+- `network_interfaces` (Attributes List) Defines network interfaces attached to the VM. Each NIC corresponds to an L3 network, and optionally configures a static IP. (see [below for nested schema](#nestedatt--network_interfaces))
+- `networks` (Attributes List) Deprecated. Use `network_interfaces` instead. The network configurations associated with the VM instance. (see [below for nested schema](#nestedatt--networks))
 - `never_stop` (Boolean) Whether the VM instance should never stop automatically.
 - `root_disk` (Attributes) The configuration for the root disk of the VM instance. (see [below for nested schema](#nestedatt--root_disk))
 - `strategy` (String) The deployment strategy for the VM instance.
@@ -106,6 +119,19 @@ Optional:
 
 - `type` (String) The type of the GPU device.  Must be one of: `mdevDevice` or `pciDevice`.
 - `uuid` (String) The UUID of the GPU device.
+
+
+<a id="nestedatt--network_interfaces"></a>
+### Nested Schema for `network_interfaces`
+
+Required:
+
+- `l3_network_uuid` (String) The UUID of the L3 network for this NIC.
+
+Optional:
+
+- `default_l3` (Boolean) Whether this NIC is the default route NIC.
+- `static_ip` (String) Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.
 
 
 <a id="nestedatt--networks"></a>
