@@ -50,10 +50,6 @@ type diskModel struct {
 	CephPoolName       types.String `tfsdk:"ceph_pool_name"`
 }
 
-type networkModel struct {
-	Uuid types.String `tfsdk:"uuid"`
-}
-
 type gpuModel struct {
 	Uuid types.String `tfsdk:"uuid"`
 	Type types.String `tfsdk:"type"`
@@ -69,11 +65,9 @@ type vmInstanceDataSourceModel struct {
 	Uuid                 types.String `tfsdk:"uuid"`
 	Name                 types.String `tfsdk:"name"`
 	ImageUuid            types.String `tfsdk:"image_uuid"`
-	L3NetworkUuids       types.List   `tfsdk:"l3_network_uuids"`
 	NetworkInterfaces    types.List   `tfsdk:"network_interfaces"`
 	RootDisk             types.Object `tfsdk:"root_disk"`
 	DataDisks            types.List   `tfsdk:"data_disks"`
-	Networks             types.List   `tfsdk:"networks"`
 	ZoneUuid             types.String `tfsdk:"zone_uuid"`
 	ClusterUuid          types.String `tfsdk:"cluster_uuid"`
 	HostUuid             types.String `tfsdk:"host_uuid"`
@@ -157,11 +151,12 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 							Description: "The UUID of the L3 network for this NIC.",
 						},
 						"default_l3": schema.BoolAttribute{
-							Optional:    true,
+							Required:    true,
 							Description: "Whether this NIC is the default route NIC.",
 						},
 						"static_ip": schema.StringAttribute{
 							Optional:    true,
+							Computed:    true,
 							Description: "Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.",
 						},
 					},
@@ -199,23 +194,6 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"image_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the image used to create the VM instance.",
-			},
-			"l3_network_uuids": schema.ListAttribute{
-				ElementType: types.StringType,
-				Optional:    true,
-				Description: "Deprecated. Use `network_interfaces` instead. A list of UUIDs for the L3 networks associated with the VM instance.",
-			},
-			"networks": schema.ListNestedAttribute{
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"uuid": schema.StringAttribute{
-							Required:    true,
-							Description: "The UUID of the network.",
-						},
-					},
-				},
-				Optional:    true,
-				Description: "Deprecated. Use `network_interfaces` instead. The network configurations associated with the VM instance.",
 			},
 			"root_disk": schema.SingleNestedAttribute{
 				Attributes: map[string]schema.Attribute{
@@ -362,11 +340,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 	}
-
 }
 
 // Create implements resource.Resource.
-
 func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan vmInstanceDataSourceModel
 	diags := req.Plan.Get(ctx, &plan)
@@ -377,8 +353,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	var rootDiskPlan diskModel
 	var dataDisksPlan []diskModel
-	var l3NetworkUuids []string
-	var systemTags []string
+
 	var primaryStorageUuidForRootVolume *string
 	hostUuid := ""
 	clusterUuid := ""
@@ -388,9 +363,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	var dataDiskOfferingUuids []string
 	var dataVolumeSystemTagsOnIndex []string
 	var dataDiskSystemTags []string
-
-	var networkInterfaces []NetworkInterfaceModel
-	var defaultL3Uuid string
 
 	// SET ROOT DISK
 	if !plan.RootDisk.IsNull() {
@@ -435,7 +407,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			if !disk.OfferingUuid.IsNull() {
 				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
 			} else if !disk.Size.IsNull() {
-				//	dataDiskSizes = append(dataDiskSizes, disk.Size.ValueInt64())
 				dataDiskSizes = append(dataDiskSizes, utils.GBToBytes(disk.Size.ValueInt64()))
 				if disk.VirtioSCSI.ValueBool() {
 					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
@@ -450,7 +421,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		}
 
 		//only support one type data disk now
-
 		if len(dataDisksPlan) > 0 {
 			err := isDiskParamValid(r, dataDisksPlan[0])
 			if err != nil {
@@ -460,11 +430,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 				)
 				return
 			}
-			/*
-				if !dataDisksPlan[0].PrimaryStorageUuid.IsNull() && dataDisksPlan[0].PrimaryStorageUuid.ValueString() != "" {
-					systemTags = append(systemTags, fmt.Sprintf("primaryStorageUuidForDataVolume::%s", dataDisksPlan[0].PrimaryStorageUuid.ValueString()))
-				}
-			*/
 			if !dataDisksPlan[0].CephPoolName.IsNull() && dataDisksPlan[0].CephPoolName.ValueString() != "" {
 				dataDiskSystemTags = append(dataDiskSystemTags, fmt.Sprintf("ceph::pool::%s", dataDisksPlan[0].CephPoolName.ValueString()))
 			}
@@ -473,56 +438,48 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// SET NETWORK
-
-	if !plan.NetworkInterfaces.IsNull() && len(plan.NetworkInterfaces.Elements()) > 0 {
-		plan.NetworkInterfaces.ElementsAs(ctx, &networkInterfaces, false)
-
-		for _, nic := range networkInterfaces {
-			l3uuid := nic.L3NetworkUuid.ValueString()
-			l3NetworkUuids = append(l3NetworkUuids, l3uuid)
-
-			if nic.DefaultL3.ValueBool() {
-				defaultL3Uuid = l3uuid
-			}
-
-			if !nic.StaticIp.IsNull() && nic.StaticIp.ValueString() != "" {
-				systemTags = append(systemTags, fmt.Sprintf("staticIp::%s::%s", l3uuid, nic.StaticIp.ValueString()))
-			}
-		}
-	} else if !plan.L3NetworkUuids.IsNull() && len(plan.L3NetworkUuids.Elements()) > 0 {
-		plan.L3NetworkUuids.ElementsAs(ctx, &l3NetworkUuids, false)
-		defaultL3Uuid = l3NetworkUuids[0]
-	} else if !plan.Networks.IsNull() && len(plan.Networks.Elements()) > 0 {
-		var networks []networkModel
-		plan.Networks.ElementsAs(ctx, &networks, false)
-		for _, network := range networks {
-			l3NetworkUuids = append(l3NetworkUuids, network.Uuid.ValueString())
-		}
-		defaultL3Uuid = l3NetworkUuids[0]
-	} else {
+	if plan.NetworkInterfaces.IsNull() || len(plan.NetworkInterfaces.Elements()) == 0 {
 		resp.Diagnostics.AddError(
-			"Params Error",
-			"network_interfaces or l3_network_uuids cannot be null at the same time",
+			"Parameter Error",
+			"`network_interfaces` cannot be null or empty. At least one L3 network must be specified.",
 		)
 		return
 	}
-	/*
-		if !plan.L3NetworkUuids.IsNull() && len(plan.L3NetworkUuids.Elements()) > 0 {
-			plan.L3NetworkUuids.ElementsAs(ctx, &l3NetworkUuids, false)
-		} else if !plan.Networks.IsNull() && len(plan.Networks.Elements()) > 0 {
-			var networks []networkModel
-			plan.Networks.ElementsAs(ctx, &networks, false)
-			for _, network := range networks {
-				l3NetworkUuids = append(l3NetworkUuids, network.Uuid.ValueString())
-			}
-		} else {
-			resp.Diagnostics.AddError(
-				"Params Error",
-				"l3NetworkUuids or networks cannot be null at the same time",
-			)
-			return
+
+	var inputNics []NetworkInterfaceModel
+	diags = plan.NetworkInterfaces.ElementsAs(ctx, &inputNics, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var l3NetworkUuids []string
+	var defaultL3Uuid string
+	var systemTags []string
+
+	var createNics []NetworkInterfaceModel
+	for _, nic := range inputNics {
+		l3uuid := nic.L3NetworkUuid.ValueString()
+		l3NetworkUuids = append(l3NetworkUuids, l3uuid)
+
+		if nic.DefaultL3.ValueBool() {
+			defaultL3Uuid = l3uuid
 		}
-	*/
+
+		var staticIp types.String
+		if nic.StaticIp.IsNull() || nic.StaticIp.ValueString() == "" {
+			staticIp = types.StringNull()
+		} else {
+			staticIp = nic.StaticIp
+			systemTags = append(systemTags, fmt.Sprintf("staticIp::%s::%s", l3uuid, staticIp.ValueString()))
+		}
+
+		createNics = append(createNics, NetworkInterfaceModel{
+			L3NetworkUuid: nic.L3NetworkUuid,
+			DefaultL3:     nic.DefaultL3,
+			StaticIp:      staticIp,
+		})
+	}
 
 	// SET IMAGE
 	image, err := r.client.GetImage(plan.ImageUuid.ValueString())
@@ -707,23 +664,44 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.Description = types.StringValue(instance.Description)
 	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 	plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
-	//plan.IP = types.StringValue(instance.VMNics[0].IP)
 
-	if len(networkInterfaces) > 0 {
-		networkInterfaceAttrTypes := map[string]attr.Type{
-			"l3_network_uuid": types.StringType,
-			"default_l3":      types.BoolType,
-			"static_ip":       types.StringType,
+	var updatedNics []NetworkInterfaceModel
+	for _, nic := range createNics {
+		var realIP string
+		for _, vmNic := range instance.VMNics {
+			if vmNic.L3NetworkUUID == nic.L3NetworkUuid.ValueString() {
+				realIP = vmNic.IP
+				break
+			}
 		}
-		networkInterfacesList, diags := types.ListValueFrom(ctx,
-			types.ObjectType{AttrTypes: networkInterfaceAttrTypes},
-			networkInterfaces)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
+
+		staticIp := nic.StaticIp
+		if staticIp.IsNull() || staticIp.ValueString() == "" {
+			staticIp = types.StringValue(realIP)
 		}
-		plan.NetworkInterfaces = networkInterfacesList
+
+		updatedNics = append(updatedNics, NetworkInterfaceModel{
+			L3NetworkUuid: nic.L3NetworkUuid,
+			DefaultL3:     nic.DefaultL3,
+			StaticIp:      staticIp,
+		})
 	}
+
+	networkInterfaceAttrTypes := map[string]attr.Type{
+		"l3_network_uuid": types.StringType,
+		"default_l3":      types.BoolType,
+		"static_ip":       types.StringType,
+	}
+
+	networkInterfacesList, diags := types.ListValueFrom(ctx,
+		types.ObjectType{AttrTypes: networkInterfaceAttrTypes},
+		updatedNics)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	plan.NetworkInterfaces = networkInterfacesList
 
 	var diskModelAttrTypes = map[string]attr.Type{
 		"offering_uuid":        types.StringType,
@@ -744,7 +722,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		}
 
 		dataDisksList, diags := types.ListValueFrom(ctx, types.ObjectType{
-			AttrTypes: diskModelAttrTypes, // 使用 diskModelAttrTypes
+			AttrTypes: diskModelAttrTypes,
 		}, dataDisksPlan)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
@@ -754,7 +732,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	}
 
-	// 处理所有网卡信息
 	var vmNics []NicsModel
 	for _, nic := range instance.VMNics {
 		vmNics = append(vmNics, NicsModel{
@@ -779,7 +756,6 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 // Read implements resource.Resource.
 func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state vmInstanceDataSourceModel
-	req.State.Schema.GetAttributes()
 
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -814,13 +790,34 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	}
 
 	state.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
+	resp.Diagnostics.Append(diags...)
 
 	var networkInterfaces []NetworkInterfaceModel
+	originalNetworkInterfaces := make(map[string]string)
+	if !state.NetworkInterfaces.IsNull() && len(state.NetworkInterfaces.Elements()) > 0 {
+		var oldNics []NetworkInterfaceModel
+		diags := state.NetworkInterfaces.ElementsAs(ctx, &oldNics, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		for _, oldNic := range oldNics {
+			if !oldNic.StaticIp.IsNull() && oldNic.StaticIp.ValueString() != "" {
+				originalNetworkInterfaces[oldNic.L3NetworkUuid.ValueString()] = oldNic.StaticIp.ValueString()
+			}
+		}
+	}
+
 	for _, nic := range vm.VMNics {
+		staticIP := types.StringNull()
+		if ip, ok := originalNetworkInterfaces[nic.L3NetworkUUID]; ok && ip == nic.IP {
+			staticIP = types.StringValue(ip)
+		}
+
 		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
 			L3NetworkUuid: types.StringValue(nic.L3NetworkUUID),
-			DefaultL3:     types.BoolValue(nic.L3NetworkUUID == vm.DefaultL3NetworkUUID),
-			StaticIp:      types.StringNull(), // Terraform 没法读取 staticIp，保持 null
+			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUUID != "" && nic.L3NetworkUUID == vm.DefaultL3NetworkUUID),
+			StaticIp:      staticIP,
 		})
 	}
 	state.NetworkInterfaces, _ = types.ListValueFrom(ctx, types.ObjectType{
@@ -831,7 +828,8 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		},
 	}, networkInterfaces)
 
-	state.L3NetworkUuids, _ = types.ListValue(types.StringType, []attr.Value{types.StringValue(vm.DefaultL3NetworkUUID)})
+	resp.Diagnostics.Append(diags...)
+
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -926,10 +924,6 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 				"static_ip":       types.StringType,
 			},
 		}, networkInterfaces)
-
-		plan.L3NetworkUuids, _ = types.ListValue(types.StringType, []attr.Value{
-			types.StringValue(instance.DefaultL3NetworkUUID),
-		})
 
 		diags := resp.State.Set(ctx, &plan)
 		resp.Diagnostics.Append(diags...)

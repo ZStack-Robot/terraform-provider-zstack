@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = &tagResource{}
-	_ resource.ResourceWithConfigure = &tagResource{}
+	_ resource.Resource                = &tagResource{}
+	_ resource.ResourceWithConfigure   = &tagResource{}
+	_ resource.ResourceWithImportState = &tagResource{}
 )
 
 type tagResource struct {
@@ -242,4 +243,31 @@ func (r *tagResource) Delete(ctx context.Context, request resource.DeleteRequest
 		response.Diagnostics.AddError("Error deleting tag", err.Error())
 		return
 	}
+}
+
+func (r *tagResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
+	tagUUID := request.ID
+
+	if tagUUID == "" {
+		response.Diagnostics.AddError("Missing Tag UUID", "Import requires a valid tag UUID as the ID.")
+		return
+	}
+
+	tag, err := r.client.GetTag(tagUUID)
+	if err != nil {
+		response.Diagnostics.AddError(
+			"Tag Not Found",
+			fmt.Sprintf("Could not find tag with UUID '%s': '%v'", tagUUID, err),
+		)
+		return
+	}
+
+	response.State.Set(ctx, &tagResourceModel{
+		Uuid:        types.StringValue(tag.UUID),
+		Name:        types.StringValue(tag.Name),
+		Description: types.StringValue(tag.Description),
+		Color:       types.StringValue(tag.Color),
+		Type:        types.StringValue(tag.Type),
+		//Value: types.StringValue(tag.),
+	})
 }
