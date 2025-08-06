@@ -10,3 +10,13 @@ type AttachNetworkServiceToL3NetworkParam struct {
 type AttachNetworkServiceToL3NetworkDetailParam struct {
 	NetworkServices map[string][]string `json:"networkServices"`
 }
+
+type AddVmNicToSecurityGroupParam struct {
+	BaseParam
+	Params AddVmNicToSecurityGroupDetailParam `json:"params"`
+}
+
+type AddVmNicToSecurityGroupDetailParam struct {
+	//	SecurityGroupUuid string   `json:"securityGroupUuid"`
+	VmNicUuids []string `json:"vmNicUuids"`
+}

@@ -22,6 +22,7 @@ type VmNicInventoryView struct {
 	LastOpDate     string   `json:"lastOpDate"`     // Last modification time
 	InternalName   string   `json:"internalName"`
 	UsedIps        []UsedIp `json:"usedIps"`
+	//State          string   `json:"state"`
 }
 
 type UsedIp struct {

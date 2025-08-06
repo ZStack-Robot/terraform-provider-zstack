@@ -32,8 +32,8 @@ var FieldMapping = map[string]map[string]string{
 		"zone_uuid":    "zoneUuid",
 	},
 	"disk_offer": {
-		"disk_size":           "diskSize",
-		" allocator_strategy": "allocatorStrategy",
+		"disk_size":          "diskSize",
+		"allocator_strategy": "allocatorStrategy",
 	},
 	"image": {
 		"guest_os_type":        "guestOsType",
@@ -120,6 +120,12 @@ var FieldMapping = map[string]map[string]string{
 		"resource_uuid": "resourceUuid",
 	},
 	"tag": {},
+	"security_group": {
+		"ip_version":                "ipVersion",
+		"start_port":                "startPort",
+		"end_port":                  "endPort",
+		"attached_l3_network_uuids": "attachedL3NetworkUuids",
+	},
 }
 
 // GetFieldMapping

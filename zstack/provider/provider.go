@@ -269,6 +269,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackInstanceScriptDataSource,
 		ZStackGuestToolsDataSource,
 		ZStackTagDataSource,
+		ZStackNetworkingSecGroupDataSource,
 	}
 
 }
@@ -299,6 +300,7 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		ScriptExecutionResource,
 		TagResource,
 		TagAttachmentResource,
+		SecurityGroupAttachmentResource,
 	}
 }
 

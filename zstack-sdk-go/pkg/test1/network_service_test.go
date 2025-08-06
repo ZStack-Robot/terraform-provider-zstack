@@ -5,7 +5,9 @@ package test
 import (
 	"testing"
 
+	"github.com/kataras/golog"
 	"zstack.io/zstack-sdk-go/pkg/param"
+	"zstack.io/zstack-sdk-go/pkg/util/jsonutils"
 )
 
 func TestQueryNetworkServiceProvider(t *testing.T) {
@@ -50,6 +52,56 @@ func TestAttachNetworkServiceToL3Network(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestQuerySecurityGroup(t *testing.T) {
+	data, err := accountLoginCli.QuerySecurityGroup(param.NewQueryParam())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	golog.Info(jsonutils.Marshal(data))
+
+}
+
+func TestGetSecurityGroup(t *testing.T) {
+	data, err := accountLoginCli.GetSecurityGroup("f450b20497c34397977091bc1c8f87f9")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(data))
+}
+
+func TestGetCandidateVmNicForSecurityGroup(t *testing.T) {
+	data, err := accountLoginCli.GetCandidateVmNicForSecurityGroup("f450b20497c34397977091bc1c8f87f9")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(data))
+}
+
+func TestAddVmNicToSecurityGroup(t *testing.T) {
+	err := accountLoginCli.AddVmNicToSecurityGroup("f450b20497c34397977091bc1c8f87f9", param.AddVmNicToSecurityGroupParam{
+		BaseParam: param.BaseParam{},
+		Params: param.AddVmNicToSecurityGroupDetailParam{
+			VmNicUuids: []string{"20ff9a2ba9ca4209a361c1ee52ff1b0f", "a8aa88c413704717b138190832864b54"},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestDeleteVmNicFromSecurityGroup(t *testing.T) {
+	err := accountLoginCli.DeleteVmNicFromSecurityGroup("f450b20497c34397977091bc1c8f87f9", []string{"20ff9a2ba9ca4209a361c1ee52ff1b0f", "a8aa88c413704717b138190832864b54"})
 	if err != nil {
 		t.Error(err)
 		return
