@@ -122,8 +122,8 @@ var FieldMapping = map[string]map[string]string{
 	"tag": {},
 	"security_group": {
 		"ip_version":                "ipVersion",
-		"start_port":                "startPort",
-		"end_port":                  "endPort",
+		"src_ip_range":              "srcIpRange",
+		"dst_ip_range":              "dstIpRange",
 		"attached_l3_network_uuids": "attachedL3NetworkUuids",
 	},
 }

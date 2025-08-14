@@ -23,21 +23,27 @@ type NetworkServiceProviderInventoryView struct {
 type SecurityGroupInventoryView struct {
 	BaseInfoView
 	BaseTimeView
-	State                  string                  `json:"state"`     // Enabled, Disabled
-	IpVersion              string                  `json:"ipVersion"` // IPv4, IPv6
-	AttachedL3NetworkUuids []string                `json:"attachedL3NetworkUuids"`
-	Rules                  []SecurityGroupRuleView `json:"rules"` // Security group rules
+	State                  string                           `json:"state"`     // Enabled, Disabled
+	IpVersion              string                           `json:"ipVersion"` // IPv4, IPv6
+	AttachedL3NetworkUuids []string                         `json:"attachedL3NetworkUuids"`
+	Rules                  []SecurityGroupRuleInventoryView `json:"rules"` // Security group rules
 }
 
-type SecurityGroupRuleView struct {
-	BaseInfoView
+type SecurityGroupRuleInventoryView struct {
 	BaseTimeView
-	Type                    string `json:"type"` // Ingress, Egress
-	IpVersion               string `json:"ipVersion"`
-	StartPort               int64  `json:"startPort"`
-	EndPort                 int64  `json:"endPort"`
-	Protocol                string `json:"protocol"`                // TCP, UDP, ICMP, ICMPv
-	State                   string `json:"state"`                   // Enabled, Disabled
-	AllowedCidr             string `json:"allowedCidr"`             // CIDR format, e.g
-	RemoteSecurityGroupUuid string `json:"remoteSecurityGroupUuid"` // UUID of the remote security group, if applicable
+	UUID              string `json:"uuid"`
+	Action            string `json:"action"` // Allow, Deny
+	Description       string `json:"description,omitempty"`
+	StartPort         int64  `json:"startPort"`
+	EndPort           int64  `json:"endPort"`
+	IpVersion         int    `json:"ipVersion"`              // 4 or 6
+	Priority          int    `json:"priority"`               // Optional, default is 0
+	Protocol          string `json:"protocol"`               // TCP, UDP, ICMP, ALL
+	AllowedCidr       string `json:"allowedCidr"`            // CIDR format, e.g., "
+	DstPortRange      string `json:"dstPortRange,omitempty"` // e.g., "21, 80-443" for TCP/UDP
+	SecurityGroupUuid string `json:"securityGroupUuid"`      // UUID of the security group this rule belongs to
+	SrcIpRange        string `json:"srcIpRange,omitempty"`   // Ingress Only. CIDR format, e.g., 192.168.1.1-192.168.1.10,192.168.1.11"
+	DstIpRange        string `json:"dstIpRange,omitempty"`   // Egress Only. CIDR format, e.g.,  192.168.1.1-192.168.1.10,192.168.1.11""
+	State             string `json:"state"`                  // Enabled, Disabled
+	Type              string `json:"type"`                   // Ingress, Egress
 }

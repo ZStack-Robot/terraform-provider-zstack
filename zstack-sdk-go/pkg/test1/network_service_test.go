@@ -3,6 +3,7 @@
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kataras/golog"
@@ -106,4 +107,158 @@ func TestDeleteVmNicFromSecurityGroup(t *testing.T) {
 		t.Error(err)
 		return
 	}
+}
+
+func TestCreateSecurityGroupTypeBridge(t *testing.T) {
+	data, err := accountLoginCli.CreateSecurityGroup(param.CreateSecurityGroupParam{
+		BaseParam: param.BaseParam{},
+		Params: param.CreateSecurityGroupDetailParam{
+			Name:        "test-security-bridge",
+			Description: "This is a test security group",
+			IpVersion:   4,
+			VSwitchType: "LinuxBridge",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(data))
+}
+
+func TestCreateSecurityGroupTypeOvnDpdk(t *testing.T) {
+	data, err := accountLoginCli.CreateSecurityGroup(param.CreateSecurityGroupParam{
+		BaseParam: param.BaseParam{
+			SystemTags: []string{"SdnControllerUuid::65589889039944b5a2efeb2ed4d67594"},
+		},
+		Params: param.CreateSecurityGroupDetailParam{
+			Name:        "test-security-group-ovn-dpdk",
+			Description: "This is a test security group",
+			IpVersion:   4,
+			VSwitchType: "OvnDpdk",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(data))
+}
+
+func TestDeleteSecurityGroup(t *testing.T) {
+	err := accountLoginCli.DeleteSecurityGroup("29625f3dc9614b2aba987b1473ef3cc6", param.DeleteModePermissive)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
+func TestChangeSecurityGroupState(t *testing.T) {
+	state, err := accountLoginCli.ChangeSecurityGroupState(param.ChangeSecurityGroupStateParam{
+		BaseParam:         param.BaseParam{},
+		SecurityGroupUuid: "a6c0eec6940d48cea18363fe9321fca1",
+		ChangeImageState: param.ChangeSecurityGroupStateDetailParam{
+			StateEvent: param.StateEventDisable, // or StateEventEnable
+		},
+	})
+	if err != nil {
+		golog.Errorf("TestZSClient_UpdateSecurityGroupState error:%v", err)
+	}
+	fmt.Println(state)
+}
+
+func TestAddSecurityGroupRule(t *testing.T) {
+	sgUuid := "4a481035e89442eb8ec611f970cb00da"
+
+	params := param.AddSecurityGroupRuleParam{
+		BaseParam: param.BaseParam{},
+		Params: param.AddSecurityGroupRuleDetailParam{
+			Rules: []param.AddSecurityGroupRule{
+				{
+					RuleType:     "Ingress",
+					State:        "Enabled",
+					Description:  "Allow HTTP traffic5",
+					IpVersion:    4,
+					Protocol:     "TCP",
+					SrcIpRange:   "10.5.1.2-10.5.1.200",
+					DstPortRange: "80,443,8080-9090",
+					Action:       "ACCEPT",
+				},
+				{
+					RuleType:     "Ingress",
+					State:        "Enabled",
+					Description:  "Allow outbound traffic5",
+					IpVersion:    4,
+					Protocol:     "TCP",
+					SrcIpRange:   "13.13.15.13",
+					DstPortRange: "80,443",
+					Action:       "DROP",
+				},
+			},
+			Priority: 1,
+		},
+	}
+
+	resp, err := accountLoginCli.AddSecurityGroupRule(sgUuid, params)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(resp))
+}
+
+func TestGetSecurityGroupRules(t *testing.T) {
+	ruleUuid := "de70fcce3a444532a6c3e97da335da62"
+
+	rules, err := accountLoginCli.GetSecurityGroupRule(ruleUuid)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(rules))
+}
+
+func TestQuerySecurityGroupRules(t *testing.T) {
+	params := param.NewQueryParam()
+
+	rules, err := accountLoginCli.QuerySecurityGroupRule(params)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(rules))
+}
+
+func TestDeleteSecurityGroupRule(t *testing.T) {
+	ruleUuid := "cbdc3c4c9c1e4e2faa3607f53b6e4217"
+
+	err := accountLoginCli.DeleteSecurityGroupRule(ruleUuid)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info("Security group rule deleted successfully")
+}
+
+func TestUpdateSecurityGroupRule(t *testing.T) {
+	ruleUuid := "6ed5510bef2d43f688ac04c9c35647a6"
+
+	params := param.UpdateSecurityGroupRuleParam{
+		BaseParam: param.BaseParam{},
+		ChangeSecurityGroupRule: param.UpdateSecurityGroupRuleDetailParam{
+			Description:  "Updated rule description",
+			State:        "Enabled", // or "Enabled"
+			Priority:     8,
+			Protocol:     "TCP",
+			SrcIpRange:   "13.13.13.111",
+			Action:       "DROP", // or "ACCEPT"
+			DstPortRange: "80,443",
+		},
+	}
+	resp, err := accountLoginCli.UpdateSecurityGroupRule(ruleUuid, params)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	golog.Info(jsonutils.Marshal(resp))
 }

@@ -67,3 +67,64 @@ func (cli *ZSClient) DeleteVmNicFromSecurityGroup(securityGroupUuid string, vmNi
 	return nil
 
 }
+
+// CreateSecurityGroup Create a security group
+func (cli *ZSClient) CreateSecurityGroup(p param.CreateSecurityGroupParam) (*view.SecurityGroupInventoryView, error) {
+	var resp view.SecurityGroupInventoryView
+	if err := cli.Post("v1/security-groups", p, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// DeleteSecurityGroup Delete a security group
+func (cli *ZSClient) DeleteSecurityGroup(uuid string, deleteMode param.DeleteMode) error {
+	return cli.Delete("v1/security-groups", uuid, string(deleteMode))
+}
+
+// ChangeSecurityGroupState Change the state of a security group
+func (cli *ZSClient) ChangeSecurityGroupState(params param.ChangeSecurityGroupStateParam) (view.SecurityGroupInventoryView, error) {
+	securityGroup := view.SecurityGroupInventoryView{}
+	return securityGroup, cli.Put("v1/security-groups", params.SecurityGroupUuid, params, &securityGroup)
+}
+
+// AddSecurityGroupRule Add rules to a security group
+func (cli *ZSClient) AddSecurityGroupRule(securityGroupUuid string, params param.AddSecurityGroupRuleParam) (*view.SecurityGroupInventoryView, error) {
+	var resp view.SecurityGroupInventoryView
+	if err := cli.Post("v1/security-groups/"+securityGroupUuid+"/rules", params, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// QuerySecurityGroupRule Query security group rules
+func (cli *ZSClient) QuerySecurityGroupRule(params param.QueryParam) ([]view.SecurityGroupRuleInventoryView, error) {
+	var resp []view.SecurityGroupRuleInventoryView
+	return resp, cli.List("v1/security-groups/rules", &params, &resp)
+}
+
+// GetSecurityGroupRule Get security group rule by UUID
+func (cli *ZSClient) GetSecurityGroupRule(uuid string) ([]view.SecurityGroupRuleInventoryView, error) {
+	var resp []view.SecurityGroupRuleInventoryView
+	if err := cli.GetWithSpec("v1/security-groups/rules", uuid, "", responseKeyInventories, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// DeleteSecurityGroupRule Delete a security group rule
+func (cli *ZSClient) DeleteSecurityGroupRule(ruleUuid string) error {
+	params := fmt.Sprintf("ruleUuids=%s", ruleUuid)
+	return cli.DeleteWithSpec("v1/security-groups/rules", "", "", params, nil)
+}
+
+// UpdateSecurityGroupRule Update a security group rule
+func (cli *ZSClient) UpdateSecurityGroupRule(ruleUuid string, params param.UpdateSecurityGroupRuleParam) (*view.SecurityGroupRuleInventoryView, error) {
+	var resp view.SecurityGroupRuleInventoryView
+	responseKey := "inventory"
+	if err := cli.PutWithSpec("v1/security-groups/rules", ruleUuid, "actions", responseKey, params, &resp); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}

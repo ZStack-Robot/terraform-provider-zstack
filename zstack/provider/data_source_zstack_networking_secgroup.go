@@ -40,14 +40,18 @@ type networkingSecGroupDataSourceModel struct {
 }
 
 type rules struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Type        types.String `tfsdk:"type"` //流量类型
-	IpVersion   types.String `tfsdk:"ip_version"`
-	StartPort   types.Int64  `tfsdk:"start_port"` //如果协议是TCP/UDP, 它是端口范围（port range）的起始端口号; 如果协议是ICMP, 它是ICMP类型（type）
-	EndPort     types.Int64  `tfsdk:"end_port"`
-	Protocol    types.String `tfsdk:"protocol"`
-	State       types.String `tfsdk:"state"`
-	AllowedCidr types.String `tfsdk:"allowed_cidr"`
+	Uuid              types.String `tfsdk:"uuid"`
+	Action            types.String `tfsdk:"action"` // Allow, Deny
+	Description       types.String `tfsdk:"description"`
+	Protocol          types.String `tfsdk:"protocol"`
+	IpVersion         types.Int32  `tfsdk:"ip_version"`
+	Priority          types.Int32  `tfsdk:"priority"`
+	DstPortRange      types.String `tfsdk:"dst_port_range"`
+	SecurityGroupUuid types.String `tfsdk:"security_group_uuid"`
+	SrcIpRange        types.String `tfsdk:"src_ip_range"` // CIDR
+	DstIpRange        types.String `tfsdk:"dst_ip_range"` // CIDR
+	Type              types.String `tfsdk:"type"`
+	State             types.String `tfsdk:"state"`
 }
 
 type networkingSecGroupDataSource struct {
@@ -138,14 +142,18 @@ func (d *networkingSecGroupDataSource) Read(ctx context.Context, req datasource.
 		for _, rule := range securitygroups.Rules {
 			networkingSecGroupState.Rules = append(networkingSecGroupState.Rules,
 				rules{
-					Uuid:        types.StringValue(rule.UUID),
-					Type:        types.StringValue(rule.Type),
-					IpVersion:   types.StringValue(rule.IpVersion),
-					StartPort:   types.Int64Value(int64(rule.StartPort)),
-					EndPort:     types.Int64Value(int64(rule.EndPort)),
-					Protocol:    types.StringValue(rule.Protocol),
-					State:       types.StringValue(rule.State),
-					AllowedCidr: types.StringValue(rule.AllowedCidr),
+					Uuid:              types.StringValue(rule.UUID),
+					Type:              types.StringValue(rule.Type),
+					IpVersion:         types.Int32Value(int32(rule.IpVersion)),
+					Description:       types.StringValue(rule.Description),
+					Priority:          types.Int32Value(int32(rule.Priority)),
+					DstPortRange:      types.StringValue(rule.DstPortRange),
+					SecurityGroupUuid: types.StringValue(rule.SecurityGroupUuid),
+					SrcIpRange:        types.StringValue(rule.SrcIpRange),
+					DstIpRange:        types.StringValue(rule.DstIpRange),
+					Action:            types.StringValue(rule.Action),
+					Protocol:          types.StringValue(rule.Protocol),
+					State:             types.StringValue(rule.State),
 				})
 		}
 		state.NetworkingSecGroups = append(state.NetworkingSecGroups, networkingSecGroupState)
@@ -206,32 +214,48 @@ func (d *networkingSecGroupDataSource) Schema(ctx context.Context, req datasourc
 										Description: "UUID of the rule.",
 										Computed:    true,
 									},
-									"type": schema.StringAttribute{
-										Description: "Direction of traffic (Ingress or Egress).",
+									"action": schema.StringAttribute{
+										Description: "Action of the rule (Allow, Deny).",
 										Computed:    true,
 									},
-									"ip_version": schema.StringAttribute{
-										Description: "IP version (IPv4 or IPv6).",
-										Computed:    true,
-									},
-									"start_port": schema.Int64Attribute{
-										Description: "Start port for TCP/UDP or ICMP type.",
-										Computed:    true,
-									},
-									"end_port": schema.Int64Attribute{
-										Description: "End port for TCP/UDP or ICMP code.",
+									"description": schema.StringAttribute{
+										Description: "Description of the rule.",
 										Computed:    true,
 									},
 									"protocol": schema.StringAttribute{
 										Description: "Protocol of the rule (TCP, UDP, ICMP, ALL).",
 										Computed:    true,
 									},
-									"state": schema.StringAttribute{
-										Description: "State of the rule (Enabled, Disabled).",
+									"ip_version": schema.Int32Attribute{
+										Description: "IP version (IPv4 or IPv6).",
 										Computed:    true,
 									},
-									"allowed_cidr": schema.StringAttribute{
-										Description: "CIDR allowed by this rule.",
+									"priority": schema.Int32Attribute{
+										Description: "Priority of the rule, default is 0.",
+										Computed:    true,
+									},
+									"dst_port_range": schema.StringAttribute{
+										Description: "Destination port range, e.g., '21, 80-443'",
+										Computed:    true,
+									},
+									"security_group_uuid": schema.StringAttribute{
+										Description: "UUID of the security group this rule belongs to.",
+										Computed:    true,
+									},
+									"src_ip_range": schema.StringAttribute{
+										Description: "Source IP range in CIDR format, e.g., '192.168.1.0/24'.",
+										Computed:    true,
+									},
+									"dst_ip_range": schema.StringAttribute{
+										Description: "Destination IP range in CIDR format, e.g., '192.168.1.0/24'.",
+										Computed:    true,
+									},
+									"type": schema.StringAttribute{
+										Description: "Type of the rule (Ingress, Egress).",
+										Computed:    true,
+									},
+									"state": schema.StringAttribute{
+										Description: "State of the rule (Enabled, Disabled).",
 										Computed:    true,
 									},
 								},
