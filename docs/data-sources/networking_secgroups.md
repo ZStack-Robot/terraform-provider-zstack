@@ -13,8 +13,7 @@ Query ZStack Security Groups by name, name pattern, or additional filters.
 
 ```terraform
 data "zstack_networking_secgroups" "test" {
-  #name = "p1"
-  name_pattern = "p%"
+  priority = 8
   filter {
     name   = "state"
     values = ["Enabled"]
@@ -59,19 +58,24 @@ Read-Only:
 - `rules` (Attributes Set) List of security group rules. (see [below for nested schema](#nestedatt--networking_secgroups--rules))
 - `state` (String) State of the security group (Enabled, Disabled).
 - `uuid` (String) UUID of the security group.
+- `vswitch_type` (String) Type of the virtual switch (LinuxBridge, OvnDpdk).
 
 <a id="nestedatt--networking_secgroups--rules"></a>
 ### Nested Schema for `networking_secgroups.rules`
 
 Read-Only:
 
-- `allowed_cidr` (String) CIDR allowed by this rule.
-- `end_port` (Number) End port for TCP/UDP or ICMP code.
-- `ip_version` (String) IP version (IPv4 or IPv6).
+- `action` (String) Action of the rule (Allow, Deny).
+- `description` (String) Description of the rule.
+- `dst_ip_range` (String) Destination IP range in CIDR format, e.g., '192.168.1.0/24'.
+- `dst_port_range` (String) Destination port range, e.g., '21, 80-443'
+- `ip_version` (Number) IP version (IPv4 or IPv6).
+- `priority` (Number) Priority of the rule, default is 0.
 - `protocol` (String) Protocol of the rule (TCP, UDP, ICMP, ALL).
-- `start_port` (Number) Start port for TCP/UDP or ICMP type.
+- `security_group_uuid` (String) UUID of the security group this rule belongs to.
+- `src_ip_range` (String) Source IP range in CIDR format, e.g., '192.168.1.0/24'.
 - `state` (String) State of the rule (Enabled, Disabled).
-- `type` (String) Direction of traffic (Ingress or Egress).
+- `type` (String) Type of the rule (Ingress, Egress).
 - `uuid` (String) UUID of the rule.
 
 

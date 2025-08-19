@@ -105,19 +105,7 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 		return
 	}
 
-	for _, nic := range attachedNics {
-		if nic.UUID == nicUUID {
-			tflog.Info(ctx, "Security group attachment already exists, importing into state.", map[string]interface{}{
-				"id":            plan.ID.ValueString(),
-				"secgroup_uuid": secgroupUUID,
-				"nic_uuid":      nicUUID,
-			})
-			// The resource already exists, just set the state.
-			diags := response.State.Set(ctx, plan)
-			response.Diagnostics.Append(diags...)
-			return
-		}
-	}
+	attachedNics.UUID = nicUUID
 
 	// Step 1: get candidates vm nics
 	candidates, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
@@ -193,7 +181,7 @@ func (r *securityGroupAttachmentResource) Read(ctx context.Context, req resource
 		}
 	}
 
-	state.ID = types.StringValue(fmt.Sprintf("%s-%s", secgroupUUID, vmNicUUID))
+	state.ID = types.StringValue(fmt.Sprintf("%s::%s", secgroupUUID, vmNicUUID))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 

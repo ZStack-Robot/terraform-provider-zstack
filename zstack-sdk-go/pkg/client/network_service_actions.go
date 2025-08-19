@@ -28,15 +28,12 @@ func (cli *ZSClient) QuerySecurityGroup(params param.QueryParam) ([]view.Securit
 }
 
 // GetSecurityGroup Get security group by UUID
-func (cli *ZSClient) GetSecurityGroup(uuid string) ([]view.SecurityGroupInventoryView, error) {
-	var resp []view.SecurityGroupInventoryView
-	if err := cli.GetWithSpec("v1/security-groups", uuid, "", responseKeyInventories, nil, &resp); err != nil {
+func (cli *ZSClient) GetSecurityGroup(uuid string) (*view.SecurityGroupInventoryView, error) {
+	var resp view.SecurityGroupInventoryView
+	if err := cli.Get("v1/security-groups", uuid, nil, &resp); err != nil {
 		return nil, err
 	}
-	if len(resp) == 0 {
-		return nil, fmt.Errorf("security group with UUID %s not found", uuid)
-	}
-	return resp, nil
+	return &resp, nil
 }
 
 // AddVmNicToSecurityGroup Add VM NIC to security group  TODO
@@ -104,12 +101,12 @@ func (cli *ZSClient) QuerySecurityGroupRule(params param.QueryParam) ([]view.Sec
 }
 
 // GetSecurityGroupRule Get security group rule by UUID
-func (cli *ZSClient) GetSecurityGroupRule(uuid string) ([]view.SecurityGroupRuleInventoryView, error) {
-	var resp []view.SecurityGroupRuleInventoryView
-	if err := cli.GetWithSpec("v1/security-groups/rules", uuid, "", responseKeyInventories, nil, &resp); err != nil {
+func (cli *ZSClient) GetSecurityGroupRule(uuid string) (*view.SecurityGroupRuleInventoryView, error) {
+	var resp view.SecurityGroupRuleInventoryView
+	if err := cli.Get("v1/security-groups/rules", uuid, nil, &resp); err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // DeleteSecurityGroupRule Delete a security group rule

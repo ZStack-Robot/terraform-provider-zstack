@@ -29,6 +29,7 @@ type networkingSecGroup struct {
 	Description            types.String `tfsdk:"description"`
 	State                  types.String `tfsdk:"state"`
 	AttachedL3NetworkUuids types.Set    `tfsdk:"attached_l3network_uuids"`
+	VSwitchType            types.String `tfsdk:"vswitch_type"` // LinuxBridge, OvnDpdk
 	Rules                  []rules      `tfsdk:"rules"`
 }
 
@@ -129,6 +130,7 @@ func (d *networkingSecGroupDataSource) Read(ctx context.Context, req datasource.
 			Name:        types.StringValue(securitygroups.Name),
 			Uuid:        types.StringValue(securitygroups.UUID),
 			Description: types.StringValue(securitygroups.Description),
+			VSwitchType: types.StringValue(securitygroups.VSwitchType),
 			State:       types.StringValue(securitygroups.State),
 		}
 
@@ -204,6 +206,10 @@ func (d *networkingSecGroupDataSource) Schema(ctx context.Context, req datasourc
 							Description: "Set of L3 network UUIDs attached to the security group.",
 							Computed:    true,
 							ElementType: types.StringType,
+						},
+						"vswitch_type": schema.StringAttribute{
+							Description: "Type of the virtual switch (LinuxBridge, OvnDpdk).",
+							Computed:    true,
 						},
 						"rules": schema.SetNestedAttribute{
 							Description: "List of security group rules.",

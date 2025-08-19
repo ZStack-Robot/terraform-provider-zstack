@@ -1,6 +1,5 @@
 data "zstack_networking_secgroups" "test" {
-  #name = "p1"
-  name_pattern = "p%"
+  priority = 8
   filter {
     name   = "state"
     values = ["Enabled"]

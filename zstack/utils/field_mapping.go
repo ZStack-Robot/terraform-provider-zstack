@@ -126,6 +126,14 @@ var FieldMapping = map[string]map[string]string{
 		"dst_ip_range":              "dstIpRange",
 		"attached_l3_network_uuids": "attachedL3NetworkUuids",
 	},
+	"security_group_rule": {
+		"ip_version":                 "ipVersion",
+		"src_ip_range":               "srcIpRange",
+		"dst_ip_range":               "dstIpRange",
+		"remote_security_group_uuid": "remoteSecurityGroupUuid",
+		"security_group_uuid":        "securityGroupUuid",
+		"dst_port_range":             "dstPortRange",
+	},
 }
 
 // GetFieldMapping

@@ -71,7 +71,7 @@ func TestQuerySecurityGroup(t *testing.T) {
 }
 
 func TestGetSecurityGroup(t *testing.T) {
-	data, err := accountLoginCli.GetSecurityGroup("f450b20497c34397977091bc1c8f87f9")
+	data, err := accountLoginCli.GetSecurityGroup("20a8f0ebe92840af8ad0383aacfa4022")
 	if err != nil {
 		t.Error(err)
 		return
@@ -168,7 +168,7 @@ func TestChangeSecurityGroupState(t *testing.T) {
 }
 
 func TestAddSecurityGroupRule(t *testing.T) {
-	sgUuid := "4a481035e89442eb8ec611f970cb00da"
+	sgUuid := "2aa25c537ec94495b060850e2ffec762"
 
 	params := param.AddSecurityGroupRuleParam{
 		BaseParam: param.BaseParam{},
@@ -180,7 +180,7 @@ func TestAddSecurityGroupRule(t *testing.T) {
 					Description:  "Allow HTTP traffic5",
 					IpVersion:    4,
 					Protocol:     "TCP",
-					SrcIpRange:   "10.5.1.2-10.5.1.200",
+					SrcIpRange:   "10.5.1.200-10.5.1.210",
 					DstPortRange: "80,443,8080-9090",
 					Action:       "ACCEPT",
 				},
@@ -190,12 +190,12 @@ func TestAddSecurityGroupRule(t *testing.T) {
 					Description:  "Allow outbound traffic5",
 					IpVersion:    4,
 					Protocol:     "TCP",
-					SrcIpRange:   "13.13.15.13",
+					SrcIpRange:   "13.13.15.19",
 					DstPortRange: "80,443",
 					Action:       "DROP",
 				},
 			},
-			Priority: 1,
+			Priority: 2,
 		},
 	}
 
@@ -208,7 +208,7 @@ func TestAddSecurityGroupRule(t *testing.T) {
 }
 
 func TestGetSecurityGroupRules(t *testing.T) {
-	ruleUuid := "de70fcce3a444532a6c3e97da335da62"
+	ruleUuid := "a2b24c9acb9045ebbc4923a53b2d2b52"
 
 	rules, err := accountLoginCli.GetSecurityGroupRule(ruleUuid)
 	if err != nil {
