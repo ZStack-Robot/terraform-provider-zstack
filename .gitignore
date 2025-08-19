@@ -1,2 +1,7 @@
 
 dist/
+# Ignore provider test file
+/zstack/provider/provider_test.go
+
+# Ignore all files under test1 directory
+/zstack-sdk-go/pkg/test1/
