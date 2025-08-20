@@ -134,6 +134,9 @@ var FieldMapping = map[string]map[string]string{
 		"security_group_uuid":        "securityGroupUuid",
 		"dst_port_range":             "dstPortRange",
 	},
+	"sdn_controller": {
+		"vendor_type": "vendorType",
+	},
 }
 
 // GetFieldMapping

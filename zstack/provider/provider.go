@@ -271,6 +271,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackTagDataSource,
 		ZStackNetworkingSecGroupDataSource,
 		ZStackNetworkingSecGroupRuleDataSource,
+		ZStackSdnControllerDataSource,
 	}
 
 }
