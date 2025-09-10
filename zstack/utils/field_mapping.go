@@ -137,6 +137,9 @@ var FieldMapping = map[string]map[string]string{
 	"sdn_controller": {
 		"vendor_type": "vendorType",
 	},
+	"hook_script": {
+		"host_script": "hostScript",
+	},
 }
 
 // GetFieldMapping
