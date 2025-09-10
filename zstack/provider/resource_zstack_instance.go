@@ -83,6 +83,7 @@ type vmInstanceDataSourceModel struct {
 	UserData             types.String `tfsdk:"user_data"`
 	VMNics               types.List   `tfsdk:"vm_nics"`
 	Expunge              types.Bool   `tfsdk:"expunge"`
+	HookScript           types.String `tfsdk:"hook_script"`
 }
 
 type NicsModel struct {
@@ -338,6 +339,10 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Description: "Indicates whether the VM instance is a marketplace instance.",
 			},
+			"hook_script": schema.StringAttribute{
+				Optional:    true,
+				Description: "The uuid of hook script. Create Instance with custom xml Hook.",
+			},
 		},
 	}
 }
@@ -358,6 +363,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	hostUuid := ""
 	clusterUuid := ""
 	zoneUuid := ""
+	//hook_script := ""
 	var rootDiskSystemTags []string
 	var dataDiskSizes []int64
 	var dataDiskOfferingUuids []string
@@ -479,6 +485,11 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			DefaultL3:     nic.DefaultL3,
 			StaticIp:      staticIp,
 		})
+	}
+
+	//SET XML HOOK SCRIPT
+	if !plan.HookScript.IsNull() && plan.HookScript.ValueString() != "" {
+		systemTags = append(systemTags, fmt.Sprintf("xmlHook::%s", plan.HookScript.ValueString()))
 	}
 
 	// SET IMAGE
