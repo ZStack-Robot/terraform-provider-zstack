@@ -69,6 +69,7 @@ output "zstack_instance" {
 - `expunge` (Boolean) Indicates if the instance should be expunged after deletion.
 - `gpu_device_specs` (Attributes) The GPU specifications for the VM instance. (see [below for nested schema](#nestedatt--gpu_device_specs))
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
+- `hook_script` (String) The uuid of hook script. Create Instance with custom xml Hook.
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
