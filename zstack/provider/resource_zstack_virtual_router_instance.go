@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &virtualRouterInstanceResource{}
-	_ resource.ResourceWithConfigure = &virtualRouterInstanceResource{}
+	_ resource.Resource                = &virtualRouterInstanceResource{}
+	_ resource.ResourceWithConfigure   = &virtualRouterInstanceResource{}
+	_ resource.ResourceWithImportState = &virtualRouterInstanceResource{}
 )
 
 type virtualRouterInstanceResource struct {
@@ -229,4 +231,8 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 
 func (r *virtualRouterInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *virtualRouterInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

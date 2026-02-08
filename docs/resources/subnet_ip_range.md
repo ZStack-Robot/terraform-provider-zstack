@@ -49,3 +49,11 @@ output "zstack_subnet_ip_range" {
 - `uuid` (String) The unique identifier of the subnet.
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_subnet_ip_range.example <uuid>
+```

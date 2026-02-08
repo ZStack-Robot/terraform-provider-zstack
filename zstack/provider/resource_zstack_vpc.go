@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &vpcResource{}
-	_ resource.ResourceWithConfigure = &vpcResource{}
+	_ resource.Resource                = &vpcResource{}
+	_ resource.ResourceWithConfigure   = &vpcResource{}
+	_ resource.ResourceWithImportState = &vpcResource{}
 )
 
 type NetworkServiceProviderInventoryView struct {
@@ -302,4 +304,8 @@ func (r *vpcResource) Delete(ctx context.Context, request resource.DeleteRequest
 		return
 	}
 
+}
+
+func (r *vpcResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

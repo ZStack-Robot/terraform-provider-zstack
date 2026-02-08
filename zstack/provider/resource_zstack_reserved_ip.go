@@ -6,18 +6,20 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
-	"zstack.io/zstack-sdk-go/pkg/view"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
 )
 
 var (
-	_ resource.Resource              = &reservedIpResource{}
-	_ resource.ResourceWithConfigure = &reservedIpResource{}
+	_ resource.Resource                = &reservedIpResource{}
+	_ resource.ResourceWithConfigure   = &reservedIpResource{}
+	_ resource.ResourceWithImportState = &reservedIpResource{}
 )
 
 type reservedIpResource struct {
@@ -184,4 +186,8 @@ func (r *reservedIpResource) Delete(ctx context.Context, request resource.Delete
 		return
 	}
 
+}
+
+func (r *reservedIpResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

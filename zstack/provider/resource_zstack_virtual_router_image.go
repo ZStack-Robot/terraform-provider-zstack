@@ -9,18 +9,20 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &virtualRouterImageResource{}
-	_ resource.ResourceWithConfigure = &virtualRouterImageResource{}
+	_ resource.Resource                = &virtualRouterImageResource{}
+	_ resource.ResourceWithConfigure   = &virtualRouterImageResource{}
+	_ resource.ResourceWithImportState = &virtualRouterImageResource{}
 )
 
 type virtualRouterImageResource struct {
@@ -287,4 +289,8 @@ func (r *virtualRouterImageResource) Schema(_ context.Context, req resource.Sche
 
 func (r *virtualRouterImageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *virtualRouterImageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &vipResource{}
-	_ resource.ResourceWithConfigure = &vipResource{}
+	_ resource.Resource                = &vipResource{}
+	_ resource.ResourceWithConfigure   = &vipResource{}
+	_ resource.ResourceWithImportState = &vipResource{}
 )
 
 type vipResource struct {
@@ -223,4 +225,8 @@ func (r *vipResource) Delete(ctx context.Context, request resource.DeleteRequest
 		return
 	}
 
+}
+
+func (r *vipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

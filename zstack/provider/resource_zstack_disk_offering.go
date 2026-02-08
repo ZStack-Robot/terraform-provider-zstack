@@ -7,17 +7,19 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &diskOfferingResource{}
-	_ resource.ResourceWithConfigure = &diskOfferingResource{}
+	_ resource.Resource                = &diskOfferingResource{}
+	_ resource.ResourceWithConfigure   = &diskOfferingResource{}
+	_ resource.ResourceWithImportState = &diskOfferingResource{}
 )
 
 type diskOfferingResource struct {
@@ -189,4 +191,8 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 
 func (r *diskOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *diskOfferingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

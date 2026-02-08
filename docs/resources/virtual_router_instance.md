@@ -48,3 +48,11 @@ output "zstack_virtual_router_instance" {
 - `uuid` (String) The UUID of the virtual router instance, uniquely identifying this resource in ZStack. Automatically generated upon creation.
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_virtual_router_instance.example <uuid>
+```
