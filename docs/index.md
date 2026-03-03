@@ -62,13 +62,27 @@ data "zstack_instance_offers" "offer" {
 # - `never_stop`: If set to `true`, the virtual machine will never be stopped.
 # - `root_disk`: Configuration for the root disk of the virtual machine.
 resource "zstack_instance" "example_vm" {
-  name                   = "moexample-v"
-  image_uuid             = data.zstack_images.centos.images[0].uuid
-  l3_network_uuids       = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
+  name       = "moexample-v"
+  image_uuid = data.zstack_images.centos.images[0].uuid
+  #  l3_network_uuids       = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
   description            = "Example VM instance"
   instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid # Using Instance offering UUID or custom CPU and memory
   # memory_size            = 1024000000
   # cpu_num                = 1
+
+  network_interfaces = [
+    {
+      l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid
+      # default_l3      = true
+      static_ip = "172.30.3.154"
+    },
+    {
+      l3_network_uuid = data.zstack_l3networks.vpc_net.l3networks.0.uuid
+      default_l3      = true
+      static_ip       = "192.168.2.20"
+    }
+  ]
+
   never_stop = true
   root_disk = {
     size = 123456788
@@ -92,9 +106,8 @@ output "zstack_instance" {
 
 - `access_key_id` (String) AccessKey ID for ZStack API. Create AccessKey ID from MN,  Operational Management->Access Control->AccessKey Management. May also be provided via ZSTACK_ACCESS_KEY_ID environment variable. Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.
 - `access_key_secret` (String, Sensitive) AccessKey Secret for ZStack API. May also be provided via ZSTACK_ACCESS_KEY_SECRET environment variable. Required if using AccessKey authentication. Mutually exclusive with `account_name` and `account_password`.
-- `account_name` (String) Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable.  Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.
-- `account_password` (String, Sensitive) Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable. Required if using Account authentication. Mutually exclusive with `access_key_id` and `access_key_secret`.
+- `account_name` (String) Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable. Required if using Account authentication.  Only supports the platform administrator account (`admin`). Mutually exclusive with `access_key_id` and `access_key_secret`. Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.
+- `account_password` (String, Sensitive) Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.Required if using Account authentication.  Only supports the platform administrator account (`admin`). Mutually exclusive with `access_key_id` and `access_key_secret`. Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.
 - `port` (Number) ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.
-- `session_id` (String) ZStack Cloud Session id.
 
 

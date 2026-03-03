@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
@@ -155,7 +155,7 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			Platform:     types.StringValue(vrouter.Platform),
 			Architecture: types.StringValue(vrouter.Architecture),
 			CPUNum:       types.Int64Value(int64(vrouter.CPUNum)),
-			MemorySize:   types.Int64Value(int64(vrouter.MemorySize)),
+			MemorySize:   types.Int64Value(utils.BytesToMB(vrouter.MemorySize)),
 		}
 
 		for _, vmnics := range vrouter.VMNics {
@@ -276,7 +276,7 @@ func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The amount of memory (in bytes) allocated to the virtual router.",
+							Description: "The amount of memory allocated to the virtual router, in megabytes (MB). ",
 						},
 						"vm_nics": schema.ListNestedAttribute{
 							Computed: true,

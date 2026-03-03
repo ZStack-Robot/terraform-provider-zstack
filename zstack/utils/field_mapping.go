@@ -13,8 +13,9 @@ var FieldMapping = map[string]map[string]string{
 	},
 
 	"instance": {
-		"cluster_uuid":    "clusterUuid",
-		"cpu_num":         "cpuNum",
+		"cluster_uuid": "clusterUuid",
+		//"cpu_num":         "cpuNum",
+		"cpu_num":         "CPUNum",
 		"host_uuid":       "hostUuid",
 		"hypervisor_type": "hypervisorType",
 		"image_uuid":      "imageUuid",
@@ -31,11 +32,16 @@ var FieldMapping = map[string]map[string]string{
 		"zone_uuid":    "zoneUuid",
 	},
 	"disk_offer": {
-		"disk_size":           "diskSize",
-		" allocator_strategy": "allocatorStrategy",
+		"disk_size":          "diskSize",
+		"allocator_strategy": "allocatorStrategy",
 	},
 	"image": {
-		"guest_os_type": "guestOsType",
+		"guest_os_type":        "guestOsType",
+		"image_format":         "imageFormat",
+		"image_type":           "imageType",
+		"media_type":           "mediaType",
+		"boot_mode":            "bootMode",
+		"backup_storage_uuids": "backupStorageUuids",
 	},
 	"instance_offer": {
 		"cpu_num":            "cpuNum",
@@ -64,10 +70,11 @@ var FieldMapping = map[string]map[string]string{
 		"zone_uuid":               "zoneUuid",
 	},
 	"virtual_router_instance": {
-		"agent_port":              "agentPort",
-		"appliance_vm_type":       "applianceVmType",
-		"cluster_uuid":            "clusterUuid",
-		"cpu_num":                 "cpuNum",
+		"agent_port":        "agentPort",
+		"appliance_vm_type": "applianceVmType",
+		"cluster_uuid":      "clusterUuid",
+		//"cpu_num":                 "cpuNum",
+		"cpu_num":                 "CPUNum",
 		"ha_status":               "haStatus",
 		"host_uuid":               "hostUuid",
 		"hypervisor_type":         "hypervisorType",
@@ -80,6 +87,59 @@ var FieldMapping = map[string]map[string]string{
 		"guest_os_type": "guestOsType",
 	},
 	"zone": {},
+	"primary_storage": {
+		"total_capacity":              "totalCapacity",
+		"available_capacity":          "availableCapacity",
+		"total_physical_capacity":     "totalPhysicalCapacity",
+		"available_physical_capacity": "availablePhysicalCapacity",
+		"system_used_capacity":        "systemUsedCapacity",
+	},
+	"disks": {
+		"disk_offering_uuid":   "diskOfferingUuid",
+		"is_shareable":         "isShareable",
+		"primary_storage_uuid": "primaryStorageUuid",
+		"vm_instance_uuid":     "vmInstanceUuid",
+	},
+	"qga": {
+		"instance_uuid":       "instanceUuid",
+		"guest_tools_version": "guestToolsVersion",
+		"guest_tools_status":  "guestToolsStatus",
+	},
+	"script": {
+		"script_type":    "scriptType",
+		"script_content": "scriptContent",
+		"render_params":  "renderParams",
+		"script_timeout": "scriptTimeout",
+	},
+	"user_tags": {
+		"resource_type": "resourceType",
+		"resource_uuid": "resourceUuid",
+	},
+	"system_tags": {
+		"resource_type": "resourceType",
+		"resource_uuid": "resourceUuid",
+	},
+	"tag": {},
+	"security_group": {
+		"ip_version":                "ipVersion",
+		"src_ip_range":              "srcIpRange",
+		"dst_ip_range":              "dstIpRange",
+		"attached_l3_network_uuids": "attachedL3NetworkUuids",
+	},
+	"security_group_rule": {
+		"ip_version":                 "ipVersion",
+		"src_ip_range":               "srcIpRange",
+		"dst_ip_range":               "dstIpRange",
+		"remote_security_group_uuid": "remoteSecurityGroupUuid",
+		"security_group_uuid":        "securityGroupUuid",
+		"dst_port_range":             "dstPortRange",
+	},
+	"sdn_controller": {
+		"vendor_type": "vendorType",
+	},
+	"hook_script": {
+		"host_script": "hostScript",
+	},
 }
 
 // GetFieldMapping

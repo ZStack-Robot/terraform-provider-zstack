@@ -8,15 +8,13 @@ go 1.22.8
 
 //toolchain go1.22.10
 
-replace zstack.io/zstack-sdk-go => ./zstack-sdk-go
-
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.15.0
 	github.com/hashicorp/terraform-plugin-go v0.25.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.11.0
-	zstack.io/zstack-sdk-go v0.0.0-00010101000000-000000000000
+	github.com/terraform-zstack-modules/zstack-sdk-go v1.0.5
 )
 
 require (

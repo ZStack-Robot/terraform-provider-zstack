@@ -1,28 +1,38 @@
-# Copyright (c) ZStack.io, Inc.
-
-data "zstack_images" "images" {
-  name = "image name"
+data "zstack_images" "centos" {
+  name = "centos8"
 }
 
-data "zstack_l3network" "example" {
-  name = "network name"
+data "zstack_l3networks" "l3networks" {
+  name = "public-net"
 }
 
-resource "zstack_vm" "vm" {
-  count            = 2
-  name             = "disk-test-${count.index + 1}"
-  description      = "test"
-  image_uuid       = data.zstack_images.images.images.0.uuid #"${data.zstack_images.images.images[0].uuid}" #"9b26312501614ec0b6dc731e6977dfb2"
-  l3_network_uuids = [data.zstack_l3network.example.l3networks.0.uuid]
-  root_disk = {
-    offering_uuid = "e002a969bb3041c087e355c77e997be5"
-  }
-  memory_size = 1147483640
-  cpu_num     = 1
+data "zstack_instance_offers" "offer" {
+  name = "min"
 }
 
-output "zstack_vm" {
-  value = zstack_vm.vm
+resource "zstack_instance" "example_vm" {
+  name       = "example-v"
+  image_uuid = data.zstack_images.centos.images[0].uuid
+  # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
+  description = "jumper server"
+  #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  network_interfaces = [
+    {
+      l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid
+      # default_l3      = true
+      static_ip = "172.30.3.154"
+    },
+    {
+      l3_network_uuid = data.zstack_l3networks.vpc_net.l3networks.0.uuid
+      default_l3      = true
+      static_ip       = "192.168.2.20"
+    }
+  ]
+  memory_size = 4096
+  cpu_num     = 4
+  expunge     = true
 }
 
-
+output "zstack_instance" {
+  value = zstack_instance.example_vm
+}

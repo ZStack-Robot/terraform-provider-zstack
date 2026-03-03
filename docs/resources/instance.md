@@ -12,31 +12,43 @@ This resource allows you to manage virtual machine (VM) instances in ZStack. A V
 ## Example Usage
 
 ```terraform
-# Copyright (c) ZStack.io, Inc.
-
-data "zstack_images" "images" {
-  name = "image name"
+data "zstack_images" "centos" {
+  name = "centos8"
 }
 
-data "zstack_l3network" "example" {
-  name = "network name"
+data "zstack_l3networks" "l3networks" {
+  name = "public-net"
 }
 
-resource "zstack_vm" "vm" {
-  count            = 2
-  name             = "disk-test-${count.index + 1}"
-  description      = "test"
-  image_uuid       = data.zstack_images.images.images.0.uuid #"${data.zstack_images.images.images[0].uuid}" #"9b26312501614ec0b6dc731e6977dfb2"
-  l3_network_uuids = [data.zstack_l3network.example.l3networks.0.uuid]
-  root_disk = {
-    offering_uuid = "e002a969bb3041c087e355c77e997be5"
-  }
-  memory_size = 1147483640
-  cpu_num     = 1
+data "zstack_instance_offers" "offer" {
+  name = "min"
 }
 
-output "zstack_vm" {
-  value = zstack_vm.vm
+resource "zstack_instance" "example_vm" {
+  name       = "example-v"
+  image_uuid = data.zstack_images.centos.images[0].uuid
+  # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
+  description = "jumper server"
+  #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  network_interfaces = [
+    {
+      l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid
+      # default_l3      = true
+      static_ip = "172.30.3.154"
+    },
+    {
+      l3_network_uuid = data.zstack_l3networks.vpc_net.l3networks.0.uuid
+      default_l3      = true
+      static_ip       = "192.168.2.20"
+    }
+  ]
+  memory_size = 4096
+  cpu_num     = 4
+  expunge     = true
+}
+
+output "zstack_instance" {
+  value = zstack_instance.example_vm
 }
 ```
 
@@ -46,7 +58,6 @@ output "zstack_vm" {
 ### Required
 
 - `image_uuid` (String) The UUID of the image used to create the VM instance.
-- `l3_network_uuids` (List of String) A list of UUIDs for the L3 networks associated with the VM instance.
 - `name` (String) The name of the VM instance.
 
 ### Optional
@@ -55,13 +66,15 @@ output "zstack_vm" {
 - `cpu_num` (Number) The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.
 - `data_disks` (Attributes List) The configuration for additional data disks. (see [below for nested schema](#nestedatt--data_disks))
 - `description` (String) A description of the VM instance.
+- `expunge` (Boolean) Indicates if the instance should be expunged after deletion.
 - `gpu_device_specs` (Attributes) The GPU specifications for the VM instance. (see [below for nested schema](#nestedatt--gpu_device_specs))
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
+- `hook_script` (String) The uuid of hook script. Create Instance with custom xml Hook.
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
-- `memory_size` (Number) The memory size allocated to the VM instance in bytes. When used together with `cpu_num`, the `instance_offering_uuid` is not required.
-- `networks` (Attributes List) The network configurations associated with the VM instance. (see [below for nested schema](#nestedatt--networks))
+- `memory_size` (Number) The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.
+- `network_interfaces` (Attributes List) Defines network interfaces attached to the VM. Each NIC corresponds to an L3 network, and optionally configures a static IP. (see [below for nested schema](#nestedatt--network_interfaces))
 - `never_stop` (Boolean) Whether the VM instance should never stop automatically.
 - `root_disk` (Attributes) The configuration for the root disk of the VM instance. (see [below for nested schema](#nestedatt--root_disk))
 - `strategy` (String) The deployment strategy for the VM instance.
@@ -80,9 +93,12 @@ Optional:
 
 - `ceph_pool_name` (String) The Ceph pool name for the data disk.
 - `offering_uuid` (String) The UUID of the disk offering for the data disk.
-- `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
-- `size` (Number) The size of the data disk in bytes.
+- `size` (Number) The size of the data disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the data disk uses Virtio-SCSI.
+
+Read-Only:
+
+- `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
 
 
 <a id="nestedatt--gpu_device_specs"></a>
@@ -91,7 +107,7 @@ Optional:
 Optional:
 
 - `number` (Number) The number of GPU devices assigned.
-- `type` (String) The type of the GPU device.
+- `type` (String) The type of the GPU device. Must be one of: `mdevDevice` or `pciDevice`.
 - `uuid` (String) The UUID of the GPU device.
 
 
@@ -100,16 +116,21 @@ Optional:
 
 Optional:
 
-- `type` (String) The type of the GPU device.
+- `type` (String) The type of the GPU device.  Must be one of: `mdevDevice` or `pciDevice`.
 - `uuid` (String) The UUID of the GPU device.
 
 
-<a id="nestedatt--networks"></a>
-### Nested Schema for `networks`
+<a id="nestedatt--network_interfaces"></a>
+### Nested Schema for `network_interfaces`
 
 Required:
 
-- `uuid` (String) The UUID of the network.
+- `default_l3` (Boolean) Whether this NIC is the default route NIC.
+- `l3_network_uuid` (String) The UUID of the L3 network for this NIC.
+
+Optional:
+
+- `static_ip` (String) Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.
 
 
 <a id="nestedatt--root_disk"></a>
@@ -120,7 +141,7 @@ Optional:
 - `ceph_pool_name` (String) The Ceph pool name for the root disk.
 - `offering_uuid` (String) The UUID of the disk offering for the root disk.
 - `primary_storage_uuid` (String) The UUID of the primary storage for the root disk.
-- `size` (Number) The size of the root disk in bytes.
+- `size` (Number) The size of the root disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the root disk uses Virtio-SCSI.
 
 
@@ -139,3 +160,11 @@ Read-Only:
 
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_instance.example <uuid>
+```

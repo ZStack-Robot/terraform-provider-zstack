@@ -5,18 +5,21 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &virtualRouterOfferingResource{}
-	_ resource.ResourceWithConfigure = &virtualRouterOfferingResource{}
+	_ resource.Resource                = &virtualRouterOfferingResource{}
+	_ resource.ResourceWithConfigure   = &virtualRouterOfferingResource{}
+	_ resource.ResourceWithImportState = &virtualRouterOfferingResource{}
 )
 
 type virtualRouterOfferingResource struct {
@@ -30,6 +33,7 @@ type virtualRouterOfferingResourceModel struct {
 	CpuNum                types.Int64  `tfsdk:"cpu_num"`
 	MemorySize            types.Int64  `tfsdk:"memory_size"`
 	ManagementNetworkUuid types.String `tfsdk:"management_network_uuid"`
+	PublicNetworkUuid     types.String `tfsdk:"public_network_uuid"`
 	ZoneUuid              types.String `tfsdk:"zone_uuid"`
 	ImageUuid             types.String `tfsdk:"image_uuid"`
 	IsDefault             types.Bool   `tfsdk:"is_default"`
@@ -74,8 +78,9 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 			Name:                  plan.Name.ValueString(),
 			Description:           plan.Description.ValueString(),
 			CpuNum:                int(plan.CpuNum.ValueInt64()),
-			MemorySize:            plan.MemorySize.ValueInt64(),
+			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()), //plan.MemorySize.ValueInt64(),
 			ManagementNetworkUuid: plan.ManagementNetworkUuid.ValueString(),
+			PublicNetworkUuid:     plan.PublicNetworkUuid.ValueString(),
 			ZoneUuid:              plan.ZoneUuid.ValueString(),
 			ImageUuid:             plan.ImageUuid.ValueString(),
 			IsDefault:             bool(plan.IsDefault.ValueBool()),
@@ -98,7 +103,7 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 	plan.Name = types.StringValue(virtual_router.Name)
 	plan.Description = types.StringValue(virtual_router.Description)
 	plan.CpuNum = types.Int64Value(int64(virtual_router.CpuNum))
-	plan.MemorySize = types.Int64Value(int64(virtual_router.MemorySize))
+	plan.MemorySize = types.Int64Value(utils.BytesToMB(virtual_router.MemorySize))
 	plan.Type = types.StringValue(virtual_router.Type)
 
 	diags = resp.State.Set(ctx, plan)
@@ -162,7 +167,7 @@ func (r *virtualRouterOfferingResource) Read(ctx context.Context, req resource.R
 	state.Description = types.StringValue(virtual_router.Description)
 	state.Name = types.StringValue(virtual_router.Name)
 	state.CpuNum = types.Int64Value(int64(virtual_router.CpuNum))
-	state.MemorySize = types.Int64Value(virtual_router.MemorySize)
+	state.MemorySize = types.Int64Value(utils.BytesToMB(virtual_router.MemorySize))
 	state.Type = types.StringValue(virtual_router.Type)
 
 	diags = resp.State.Set(ctx, &state)
@@ -189,6 +194,7 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the virtual router offering, providing additional context or details about the configuration.",
 			},
 			"cpu_num": schema.Int64Attribute{
@@ -197,11 +203,15 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 			},
 			"memory_size": schema.Int64Attribute{
 				Required:    true,
-				Description: "The amount of memory (in bytes) allocated to the virtual router offering. This is a mandatory field.",
+				Description: "The amount of memory  allocated to the virtual router offering. This is a mandatory field, in megabytes (MB)",
 			},
 			"management_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the management network associated with the virtual router offering. This is a mandatory field.",
+			},
+			"public_network_uuid": schema.StringAttribute{
+				Optional:    true,
+				Description: "The UUID of the public network associated with the virtual router offering. If not specified, it will share the same network UUID as the management network or vice versa, depending on the configuration.",
 			},
 			"zone_uuid": schema.StringAttribute{
 				Required:    true,
@@ -226,4 +236,8 @@ func (r *virtualRouterOfferingResource) Schema(_ context.Context, req resource.S
 
 func (r *virtualRouterOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *virtualRouterOfferingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

@@ -9,7 +9,7 @@ data "zstack_virtual_router_offers" "test" {
   }
   filter {
     name   = "memory_size"
-    values = [1073741824]
+    values = [1024] # in megabytes, MB
   }
 }
 

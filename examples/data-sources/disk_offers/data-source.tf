@@ -11,6 +11,10 @@ data "zstack_disk_offers" "example" {
     name   = "state"
     values = ["Enabled"]
   }
+  filter {
+    name   = "disk_size"
+    values = ["20"] # in gigabytes (GB)
+  }
 }
 
 output "zstack_disk_offers" {

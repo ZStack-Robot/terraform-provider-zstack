@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &virtualRouterInstanceResource{}
-	_ resource.ResourceWithConfigure = &virtualRouterInstanceResource{}
+	_ resource.Resource                = &virtualRouterInstanceResource{}
+	_ resource.ResourceWithConfigure   = &virtualRouterInstanceResource{}
+	_ resource.ResourceWithImportState = &virtualRouterInstanceResource{}
 )
 
 type virtualRouterInstanceResource struct {
@@ -24,13 +26,13 @@ type virtualRouterInstanceResource struct {
 }
 
 type virtualRouterInstanceResourceModel struct {
-	Uuid                            types.String `tfsdk:"uuid"`
-	Name                            types.String `tfsdk:"name"`
-	State                           types.String `tfsdk:"state"`
-	Status                          types.String `tfsdk:"status"`
-	Description                     types.String `tfsdk:"description"`
-	VirtualRouterOfferingUuid       types.String `tfsdk:"virtual_router_offering_uuid"`
-	ResourceUuid                    types.String `tfsdk:"resource_uuid" `                       // Resource UUID, if specified, the VM will use this value as its UUID.
+	Uuid                      types.String `tfsdk:"uuid"`
+	Name                      types.String `tfsdk:"name"`
+	State                     types.String `tfsdk:"state"`
+	Status                    types.String `tfsdk:"status"`
+	Description               types.String `tfsdk:"description"`
+	VirtualRouterOfferingUuid types.String `tfsdk:"virtual_router_offering_uuid"`
+	//ResourceUuid                    types.String `tfsdk:"resource_uuid" `                       // Resource UUID, if specified, the VM will use this value as its UUID.
 	ZoneUuid                        types.String `tfsdk:"zone_uuid" `                           // Zone UUID, if specified, the VM will be created in the specified zone.
 	ClusterUUID                     types.String `tfsdk:"cluster_uuid" `                        // Cluster UUID, if specified, the VM will be created in the specified cluster, higher priority than zoneUuid.
 	HostUuid                        types.String `tfsdk:"host_uuid" `                           // Host UUID, if specified, the VM will be created on the specified host, higher priority than zoneUuid and clusterUuid.
@@ -76,7 +78,16 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 			Name:                      plan.Name.ValueString(),
 			Description:               plan.Description.ValueString(),
 			VirtualRouterOfferingUuid: plan.VirtualRouterOfferingUuid.ValueString(),
+			//PrimaryStorageUuidForRootVolume: plan.PrimaryStorageUuidForRootVolume.ValueStringPointer(),
 		},
+	}
+
+	if !plan.Description.IsNull() {
+		virtualRouterInstanceParam.Params.Description = plan.Description.ValueString()
+	}
+
+	if !plan.PrimaryStorageUuidForRootVolume.IsNull() {
+		virtualRouterInstanceParam.Params.PrimaryStorageUuidForRootVolume = plan.PrimaryStorageUuidForRootVolume.ValueStringPointer()
 	}
 
 	vrInstance, err := r.client.CreateVirtualRouterInstance(virtualRouterInstanceParam)
@@ -89,18 +100,15 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 
 	plan.Uuid = types.StringValue(vrInstance.UUID)
 	plan.Name = types.StringValue(vrInstance.Name)
-	plan.Description = types.StringValue(vrInstance.Description)
 	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUUID)
-	/*
-		plan.State = types.StringValue(vrInstance.State)
-		plan.Status = types.StringValue(vrInstance.Status)
-		plan.HostUuid = types.StringValue(vrInstance.HostUuid)
-		plan.ZoneUuid = types.StringValue(vrInstance.ZoneUuid)
-		plan.ClusterUUID = types.StringValue(vrInstance.ClusterUUID)
-	*/
-	//plan.PrimaryStorageUuidForRootVolume = types.StringValue(vrInstance.)
 
-	//ctx = tflog.SetField(ctx, "url", image.Url)
+	plan.State = types.StringValue(vrInstance.State)
+	plan.Status = types.StringValue(vrInstance.Status)
+
+	if !plan.Description.IsNull() {
+		plan.Description = types.StringValue(vrInstance.Description)
+	}
+
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -153,7 +161,15 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 
 	state.Uuid = types.StringValue(vrInstance.UUID)
 	state.Name = types.StringValue(vrInstance.Name)
-	state.Description = types.StringValue(vrInstance.Description)
+	state.State = types.StringValue(vrInstance.State)
+	state.Status = types.StringValue(vrInstance.Status)
+
+	if vrInstance.Description != "" {
+		state.Description = types.StringValue(vrInstance.Description)
+	} else {
+		state.Description = types.StringNull()
+	}
+	//state.Description = types.StringValue(vrInstance.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -186,16 +202,12 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 				Description: "The UUID of the virtual router offering associated with this instance. Specifies the configuration and resource settings for the virtual router.",
 			},
 			"state": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "The current state of the virtual router instance. Possible values include 'Enabled', 'Disabled', etc.",
 			},
 			"status": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.",
-			},
-			"resource_uuid": schema.StringAttribute{
-				Optional:    true,
-				Description: "The UUID of the resource. If specified, the instance will use this value as its identifier.",
 			},
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -219,4 +231,8 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 
 func (r *virtualRouterInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *virtualRouterInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

@@ -5,18 +5,21 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &instanceOfferingResource{}
-	_ resource.ResourceWithConfigure = &instanceOfferingResource{}
+	_ resource.Resource                = &instanceOfferingResource{}
+	_ resource.ResourceWithConfigure   = &instanceOfferingResource{}
+	_ resource.ResourceWithImportState = &instanceOfferingResource{}
 )
 
 type instanceOfferingResource struct {
@@ -65,13 +68,17 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 
 	offerType := "UserVm"
 	tflog.Info(ctx, "Configuring ZStack client")
+	if plan.Description.IsNull() {
+		plan.Description = types.StringValue("")
+	}
+
 	offerParam := param.CreateInstanceOfferingParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreateInstanceOfferingDetailParam{
 			Name:        plan.Name.ValueString(),
 			Description: plan.Description.ValueStringPointer(),
 			CpuNum:      int(plan.CpuNum.ValueInt64()),
-			MemorySize:  plan.MemorySize.ValueInt64(),
+			MemorySize:  utils.MBToBytes(plan.MemorySize.ValueInt64()),
 			Type:        &offerType,
 		},
 	}
@@ -89,7 +96,7 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 	plan.Name = types.StringValue(instance_offer.Name)
 	plan.Description = types.StringValue(instance_offer.Description)
 	plan.CpuNum = types.Int64Value(int64(instance_offer.CpuNum))
-	plan.MemorySize = types.Int64Value(int64(instance_offer.MemorySize))
+	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance_offer.MemorySize))
 	plan.Type = types.StringValue(instance_offer.Type)
 
 	diags = resp.State.Set(ctx, plan)
@@ -153,7 +160,7 @@ func (r *instanceOfferingResource) Read(ctx context.Context, req resource.ReadRe
 	state.Description = types.StringValue(instance_offer.Description)
 	state.Name = types.StringValue(instance_offer.Name)
 	state.CpuNum = types.Int64Value(int64(instance_offer.CpuNum))
-	state.MemorySize = types.Int64Value(instance_offer.MemorySize)
+	state.MemorySize = types.Int64Value(utils.BytesToMB(instance_offer.MemorySize))
 	state.Type = types.StringValue(instance_offer.Type)
 
 	diags = resp.State.Set(ctx, &state)
@@ -180,6 +187,7 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the instance offering, providing additional context or details about the configuration.",
 			},
 			"cpu_num": schema.Int64Attribute{
@@ -188,7 +196,7 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 			},
 			"memory_size": schema.Int64Attribute{
 				Required:    true,
-				Description: "The amount of memory (in bytes) allocated to the instance offering. This is a mandatory field.",
+				Description: "The amount of memory (in megabytes, MB) allocated to the instance offering. This is a mandatory field.",
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
@@ -201,4 +209,8 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 
 func (r *instanceOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *instanceOfferingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

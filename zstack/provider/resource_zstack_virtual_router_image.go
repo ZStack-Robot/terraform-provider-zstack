@@ -9,18 +9,20 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &virtualRouterImageResource{}
-	_ resource.ResourceWithConfigure = &virtualRouterImageResource{}
+	_ resource.Resource                = &virtualRouterImageResource{}
+	_ resource.ResourceWithConfigure   = &virtualRouterImageResource{}
+	_ resource.ResourceWithImportState = &virtualRouterImageResource{}
 )
 
 type virtualRouterImageResource struct {
@@ -28,20 +30,17 @@ type virtualRouterImageResource struct {
 }
 
 type virtualRouterImageResourceModel struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Url         types.String `tfsdk:"url"`
-	MediaType   types.String `tfsdk:"media_type"`
-	GuestOsType types.String `tfsdk:"guest_os_type"`
-	//System             types.String `tfsdk:"system"`
-	Platform types.String `tfsdk:"platform"`
-	//Format             types.String `tfsdk:"format"`
+	Uuid               types.String `tfsdk:"uuid"`
+	Name               types.String `tfsdk:"name"`
+	Description        types.String `tfsdk:"description"`
+	Url                types.String `tfsdk:"url"`
+	MediaType          types.String `tfsdk:"media_type"`
+	GuestOsType        types.String `tfsdk:"guest_os_type"`
+	Platform           types.String `tfsdk:"platform"`
 	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
 	Architecture       types.String `tfsdk:"architecture"`
 	Virtio             types.Bool   `tfsdk:"virtio"`
-	//Type               types.String `tfsdk:"type"`
-	BootMode types.String `tfsdk:"boot_mode"`
+	BootMode           types.String `tfsdk:"boot_mode"`
 }
 
 // Configure implements resource.ResourceWithConfigure.
@@ -131,13 +130,12 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 			MediaType:          param.RootVolumeTemplate,
 			GuestOsType:        plan.GuestOsType.ValueString(),
 			System:             true,
-			Format:             param.Qcow2,                 //param.ImageFormat(plan.Format.ValueString()), // param.Qcow2,
-			Platform:           plan.Platform.ValueString(), //plan.Platform.ValueString(),
+			Format:             param.Qcow2,
+			Platform:           plan.Platform.ValueString(),
 			BackupStorageUuids: backupStorageUuids,
-			//Type:               string(param.ApplianceVm), //"ApplianceVm",
-			ResourceUuid: "",
-			Architecture: param.Architecture(plan.Architecture.ValueString()),
-			Virtio:       plan.Virtio.ValueBool(),
+			ResourceUuid:       "",
+			Architecture:       param.Architecture(plan.Architecture.ValueString()),
+			Virtio:             plan.Virtio.ValueBool(),
 		},
 	}
 
@@ -154,11 +152,7 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 	plan.Name = types.StringValue(image.Name)
 	plan.Description = types.StringValue(image.Description)
 	plan.Url = types.StringValue(image.Url)
-	//	plan.GuestOsType = types.StringValue(image.GuestOsType)
-	//plan.System = types.StringValue(image.System)
 	plan.Platform = types.StringValue(image.Platform)
-	//plan.Type = types.StringValue(image.Type)
-	//plan.LastUpdated = types.StringValue(image.LastOpDate.String())
 	ctx = tflog.SetField(ctx, "url", image.Url)
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -248,6 +242,7 @@ func (r *virtualRouterImageResource) Schema(_ context.Context, req resource.Sche
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "A description of the virtual router image, providing additional context or details.",
 			},
 			"url": schema.StringAttribute{
@@ -294,4 +289,8 @@ func (r *virtualRouterImageResource) Schema(_ context.Context, req resource.Sche
 
 func (r *virtualRouterImageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *virtualRouterImageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

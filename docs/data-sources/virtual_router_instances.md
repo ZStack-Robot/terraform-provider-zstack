@@ -14,7 +14,7 @@ Fetches a list of virtual router instances and their associated attributes from 
 ```terraform
 # Copyright (c) ZStack.io, Inc.
 
-data "zstack_virtual_routers" "test" {
+data "zstack_virtual_router_instances" "test" {
   #   name = "name of vm instance"
   #    name_pattern = "virtual router instances name% Pattern"   # Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
   filter {
@@ -23,13 +23,16 @@ data "zstack_virtual_routers" "test" {
   }
   filter {
     name   = "memory_size"
-    values = ["1073741824"]
+    values = ["1024"] # in megabytes, MB
+  }
+  filter {
+    name   = "cpu_num"
+    values = [1]
   }
 }
 
-
 output "zstack_vrouters" {
-  value = data.zstack_virtual_routers.test
+  value = data.zstack_virtual_router_instances.test
 }
 ```
 
@@ -71,7 +74,7 @@ Read-Only:
 - `image_uuid` (String) The UUID of the image used to create the virtual router.
 - `instance_offering_uuid` (String) The UUID of the instance offering assigned to the virtual router.
 - `management_network_uuid` (String) The UUID of the management network connected to the virtual router.
-- `memory_size` (Number) The amount of memory (in bytes) allocated to the virtual router.
+- `memory_size` (Number) The amount of memory allocated to the virtual router, in megabytes (MB).
 - `name` (String) The name of the virtual router instance.
 - `platform` (String) The platform (e.g., Linux, Windows) on which the virtual router is running.
 - `state` (String) The current state of the virtual router (e.g., Running, Stopped).

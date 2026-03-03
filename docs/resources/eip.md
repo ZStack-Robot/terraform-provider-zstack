@@ -44,3 +44,11 @@ output "zstack_eip" {
 - `uuid` (String) The UUID of the VIP network service.
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_eip.example <uuid>
+```

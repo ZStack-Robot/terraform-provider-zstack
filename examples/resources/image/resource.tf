@@ -18,6 +18,7 @@ resource "zstack_image" "image" {
   virtio               = false
   backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
   boot_mode            = "legacy"
+  expunge              = true
 }
 
 output "zstack_image" {

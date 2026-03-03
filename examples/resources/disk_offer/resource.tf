@@ -3,7 +3,7 @@
 resource "zstack_disk_offer" "test" {
   name        = "largeDiskOffering-test"
   description = "An example disk offer"
-  disk_size   = 1073741824
+  disk_size   = 100 # in gigabytes (GB)
 }
 
 output "zstack_disk_offer" {

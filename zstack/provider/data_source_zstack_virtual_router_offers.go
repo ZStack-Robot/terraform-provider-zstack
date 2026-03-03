@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
@@ -128,7 +128,7 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 			Description:       types.StringValue(vrouterOffer.Description),
 			CpuNum:            types.Int32Value(int32(vrouterOffer.CpuNum)),
 			CpuSpeed:          types.Int32Value(int32(vrouterOffer.CpuSpeed)),
-			MemorySize:        types.Int64Value(int64(vrouterOffer.MemorySize)),
+			MemorySize:        types.Int64Value(utils.BytesToMB(vrouterOffer.MemorySize)),
 			Type:              types.StringValue(vrouterOffer.Type),
 			AllocatorStrategy: types.StringValue(vrouterOffer.AllocatorStrategy),
 
@@ -200,7 +200,7 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 						},
 						"memory_size": schema.Int64Attribute{
 							Computed:    true,
-							Description: "The memory size allocated to the virtual router, in bytes.",
+							Description: "The memory size allocated to the virtual router, in megabytes (MB).",
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,
@@ -248,11 +248,11 @@ func (d *vrouterOfferingDataSource) Schema(ctx context.Context, req datasource.S
 		},
 		Blocks: map[string]schema.Block{
 			"filter": schema.ListNestedBlock{
-				Description: "Filter resources based on any field in the schema. For example, to filter by status, use `name = \"status\"` and `values = [\"Ready\"]`.",
+				Description: "Filter resources based on any field in the schema. For example, to filter by state, use `name = \"state\"` and `values = [\"Enabled\"]`.",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"name": schema.StringAttribute{
-							Description: "Name of the field to filter by (e.g., status, state).",
+							Description: "Name of the field to filter by (e.g., cpu_num, memory_size, state).",
 							Required:    true,
 						},
 						"values": schema.SetAttribute{

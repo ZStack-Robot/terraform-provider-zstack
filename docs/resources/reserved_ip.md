@@ -40,3 +40,11 @@ output "zstack_reserved_ip" {
 - `uuid` (String) The UUID of the reserved ip range.
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_reserved_ip.example <uuid>
+```

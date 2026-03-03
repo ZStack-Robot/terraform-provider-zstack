@@ -6,17 +6,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &vpcResource{}
-	_ resource.ResourceWithConfigure = &vpcResource{}
+	_ resource.Resource                = &vpcResource{}
+	_ resource.ResourceWithConfigure   = &vpcResource{}
+	_ resource.ResourceWithImportState = &vpcResource{}
 )
 
 type NetworkServiceProviderInventoryView struct {
@@ -95,7 +97,8 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "The name of the VPC network.",
 			},
 			"description": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: "A description for the VPC network.",
 			},
 			"l2_network_uuid": schema.StringAttribute{
@@ -115,7 +118,7 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "Attach virtual router  for this VPC network.",
 			},
 			"subnet_cidr": schema.SingleNestedAttribute{
-				Optional: true,
+				Required: true,
 				Attributes: map[string]schema.Attribute{
 					"name": schema.StringAttribute{
 						Required:    true,
@@ -196,7 +199,7 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 		BaseParam: param.BaseParam{},
 		Params: param.CreateL3NetworkDetailParam{
 			Name:          plan.Name.ValueString(),
-			Description:   plan.Description.ValueString(), //.EndIp.ValueString(),
+			Description:   plan.Description.ValueString(),
 			L2NetworkUuid: plan.L2NetworkUuid.ValueString(),
 			Type:          "L3VpcNetwork",
 			EnableIPAM:    plan.EnableIPAM.ValueBool(),
@@ -206,7 +209,7 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	pvc, err := r.client.CreateL3Network(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to L3 network",
+			"Fail to create L3VpcNetwork",
 			"Error "+err.Error(),
 		)
 		return
@@ -301,4 +304,8 @@ func (r *vpcResource) Delete(ctx context.Context, request resource.DeleteRequest
 		return
 	}
 
+}
+
+func (r *vpcResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
