@@ -9,14 +9,15 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 type gpuDeviceTyp string
@@ -26,8 +27,9 @@ type vmResource struct {
 }
 
 var (
-	_ resource.Resource              = &vmResource{}
-	_ resource.ResourceWithConfigure = &vmResource{}
+	_ resource.Resource                = &vmResource{}
+	_ resource.ResourceWithConfigure   = &vmResource{}
+	_ resource.ResourceWithImportState = &vmResource{}
 )
 
 var networkModelAttrTypes = map[string]attr.Type{
@@ -1063,4 +1065,8 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 		}
 	}
 	return nil
+}
+
+func (r *vmResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

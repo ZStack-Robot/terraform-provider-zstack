@@ -7,17 +7,19 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &instanceOfferingResource{}
-	_ resource.ResourceWithConfigure = &instanceOfferingResource{}
+	_ resource.Resource                = &instanceOfferingResource{}
+	_ resource.ResourceWithConfigure   = &instanceOfferingResource{}
+	_ resource.ResourceWithImportState = &instanceOfferingResource{}
 )
 
 type instanceOfferingResource struct {
@@ -207,4 +209,8 @@ func (r *instanceOfferingResource) Schema(_ context.Context, req resource.Schema
 
 func (r *instanceOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *instanceOfferingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

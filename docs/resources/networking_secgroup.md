@@ -65,3 +65,11 @@ output "defaut_vstype_ovndpdk_uuid" {
 - `uuid` (String) The UUID of the security group.
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_networking_secgroup.example <uuid>
+```

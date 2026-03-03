@@ -160,3 +160,11 @@ Read-Only:
 
 
 
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_instance.example <uuid>
+```

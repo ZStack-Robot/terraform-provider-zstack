@@ -9,18 +9,20 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"zstack.io/zstack-sdk-go/pkg/client"
-	"zstack.io/zstack-sdk-go/pkg/param"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var (
-	_ resource.Resource              = &imageResource{}
-	_ resource.ResourceWithConfigure = &imageResource{}
+	_ resource.Resource                = &imageResource{}
+	_ resource.ResourceWithConfigure   = &imageResource{}
+	_ resource.ResourceWithImportState = &imageResource{}
 )
 
 type imageResource struct {
@@ -35,7 +37,7 @@ type imageResourceModel struct {
 	Url                types.String `tfsdk:"url"`
 	MediaType          types.String `tfsdk:"media_type"`
 	GuestOsType        types.String `tfsdk:"guest_os_type"`
-	System             types.String `tfsdk:"system"`
+	System             types.Bool   `tfsdk:"system"`
 	Platform           types.String `tfsdk:"platform"`
 	Format             types.String `tfsdk:"format"`
 	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
@@ -165,7 +167,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	imagePlan.Description = types.StringValue(image.Description)
 	imagePlan.Url = types.StringValue(image.Url)
 	imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
-	imagePlan.System = types.StringValue(image.System)
+	imagePlan.System = types.BoolValue(image.System)
 	imagePlan.Platform = types.StringValue(image.Platform)
 	//imagePlan.Type = types.StringValue(image.Type)
 	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
@@ -358,6 +360,10 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 
 func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 
+}
+
+func (r *imageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
 
 /*
