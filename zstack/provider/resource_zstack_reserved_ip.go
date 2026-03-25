@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var (
@@ -105,13 +105,22 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 
 	p := param.AddReservedIpRangeParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddReservedIpRangeDetailParam{
+		Params: param.AddReservedIpRangeParamDetail{
 			StartIp: reservedIpPlan.StartIp.ValueString(),
 			EndIp:   reservedIpPlan.EndIp.ValueString(),
 		},
 	}
 
-	ipRange, err := r.client.AddReservedIpRange(reservedIpPlan.L3NetworkUuid.ValueString(), p)
+	// The SDK's AddReservedIpRange has a bug: it uses a literal {l3NetworkUuid}
+	// placeholder in the URL path that never gets substituted. Work around it
+	// by calling Post directly with the l3NetworkUuid interpolated into the path.
+	var ipRange view.ReservedIpRangeInventoryView
+	err := r.client.Post(
+		fmt.Sprintf("v1/l3-networks/%s/reserved-ip-ranges", reservedIpPlan.L3NetworkUuid.ValueString()),
+		p,
+		&ipRange,
+	)
+	// ipRange, err := r.client.AddReservedIpRange(p)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Fail to add reserved ip range to L3 network",
@@ -120,7 +129,7 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 		return
 	}
 
-	reservedIpPlan.Uuid = types.StringValue(ipRange.Uuid)
+	reservedIpPlan.Uuid = types.StringValue(ipRange.UUID)
 	reservedIpPlan.IpVersion = types.Int64Value(int64(ipRange.IpVersion))
 	diags = response.State.Set(ctx, reservedIpPlan)
 	response.Diagnostics.Append(diags...)
@@ -147,7 +156,7 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 	if len(reservedIpRanges) == 0 {
 		state.Uuid = types.StringValue("")
 	} else {
-		state.Uuid = types.StringValue(reservedIpRanges[0].Uuid)
+		state.Uuid = types.StringValue(reservedIpRanges[0].UUID)
 		state.StartIp = types.StringValue(reservedIpRanges[0].StartIp)
 		state.EndIp = types.StringValue(reservedIpRanges[0].EndIp)
 		state.IpVersion = types.Int64Value(int64(reservedIpRanges[0].IpVersion))
