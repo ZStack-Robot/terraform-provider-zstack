@@ -40,6 +40,10 @@ type EnvData struct {
 	MnNodes                []map[string]interface{} `json:"mn_nodes"`
 	IpRanges               []map[string]interface{} `json:"ip_ranges"`
 	VmNics                 []map[string]interface{} `json:"vm_nics"`
+	Accounts               []map[string]interface{} `json:"accounts"`
+	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
+	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +269,10 @@ func dataSourceGenerators() []generator {
 		dataSimple("vips", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
 		dataSimple("mnnodes", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
 		dataSimple("disks", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("accounts", "accounts", "name", func(e *EnvData) []map[string]interface{} { return e.Accounts }),
+		dataSimple("iam2_projects", "iam2_projects", "name", func(e *EnvData) []map[string]interface{} { return e.IAM2Projects }),
+		dataSimple("affinity_groups", "affinity_groups", "name", func(e *EnvData) []map[string]interface{} { return e.AffinityGroups }),
+		dataSimple("ssh_key_pairs", "ssh_key_pairs", "name", func(e *EnvData) []map[string]interface{} { return e.SshKeyPairs }),
 		{
 			name: "data-guest_tools",
 			fn: func(env *EnvData) (string, bool, string) {
@@ -381,6 +389,65 @@ output "uuid" {
 
 output "uuid" {
   value = zstack_networking_secgroup.test.uuid
+}
+`, true, ""
+			},
+		},
+		{
+			name: "res-affinity_group",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_affinity_group" "test" {
+  name        = "tf-batch-test-affinity-group"
+  policy      = "antiSoft"
+  description = "[batch-test] affinity group"
+}
+
+output "uuid" {
+  value = zstack_affinity_group.test.uuid
+}
+`, true, ""
+			},
+		},
+		{
+			name: "res-ssh_key_pair",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_ssh_key_pair" "test" {
+  name        = "tf-batch-test-ssh-key-pair"
+  public_key  = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7 test@batch-test"
+  description = "[batch-test] SSH key pair"
+}
+
+output "uuid" {
+  value = zstack_ssh_key_pair.test.uuid
+}
+`, true, ""
+			},
+		},
+		{
+			name: "res-account",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_account" "test" {
+  name        = "tf-batch-test-account"
+  password    = "BatchTest@12345"
+  description = "[batch-test] account"
+}
+
+output "uuid" {
+  value = zstack_account.test.uuid
+}
+`, true, ""
+			},
+		},
+		{
+			name: "res-iam2_project",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_iam2_project" "test" {
+  name        = "tf-batch-test-iam2-project"
+  description = "[batch-test] IAM2 project"
+}
+
+output "uuid" {
+  value = zstack_iam2_project.test.uuid
 }
 `, true, ""
 			},

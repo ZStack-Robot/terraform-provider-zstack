@@ -36,6 +36,10 @@ type EnvData struct {
 	MnNodes                []map[string]interface{} `json:"mn_nodes"`
 	IpRanges               []map[string]interface{} `json:"ip_ranges"`
 	VmNics                 []map[string]interface{} `json:"vm_nics"`
+	Accounts               []map[string]interface{} `json:"accounts"`
+	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
+	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
 }
 
 var (

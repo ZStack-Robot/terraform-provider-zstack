@@ -159,6 +159,16 @@ var FieldMapping = map[string]map[string]string{
 	"hook_script": {
 		"host_script": "hostScript",
 	},
+	"account": {},
+	"iam2_project": {
+		"linked_account_uuid": "linkedAccountUuid",
+	},
+	"affinity_group": {
+		"zone_uuid": "zoneUuid",
+	},
+	"ssh_key_pair": {
+		"public_key": "publicKey",
+	},
 }
 
 // GetFieldMapping
