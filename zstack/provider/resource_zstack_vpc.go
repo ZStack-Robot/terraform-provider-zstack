@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -152,57 +152,58 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 		return
 	}
 
-	networkSvcs, _ := r.client.QueryNetworkServiceProvider(param.NewQueryParam())
+	q := param.NewQueryParam()
+	networkSvcs, _ := r.client.QueryNetworkServiceProvider(&q)
 
-	networkServices := make(map[string][]string)
+	networkServices := make(map[string]interface{})
 
 	for _, svc := range networkSvcs {
 		switch svc.Type {
 		case "vrouter":
-			networkServices[svc.Uuid] = []string{"IPsec", "VRouterRoute", "VipQos", "SNAT", "PortForwarding", "Eip", "DNS", "LoadBalancer", "CentralizedDNS"}
+			networkServices[svc.UUID] = []string{"IPsec", "VRouterRoute", "VipQos", "SNAT", "PortForwarding", "Eip", "DNS", "LoadBalancer", "CentralizedDNS"}
 		case "Flat":
-			networkServices[svc.Uuid] = []string{"DHCP", "Userdata"}
+			networkServices[svc.UUID] = []string{"DHCP", "Userdata"}
 		case "SecurityGroup":
-			networkServices[svc.Uuid] = []string{"SecurityGroup"}
+			networkServices[svc.UUID] = []string{"SecurityGroup"}
 		}
 	}
 
 	netSvcParam := param.AttachNetworkServiceToL3NetworkParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AttachNetworkServiceToL3NetworkDetailParam{
+		Params: param.AttachNetworkServiceToL3NetworkParamDetail{
 			NetworkServices: networkServices,
 		},
 	}
 
 	cidrParam := param.AddIpRangeByNetworkCidrParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddIpRangeByNetworkCidrDetailParam{
+		Params: param.AddIpRangeByNetworkCidrParamDetail{
 			Name:        plan.SubnetCidr.Name,
 			NetworkCidr: plan.SubnetCidr.NetworkCidr,
-			Gateway:     plan.SubnetCidr.Gateway,
+			Gateway:     stringPtr(plan.SubnetCidr.Gateway),
 		},
 	}
 
 	dnsParam := param.AddDnsToL3NetworkParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddDnsToL3NetworkDetailParam{
+		Params: param.AddDnsToL3NetworkParamDetail{
 			Dns: plan.Dns.ValueString(),
 		},
 	}
 
 	attachVRtoVPC := param.AttachL3NetworkToVmParam{
 		BaseParam: param.BaseParam{},
-		Params:    param.AttachL3NetworkToVmDetailParam{},
+		Params:    param.AttachL3NetworkToVmParamDetail{},
 	}
 
 	p := param.CreateL3NetworkParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateL3NetworkDetailParam{
+		Params: param.CreateL3NetworkParamDetail{
 			Name:          plan.Name.ValueString(),
-			Description:   plan.Description.ValueString(),
+			Description:   stringPtr(plan.Description.ValueString()),
 			L2NetworkUuid: plan.L2NetworkUuid.ValueString(),
-			Type:          "L3VpcNetwork",
-			EnableIPAM:    plan.EnableIPAM.ValueBool(),
+			Type:          stringPtr("L3VpcNetwork"),
+			EnableIPAM:    boolPtr(plan.EnableIPAM.ValueBool()),
 		},
 	}
 
@@ -221,10 +222,10 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	plan.L2NetworkUuid = types.StringValue(pvc.L2NetworkUuid)
 	plan.EnableIPAM = types.BoolValue(pvc.EnableIPAM)
 
-	r.client.AttachNetworkServiceToL3Network(pvc.UUID, netSvcParam)
-	r.client.AddIpRangeByNetworkCidr(pvc.UUID, cidrParam)
-	r.client.AddDnsToL3Network(pvc.UUID, dnsParam)
-	r.client.AttachL3NetworkToVm(pvc.UUID, plan.VirtualRouterUuid.ValueString(), attachVRtoVPC)
+	r.client.AttachNetworkServiceToL3Network(netSvcParam)
+	r.client.AddIpRangeByNetworkCidr(cidrParam)
+	r.client.AddDnsToL3Network(dnsParam)
+	r.client.AttachL3NetworkToVm(attachVRtoVPC)
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
@@ -241,7 +242,8 @@ func (r *vpcResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	vpcs, err := r.client.QueryL3Network(param.NewQueryParam())
+	q2 := param.NewQueryParam()
+	vpcs, err := r.client.QueryL3Network(&q2)
 
 	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {

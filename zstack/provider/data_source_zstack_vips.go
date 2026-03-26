@@ -5,13 +5,14 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -90,7 +91,7 @@ func (d *vipsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	params.AddQ("system=" + "false") //Just return user VIPS, not include system vips
 
-	vips, err := d.client.QueryVip(params)
+	vips, err := d.client.QueryVip(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack VIPS ",
@@ -122,8 +123,8 @@ func (d *vipsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			Name:               types.StringValue(vip.Name),
 			State:              types.StringValue(vip.State),
 			Description:        types.StringValue(vip.Description),
-			PeerL3NetworkUuids: types.StringValue(vip.PeerL3NetworkUuids),
-			L3NetworkUUID:      types.StringValue(vip.L3NetworkUUID),
+			PeerL3NetworkUuids: types.StringValue(strings.Join(vip.PeerL3NetworkUuids, ",")),
+			L3NetworkUUID:      types.StringValue(vip.L3NetworkUuid),
 			IP:                 types.StringValue(vip.Ip),
 			Gateway:            types.StringValue(vip.Gateway),
 			Netmask:            types.StringValue(vip.Netmask),

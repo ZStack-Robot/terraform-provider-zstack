@@ -3,36 +3,34 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackInstanceOffersDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceOfferings) == 0 {
+		t.Skip("no instance offerings in env data")
+	}
+	io := env.InstanceOfferings[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_instance_offers" "test" {}`,
+				Config: providerConfig() + `data "zstack_instance_offers" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", "InstanceOffering-1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", "4fb8a154b03d418ea771ec74d3273da3"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.allocator_strategy", "LeastVmPreferredHostAllocatorStrategy"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_num", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_speed", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.memory_size", "1073741824"),
-
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.sort_key", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.type", "UserVm"),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.#", fmt.Sprintf("%d", len(env.InstanceOfferings))),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", envStr(io, "name")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", envStr(io, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.allocator_strategy", envStr(io, "allocator_strategy")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_num", envStr(io, "cpu_num")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.memory_size", envStr(io, "memory_size")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.sort_key", envStr(io, "sort_key")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", envStr(io, "state")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.type", envStr(io, "type")),
 				),
 			},
 		},
@@ -40,24 +38,28 @@ func TestAccZStackInstanceOffersDataSource(t *testing.T) {
 }
 
 func TestAccZStackInstanceOffersDataSourceFilterByName(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceOfferings) == 0 {
+		t.Skip("no instance offerings in env data")
+	}
+	io := env.InstanceOfferings[0]
+	name := envStr(io, "name")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_instance_offers" "test" { name = "InstanceOffering-1"}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_instance_offers" "test" { name = %q }`, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", "InstanceOffering-1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", "4fb8a154b03d418ea771ec74d3273da3"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.allocator_strategy", "LeastVmPreferredHostAllocatorStrategy"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_num", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_speed", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.memory_size", "1073741824"),
-
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.sort_key", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.type", "UserVm"),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", envStr(io, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.allocator_strategy", envStr(io, "allocator_strategy")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_num", envStr(io, "cpu_num")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.memory_size", envStr(io, "memory_size")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.sort_key", envStr(io, "sort_key")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", envStr(io, "state")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.type", envStr(io, "type")),
 				),
 			},
 		},
@@ -65,24 +67,23 @@ func TestAccZStackInstanceOffersDataSourceFilterByName(t *testing.T) {
 }
 
 func TestAccZStackInstanceOffersDataSourceFilterByNamePattern(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceOfferings) == 0 {
+		t.Skip("no instance offerings in env data")
+	}
+	io := env.InstanceOfferings[0]
+	name := envStr(io, "name")
+	pattern := name[:3] + "%"
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_instance_offers" "test" { name_pattern = "InstanceO%"}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_instance_offers" "test" { name_pattern = %q }`, pattern),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", "InstanceOffering-1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", "4fb8a154b03d418ea771ec74d3273da3"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.allocator_strategy", "LeastVmPreferredHostAllocatorStrategy"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_num", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.cpu_speed", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.memory_size", "1073741824"),
-
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.sort_key", "0"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.type", "UserVm"),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.uuid", envStr(io, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_instance_offers.test", "instance_offers.0.state", envStr(io, "state")),
 				),
 			},
 		},

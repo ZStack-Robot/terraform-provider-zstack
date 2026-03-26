@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -154,7 +154,7 @@ func (d *instanceScriptDataSource) Read(ctx context.Context, req datasource.Read
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	scripts, err := d.client.QueryVmInstanceScript(params)
+	scripts, err := d.client.QueryGuestVmScript(&params)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

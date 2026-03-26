@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -104,11 +104,11 @@ func (r *eipResource) Create(ctx context.Context, request resource.CreateRequest
 
 	p := param.CreateEipParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateEipDetailParam{
+		Params: param.CreateEipParamDetail{
 			Name:        plan.Name.ValueString(),
-			Description: plan.Description.ValueString(),
+			Description: stringPtr(plan.Description.ValueString()),
 			VipUuid:     plan.VipUuid.ValueString(),
-			VmNicUuid:   plan.VmNicUuid.ValueString(),
+			VmNicUuid:   stringPtr(plan.VmNicUuid.ValueString()),
 		},
 	}
 
@@ -143,7 +143,8 @@ func (r *eipResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	eips, err := r.client.QueryEip(param.NewQueryParam())
+	queryParam := param.NewQueryParam()
+	eips, err := r.client.QueryEip(&queryParam)
 
 	if err != nil {
 		tflog.Warn(ctx, "Unable to query EIPs. It may have been deleted.: "+err.Error())

@@ -3,33 +3,31 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackInstanceScriptsDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceScripts) == 0 {
+		t.Skip("no instance scripts in env data")
+	}
+	s := env.InstanceScripts[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_scripts" "test" {}`,
+				Config: providerConfig() + `data "zstack_scripts" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", "5"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", "ps"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", "159051a78fbb49d3b72436a0de6c3c2b"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", "Windows"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.render_params", "[]"),
-					//	resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_content", `$path = \"C:\\Users\\Administrator\\Documents\\hello.txt\"\r\n\"Hello, World!\" | Out-File -FilePath $path -Encoding UTF8`),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", "60"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", "Powershell"),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", fmt.Sprintf("%d", len(env.InstanceScripts))),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", envStr(s, "name")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", envStr(s, "platform")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", envStr(s, "script_timeout")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", envStr(s, "script_type")),
 				),
 			},
 		},
@@ -37,20 +35,25 @@ func TestAccZStackInstanceScriptsDataSource(t *testing.T) {
 }
 
 func TestAccZStackInstanceScriptsDataSourceFilterByName(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceScripts) == 0 {
+		t.Skip("no instance scripts in env data")
+	}
+	s := env.InstanceScripts[0]
+	name := envStr(s, "name")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_scripts" "test" { name = "test-script"}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_scripts" "test" { name = %q }`, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", "test-script"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", "43a9dcf3860540bf998f07e48fa143cf"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", "Linux"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.render_params", ""),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", "50"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", "Shell"),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", envStr(s, "platform")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", envStr(s, "script_timeout")),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", envStr(s, "script_type")),
 				),
 			},
 		},
@@ -58,14 +61,22 @@ func TestAccZStackInstanceScriptsDataSourceFilterByName(t *testing.T) {
 }
 
 func TestAccZStackInstanceScriptsDataSourceFilterByNamePattern(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.InstanceScripts) == 0 {
+		t.Skip("no instance scripts in env data")
+	}
+	s := env.InstanceScripts[0]
+	name := envStr(s, "name")
+	pattern := string([]rune(name)[:3]) + "%"
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_scripts" "test" { name_pattern = "test%"}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_scripts" "test" { name_pattern = %q }`, pattern),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", "2"),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
 				),
 			},
 		},

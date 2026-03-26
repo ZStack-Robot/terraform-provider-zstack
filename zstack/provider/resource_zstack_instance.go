@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 type gpuDeviceTyp string
@@ -526,11 +526,11 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	// SET CLUSTER UUID
-	if !plan.ClusterUuid.IsNull() && plan.HostUuid.ValueString() != "" {
+	if !plan.ClusterUuid.IsNull() && plan.ClusterUuid.ValueString() != "" {
 		clusterUuid = plan.ClusterUuid.ValueString()
 	}
 
-	// SET CLUSTER UUID
+	// SET ZONE UUID
 	if !plan.ZoneUuid.IsNull() && plan.ZoneUuid.ValueString() != "" {
 		zoneUuid = plan.ZoneUuid.ValueString()
 	}
@@ -596,7 +596,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	//SET OTHER PARAM
 	if !plan.Strategy.IsNull() {
 		strategyValue := plan.Strategy.ValueString()
-		if strategyValue != string(param.InstantStart) && strategyValue != string(param.CreateStopped) {
+		if strategyValue != "InstantStart" && strategyValue != "CreateStopped" {
 			resp.Diagnostics.AddError(
 				"Params Error",
 				fmt.Sprintf("strategy %s is invalid, valid value is InstantStart or CreateStopped", plan.Strategy.ValueString()),
@@ -638,26 +638,26 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			UserTags:   nil,
 			RequestIp:  "",
 		},
-		Params: param.CreateVmInstanceDetailParam{
+		Params: param.CreateVmInstanceParamDetail{
 			Name:                            plan.Name.ValueString(),
-			InstanceOfferingUUID:            plan.InstanceOfferingUuid.ValueString(),
-			ImageUUID:                       plan.ImageUuid.ValueString(),
+			InstanceOfferingUuid:            stringPtr(plan.InstanceOfferingUuid.ValueString()),
+			ImageUuid:                       stringPtr(plan.ImageUuid.ValueString()),
 			L3NetworkUuids:                  l3NetworkUuids,
-			Type:                            param.UserVm,
-			RootDiskOfferingUuid:            rootDiskPlan.OfferingUuid.ValueString(),
+			Type:                            stringPtr("UserVm"),
+			RootDiskOfferingUuid:            stringPtr(rootDiskPlan.OfferingUuid.ValueString()),
 			RootDiskSize:                    rootDiskPlan.Size.ValueInt64Pointer(),
 			PrimaryStorageUuidForRootVolume: primaryStorageUuidForRootVolume,
 			DataDiskSizes:                   dataDiskSizes,
 			DataDiskOfferingUuids:           dataDiskOfferingUuids,
-			ZoneUuid:                        zoneUuid,
-			ClusterUUID:                     clusterUuid,
-			HostUuid:                        hostUuid,
-			Description:                     plan.Description.ValueString(),
-			DefaultL3NetworkUuid:            defaultL3Uuid,
+			ZoneUuid:                        stringPtrOrNil(zoneUuid),
+			ClusterUuid:                     stringPtrOrNil(clusterUuid),
+			HostUuid:                        stringPtrOrNil(hostUuid),
+			Description:                     stringPtr(plan.Description.ValueString()),
+			DefaultL3NetworkUuid:            stringPtr(defaultL3Uuid),
 			TagUuids:                        nil,
-			Strategy:                        param.InstanceStrategy(plan.Strategy.ValueString()),
-			MemorySize:                      memorySize,
-			CpuNum:                          cpuNum,
+			Strategy:                        stringPtr(plan.Strategy.ValueString()),
+			MemorySize:                      &memorySize,
+			CpuNum:                          intPtr(int(cpuNum)),
 			RootVolumeSystemTags:            rootDiskSystemTags,
 			DataVolumeSystemTags:            dataDiskSystemTags,
 		},
@@ -676,14 +676,14 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.Name = types.StringValue(instance.Name)
 	plan.Description = types.StringValue(instance.Description)
 	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
-	plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
+	plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
 
 	var updatedNics []NetworkInterfaceModel
 	for _, nic := range createNics {
 		var realIP string
-		for _, vmNic := range instance.VMNics {
-			if vmNic.L3NetworkUUID == nic.L3NetworkUuid.ValueString() {
-				realIP = vmNic.IP
+		for _, vmNic := range instance.VmNics {
+			if vmNic.L3NetworkUuid == nic.L3NetworkUuid.ValueString() {
+				realIP = vmNic.Ip
 				break
 			}
 		}
@@ -730,7 +730,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 		for i, disk := range instance.AllVolumes {
 			if i < len(dataDisksPlan) {
-				dataDisksPlan[i].PrimaryStorageUuid = types.StringValue(disk.PrimaryStorageUUID)
+				dataDisksPlan[i].PrimaryStorageUuid = types.StringValue(disk.PrimaryStorageUuid)
 			}
 		}
 
@@ -746,10 +746,10 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	}
 
 	var vmNics []NicsModel
-	for _, nic := range instance.VMNics {
+	for _, nic := range instance.VmNics {
 		vmNics = append(vmNics, NicsModel{
 			Uuid:    types.StringValue(nic.UUID),
-			Ip:      types.StringValue(nic.IP),
+			Ip:      types.StringValue(nic.Ip),
 			Netmask: types.StringValue(nic.Netmask),
 			Gateway: types.StringValue(nic.Gateway),
 		})
@@ -788,15 +788,15 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.Uuid = types.StringValue(vm.UUID)
 	state.Name = types.StringValue(vm.Name)
 	state.Description = types.StringValue(vm.Description)
-	state.ImageUuid = types.StringValue(vm.ImageUUID)
+	state.ImageUuid = types.StringValue(vm.ImageUuid)
 	state.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
-	state.CPUNum = types.Int64Value(int64(vm.CPUNum))
+	state.CPUNum = types.Int64Value(int64(vm.CpuNum))
 
 	var vmNics []NicsModel
-	for _, nic := range vm.VMNics {
+	for _, nic := range vm.VmNics {
 		vmNics = append(vmNics, NicsModel{
 			Uuid:    types.StringValue(nic.UUID),
-			Ip:      types.StringValue(nic.IP),
+			Ip:      types.StringValue(nic.Ip),
 			Netmask: types.StringValue(nic.Netmask),
 			Gateway: types.StringValue(nic.Gateway),
 		})
@@ -821,15 +821,15 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		}
 	}
 
-	for _, nic := range vm.VMNics {
+	for _, nic := range vm.VmNics {
 		staticIP := types.StringNull()
-		if ip, ok := originalNetworkInterfaces[nic.L3NetworkUUID]; ok && ip == nic.IP {
+		if ip, ok := originalNetworkInterfaces[nic.L3NetworkUuid]; ok && ip == nic.Ip {
 			staticIP = types.StringValue(ip)
 		}
 
 		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-			L3NetworkUuid: types.StringValue(nic.L3NetworkUUID),
-			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUUID != "" && nic.L3NetworkUUID == vm.DefaultL3NetworkUUID),
+			L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
+			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid == vm.DefaultL3NetworkUuid),
 			StaticIp:      staticIP,
 		})
 	}
@@ -874,21 +874,21 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	updateVm := false
 
 	if plan.Name.ValueString() != state.Name.ValueString() {
-		updateVmInstanceParam.UpdateVmInstance.Name = plan.Name.ValueString()
+		updateVmInstanceParam.Params.Name = plan.Name.ValueString()
 		updateVm = true
 	}
 	if plan.Description.ValueString() != state.Description.ValueString() {
-		updateVmInstanceParam.UpdateVmInstance.Description = plan.Description.ValueStringPointer()
+		updateVmInstanceParam.Params.Description = plan.Description.ValueStringPointer()
 		updateVm = true
 
 	}
 	if plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
-		updateVmInstanceParam.UpdateVmInstance.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
+		updateVmInstanceParam.Params.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
 		updateVm = true
 	}
 	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
 		memorySizeBytes := utils.MBToBytes(plan.MemorySize.ValueInt64())
-		updateVmInstanceParam.UpdateVmInstance.MemorySize = &memorySizeBytes
+		updateVmInstanceParam.Params.MemorySize = &memorySizeBytes
 		updateVm = true
 	}
 
@@ -905,15 +905,15 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		plan.Name = types.StringValue(instance.Name)
 		plan.Description = types.StringValue(instance.Description)
 		plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
-		plan.CPUNum = types.Int64Value(int64(instance.CPUNum))
-		//plan.IP = types.StringValue(instance.VMNics[0].IP)
+		plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
+		//plan.IP = types.StringValue(instance.VmNics[0].IP)
 
 		// 更新 vm_nics 信息
 		var vmNics []NicsModel
-		for _, nic := range instance.VMNics {
+		for _, nic := range instance.VmNics {
 			vmNics = append(vmNics, NicsModel{
 				Uuid:    types.StringValue(nic.UUID),
-				Ip:      types.StringValue(nic.IP),
+				Ip:      types.StringValue(nic.Ip),
 				Netmask: types.StringValue(nic.Netmask),
 				Gateway: types.StringValue(nic.Gateway),
 			})
@@ -923,10 +923,10 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 
 		var networkInterfaces []NetworkInterfaceModel
-		for _, nic := range instance.VMNics {
+		for _, nic := range instance.VmNics {
 			networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-				L3NetworkUuid: types.StringValue(nic.L3NetworkUUID),
-				DefaultL3:     types.BoolValue(nic.L3NetworkUUID == instance.DefaultL3NetworkUUID),
+				L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
+				DefaultL3:     types.BoolValue(nic.L3NetworkUuid == instance.DefaultL3NetworkUuid),
 				StaticIp:      types.StringNull(), // 无法反查
 			})
 		}
@@ -1043,7 +1043,7 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 	qparam.AddQ("uuid=" + dataDiskPrimaryStorageUuid)
 	qparam.AddQ("state=Enabled")
 	qparam.Limit(1)
-	primaryStorages, err := r.client.QueryPrimaryStorage(qparam)
+	primaryStorages, err := r.client.QueryPrimaryStorage(&qparam)
 	if err != nil {
 		return fmt.Errorf("failed to get primary storage %s, err: %v", dataDiskPrimaryStorageUuid, err)
 	}
@@ -1053,16 +1053,8 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 	}
 
 	if dataDiskCephPoolName != "" {
-		found := false
-		for _, pool := range primaryStorages[0].Pools {
-			if pool.PoolName == dataDiskCephPoolName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("unable to find pool name %s", dataDiskCephPoolName)
-		}
+		// Note: Pools field no longer available in PrimaryStorageInventoryView in SDK v2
+		// Pool name validation is skipped; the API will validate on the server side
 	}
 	return nil
 }

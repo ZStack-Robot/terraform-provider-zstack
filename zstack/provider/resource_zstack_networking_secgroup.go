@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -120,11 +120,11 @@ func (r *securityGroupResource) Create(ctx context.Context, request resource.Cre
 	securityGroupPlan.VSwitchType = types.StringValue(vType)
 	p := param.CreateSecurityGroupParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateSecurityGroupDetailParam{
+		Params: param.CreateSecurityGroupParamDetail{
 			Name:        securityGroupPlan.Name.ValueString(),
-			Description: securityGroupPlan.Description.ValueString(),
-			IpVersion:   int(securityGroupPlan.IpVersion.ValueInt32()),
-			VSwitchType: vType,
+			Description: stringPtr(securityGroupPlan.Description.ValueString()),
+			IpVersion:   intPtr(int(securityGroupPlan.IpVersion.ValueInt32())),
+			VSwitchType: stringPtr(vType),
 		},
 	}
 

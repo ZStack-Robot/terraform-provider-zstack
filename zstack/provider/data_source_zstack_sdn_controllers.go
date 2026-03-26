@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -84,7 +84,7 @@ func (d *sdnControllerDataSource) Read(ctx context.Context, req datasource.ReadR
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	sdnControllers, err := d.client.QuerySdnController(params)
+	sdnControllers, err := d.client.QuerySdnController(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack SDN Controllers ",

@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -74,18 +74,23 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 	tflog.Info(ctx, "Configuring ZStack client")
 	offerParam := param.CreateVirtualRouterOfferingParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateVirtualRouterOfferingDetailParam{
+		Params: param.CreateVirtualRouterOfferingParamDetail{
 			Name:                  plan.Name.ValueString(),
-			Description:           plan.Description.ValueString(),
+			Description:           stringPtr(plan.Description.ValueString()),
 			CpuNum:                int(plan.CpuNum.ValueInt64()),
-			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()), //plan.MemorySize.ValueInt64(),
+			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()),
 			ManagementNetworkUuid: plan.ManagementNetworkUuid.ValueString(),
-			PublicNetworkUuid:     plan.PublicNetworkUuid.ValueString(),
 			ZoneUuid:              plan.ZoneUuid.ValueString(),
 			ImageUuid:             plan.ImageUuid.ValueString(),
-			IsDefault:             bool(plan.IsDefault.ValueBool()),
-			Type:                  "VirtualRouter",
+			Type:                  stringPtr("VirtualRouter"),
 		},
+	}
+
+	if !plan.PublicNetworkUuid.IsNull() && plan.PublicNetworkUuid.ValueString() != "" {
+		offerParam.Params.PublicNetworkUuid = stringPtr(plan.PublicNetworkUuid.ValueString())
+	}
+	if !plan.IsDefault.IsNull() {
+		offerParam.Params.IsDefault = boolPtr(plan.IsDefault.ValueBool())
 	}
 
 	virtual_router, err := r.client.CreateVirtualRouterOffering(offerParam)

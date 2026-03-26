@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -114,17 +114,19 @@ func (r *vipResource) Create(ctx context.Context, request resource.CreateRequest
 
 	p := param.CreateVipParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateVipDetailParam{
+		Params: param.CreateVipParamDetail{
 			Name:          plan.Name.ValueString(),
-			Description:   plan.Description.ValueString(), //.EndIp.ValueString(),
-			L3NetworkUUID: plan.L3NetworkUuid.ValueString(),
-			IpRangeUUID:   plan.IpRangeUuid.ValueString(),
-			//	RequiredIp:    plan.VIP.ValueString(),
+			Description:   stringPtr(plan.Description.ValueString()),
+			L3NetworkUuid: plan.L3NetworkUuid.ValueString(),
 		},
 	}
 
+	if !plan.IpRangeUuid.IsNull() && plan.IpRangeUuid.ValueString() != "" {
+		p.Params.IpRangeUuid = stringPtr(plan.IpRangeUuid.ValueString())
+	}
+
 	if !plan.VIP.IsNull() && plan.VIP.ValueString() != "" {
-		p.Params.RequiredIp = plan.VIP.ValueString()
+		p.Params.RequiredIp = stringPtr(plan.VIP.ValueString())
 	}
 
 	vip, err := r.client.CreateVip(p)
@@ -139,7 +141,7 @@ func (r *vipResource) Create(ctx context.Context, request resource.CreateRequest
 	plan.Uuid = types.StringValue(vip.UUID)
 	plan.Name = types.StringValue(vip.Name)
 	plan.Description = types.StringValue(vip.Description)
-	plan.L3NetworkUuid = types.StringValue(vip.L3NetworkUUID)
+	plan.L3NetworkUuid = types.StringValue(vip.L3NetworkUuid)
 	plan.VIP = types.StringValue(vip.Ip)
 
 	diags = response.State.Set(ctx, plan)
@@ -158,7 +160,8 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	vips, err := r.client.QueryVip(param.NewQueryParam())
+	q := param.NewQueryParam()
+	vips, err := r.client.QueryVip(&q)
 
 	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
@@ -179,7 +182,7 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 			state.Uuid = types.StringValue(vip.UUID)
 			state.Name = types.StringValue(vip.Name)
 			state.Description = types.StringValue(vip.Description)
-			state.L3NetworkUuid = types.StringValue(vip.L3NetworkUUID)
+			state.L3NetworkUuid = types.StringValue(vip.L3NetworkUuid)
 			state.VIP = types.StringValue(vip.Ip)
 			found = true
 			break

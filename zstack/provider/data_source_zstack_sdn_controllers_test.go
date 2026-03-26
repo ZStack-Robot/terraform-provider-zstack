@@ -4,39 +4,40 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Set environment variable TF_ACC to run acceptance tests.
-// In VSCode, edit settings.json and add:
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackSdnControllersDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.SdnControllers) == 0 {
+		t.Skip("no sdn controllers in env data")
+	}
+	sdn := env.SdnControllers[0]
+	name := envStr(sdn, "name")
+	pattern := string([]rune(name)[:3]) + "%"
+	status := envStr(sdn, "status")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_networking_sdn_controllers" "test" {
-  name_pattern = "172%"
+  name_pattern = %q
   filter {
     name   = "status"
-    values = ["Disconnected"]
+    values = [%q]
   }
-}`,
+}`, pattern, status),
 				Check: resource.ComposeAggregateTestCheckFunc(
-
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.#", "2"),
-
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.status", "Disconnected"),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.name", "172.30.3.155"),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.ip", "172.30.3.155"),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.uuid", "65589889039944b5a2efeb2ed4d67594"),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.vendor_type", "Ovn"),
+					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.status", status),
+					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.ip", envStr(sdn, "ip")),
+					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.uuid", envStr(sdn, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.vendor_type", envStr(sdn, "vendor_type")),
 				),
 			},
 		},

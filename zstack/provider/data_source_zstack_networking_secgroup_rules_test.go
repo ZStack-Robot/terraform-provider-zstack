@@ -4,42 +4,46 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Set environment variable TF_ACC to run acceptance tests.
-// In VSCode, edit settings.json and add:
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackNetworkingSecGroupRulesDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.SecurityGroupRules) == 0 {
+		t.Skip("no security group rules in env data")
+	}
+
+	// Find the first rule to use for filter values
+	rule := env.SecurityGroupRules[0]
+	action := envStr(rule, "action")
+	protocol := envStr(rule, "protocol")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_networking_secgroup_rules" "test" {
 	filter {
 		name   = "action"
-		values = ["DROP"]
+		values = [%q]
 	}
 	filter {
-        name   = "protocol"
-        values = ["TCP"]
-  }
-}`,
+		name   = "protocol"
+		values = [%q]
+	}
+}`, action, protocol),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.#", "3"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.action", "DROP"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.protocol", "TCP"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.uuid", "3d4c2f323ebf4066bf0ab5d2039f3548"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.dst_port_range", "80,443"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.type", "Ingress"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.src_ip_range", "13.13.15.13"),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.action", action),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.protocol", protocol),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.uuid", envStr(rule, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.type", envStr(rule, "type")),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.state", envStr(rule, "state")),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.dst_port_range", envStr(rule, "dst_port_range")),
+					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.src_ip_range", envStr(rule, "src_ip_range")),
 				),
 			},
 		},

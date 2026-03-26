@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -105,14 +105,14 @@ func (r *tagResource) Create(ctx context.Context, request resource.CreateRequest
 		return
 	}
 
-	params := param.CreateResourceTagParam{
+	params := param.CreateTagParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateResourceTagDetailParam{
+		Params: param.CreateTagParamDetail{
 			Name:        plan.Name.ValueString(),
 			Value:       plan.Value.ValueString(),
-			Description: plan.Description.ValueString(),
-			Color:       plan.Color.ValueString(),
-			Type:        plan.Type.ValueString(),
+			Description: stringPtr(plan.Description.ValueString()),
+			Color:       stringPtr(plan.Color.ValueString()),
+			Type:        stringPtr(plan.Type.ValueString()),
 		},
 	}
 
@@ -123,6 +123,11 @@ func (r *tagResource) Create(ctx context.Context, request resource.CreateRequest
 	}
 
 	plan.Uuid = types.StringValue(tag.UUID)
+	plan.Name = types.StringValue(tag.Name)
+	plan.Description = stringValueOrNull(tag.Description)
+	plan.Color = stringValueOrNull(tag.Color)
+	plan.Type = stringValueOrNull(tag.Type)
+
 	diags = response.State.Set(ctx, &plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
@@ -147,9 +152,9 @@ func (r *tagResource) Read(ctx context.Context, request resource.ReadRequest, re
 	state.Name = types.StringValue(tag.Name)
 	// TODO: SDK TagInventoryView is missing Value field - needs SDK update
 	// state.Value = types.StringValue(tag.Value)
-	state.Description = types.StringValue(tag.Description)
-	state.Color = types.StringValue(tag.Color)
-	state.Type = types.StringValue(tag.Type)
+	state.Description = stringValueOrNull(tag.Description)
+	state.Color = stringValueOrNull(tag.Color)
+	state.Type = stringValueOrNull(tag.Type)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -203,13 +208,13 @@ func (r *tagResource) Update(ctx context.Context, request resource.UpdateRequest
 		}
 	}
 
-	params := param.UpdateResourceTagParam{
+	params := param.UpdateTagParam{
 		BaseParam: param.BaseParam{},
-		UpdateResourceTag: param.UpdateResourceTagDetailParam{
+		Params: param.UpdateTagParamDetail{
 			Name:        plan.Name.ValueString(),
-			Value:       plan.Value.ValueString(),
-			Description: plan.Description.ValueString(),
-			Color:       plan.Color.ValueString(),
+			Value:       stringPtr(plan.Value.ValueString()),
+			Description: stringPtr(plan.Description.ValueString()),
+			Color:       stringPtr(plan.Color.ValueString()),
 		},
 	}
 
@@ -220,6 +225,11 @@ func (r *tagResource) Update(ctx context.Context, request resource.UpdateRequest
 	}
 
 	plan.Uuid = types.StringValue(tag.UUID)
+	plan.Name = types.StringValue(tag.Name)
+	plan.Description = stringValueOrNull(tag.Description)
+	plan.Color = stringValueOrNull(tag.Color)
+	plan.Type = stringValueOrNull(tag.Type)
+
 	diags = response.State.Set(ctx, &plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {

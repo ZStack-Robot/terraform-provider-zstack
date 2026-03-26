@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -95,7 +95,7 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	vrouterOffers, err := d.client.QueryVirtualRouterOffering(params)
+	vrouterOffers, err := d.client.QueryVirtualRouterOffering(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read virtual router offers",
@@ -140,7 +140,7 @@ func (d *vrouterOfferingDataSource) Read(ctx context.Context, req datasource.Rea
 			SortKey:            types.Int32Value(int32(vrouterOffer.SortKey)),
 			State:              types.StringValue(vrouterOffer.State),
 			IsDefault:          types.BoolValue(vrouterOffer.IsDefault),
-			ReservedMemorySize: types.StringValue(vrouterOffer.ReservedMemorySize),
+			ReservedMemorySize: types.StringValue(fmt.Sprintf("%d", vrouterOffer.ReservedMemorySize)),
 		}
 
 		state.VRouterOffering = append(state.VRouterOffering, vrouterOfferState)

@@ -13,9 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var (
@@ -128,13 +128,13 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 	}
 
 	var systemTags []string
-	executeParam := param.ExecuteVmInstanceScriptParam{
+	executeParam := param.ExecuteGuestVmScriptParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
-		Params: param.ExecuteVmInstanceScriptDetailParam{
+		Params: param.ExecuteGuestVmScriptParamDetail{
 			VmInstanceUuids: []string{plan.InstanceUuid.ValueString()},
-			ScriptTimeout:   scriptTimeout,
+			ScriptTimeout:   intPtr(scriptTimeout),
 		},
 	}
 
@@ -143,7 +143,7 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 		"vm_instance_uuid": plan.InstanceUuid.ValueString(),
 	})
 
-	scriptExecuteResult, err := r.client.ExecuteVmInstanceScript(plan.ScriptUuid.ValueString(), executeParam)
+	scriptExecuteResult, err := r.client.ExecuteGuestVmScript(plan.ScriptUuid.ValueString(), executeParam)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to execute VM instance script",
@@ -162,7 +162,7 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 		"max_wait_time": maxWaitTime,
 	})
 
-	var record *view.VmInstanceScriptResultInventoryView
+	var record *view.GuestVmScriptExecutedRecordInventoryView
 	for {
 		if time.Since(startTime) > maxWaitTime {
 			response.Diagnostics.AddError(
@@ -172,7 +172,7 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 			return
 		}
 
-		record, err = r.client.GetVmInstanceScriptExecutedRecord(recordUuid)
+		record, err = r.client.GetGuestVmScriptExecutedRecord(recordUuid)
 		if err != nil {
 			response.Diagnostics.AddError(
 				"Failed to retrieve script execution record",
@@ -201,7 +201,7 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 	plan.RecordName = types.StringValue(record.RecordName)
 	plan.Status = types.StringValue(record.Status)
 	plan.Executor = types.StringValue(record.Executor)
-	plan.ScriptUuid = types.StringValue(record.ScriptUUID)
+	plan.ScriptUuid = types.StringValue(record.ScriptUuid)
 	plan.ExecutionCount = types.Int64Value(int64(record.ExecutionCount))
 	plan.Version = types.Int32Value(int32(record.Version))
 
@@ -238,7 +238,7 @@ func (r *scriptExecutionResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	record, err := r.client.GetVmInstanceScriptExecutedRecord(state.Uuid.ValueString())
+	record, err := r.client.GetGuestVmScriptExecutedRecord(state.Uuid.ValueString())
 
 	if err != nil {
 		tflog.Warn(ctx, "Unable to retrieve VM instance script execution record. It may have been deleted.", map[string]interface{}{
@@ -252,7 +252,7 @@ func (r *scriptExecutionResource) Read(ctx context.Context, request resource.Rea
 	state.RecordName = types.StringValue(record.RecordName)
 	state.Status = types.StringValue(record.Status)
 	state.Executor = types.StringValue(record.Executor)
-	state.ScriptUuid = types.StringValue(record.ScriptUUID)
+	state.ScriptUuid = types.StringValue(record.ScriptUuid)
 	state.ExecutionCount = types.Int64Value(int64(record.ExecutionCount))
 	state.Version = types.Int32Value(int32(record.Version))
 

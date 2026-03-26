@@ -4,14 +4,14 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -95,21 +95,22 @@ func (r *tagAttachmentResource) Create(ctx context.Context, request resource.Cre
 		resourceUuids = append(resourceUuids, v.(types.String).ValueString())
 	}
 
-	attachType := []string{}
+	attachParams := param.AttachTagToResourcesParam{
+		BaseParam: param.BaseParam{},
+		Params: param.AttachTagToResourcesParamDetail{
+			ResourceUuids: resourceUuids,
+		},
+	}
+
 	if !plan.Tokens.IsNull() && len(plan.Tokens.Elements()) > 0 {
-		tokenMap := make(map[string]interface{})
+		tokenMap := make(map[string]string)
 		for k, v := range plan.Tokens.Elements() {
 			tokenMap[k] = v.(types.String).ValueString()
 		}
-		tokenJson, err := json.Marshal(tokenMap)
-		if err != nil {
-			response.Diagnostics.AddError("Error marshaling tokens", err.Error())
-			return
-		}
-		attachType = []string{"withToken", string(tokenJson)}
+		attachParams.Params.Tokens = tokenMap
 	}
 
-	_, err := r.client.AttachTagToResource(plan.TagUuid.ValueString(), resourceUuids, attachType...)
+	_, err := r.client.AttachTagToResources(attachParams)
 	if err != nil {
 		response.Diagnostics.AddError("Error attaching tag", err.Error())
 		return
@@ -151,15 +152,13 @@ func (r *tagAttachmentResource) Read(ctx context.Context, request resource.ReadR
 		)
 		return
 	}
-	if len(result) == 0 {
+	if result == nil || result.UUID == "" {
 		response.State.RemoveResource(ctx)
 		return
 	}
 
 	var resourceUuids []string
-	for _, item := range result {
-		resourceUuids = append(resourceUuids, item.ResourceUuid)
-	}
+	resourceUuids = append(resourceUuids, result.ResourceUuid)
 
 	// Update state.ResourceUuids
 	var resourceUuidsValues []attr.Value
@@ -192,7 +191,7 @@ func (r *tagAttachmentResource) Delete(ctx context.Context, request resource.Del
 		resourceUuids = append(resourceUuids, v.(types.String).ValueString())
 	}
 
-	err := r.client.DetachTagFromResource(state.TagUuid.ValueString(), resourceUuids)
+	err := r.client.DetachTagFromResources(state.TagUuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError("Error detaching tag", err.Error())
 		return

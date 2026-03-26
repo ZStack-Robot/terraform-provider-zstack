@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -72,25 +72,25 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 
 	//systemTags = append(systemTags, param.vr)
 	tflog.Info(ctx, "Configuring ZStack client")
-	virtualRouterInstanceParam := param.CreateVirtualRouterInstanceParam{
+	virtualRouterInstanceParam := param.CreateVpcVRouterParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateVirtualRouterInstanceDetailParam{
+		Params: param.CreateVpcVRouterParamDetail{
 			Name:                      plan.Name.ValueString(),
-			Description:               plan.Description.ValueString(),
+			Description:               stringPtr(plan.Description.ValueString()),
 			VirtualRouterOfferingUuid: plan.VirtualRouterOfferingUuid.ValueString(),
 			//PrimaryStorageUuidForRootVolume: plan.PrimaryStorageUuidForRootVolume.ValueStringPointer(),
 		},
 	}
 
 	if !plan.Description.IsNull() {
-		virtualRouterInstanceParam.Params.Description = plan.Description.ValueString()
+		virtualRouterInstanceParam.Params.Description = stringPtr(plan.Description.ValueString())
 	}
 
 	if !plan.PrimaryStorageUuidForRootVolume.IsNull() {
 		virtualRouterInstanceParam.Params.PrimaryStorageUuidForRootVolume = plan.PrimaryStorageUuidForRootVolume.ValueStringPointer()
 	}
 
-	vrInstance, err := r.client.CreateVirtualRouterInstance(virtualRouterInstanceParam)
+	vrInstance, err := r.client.CreateVpcVRouter(virtualRouterInstanceParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Could not Create virtual router instance", "Error "+err.Error(),
@@ -100,10 +100,10 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 
 	plan.Uuid = types.StringValue(vrInstance.UUID)
 	plan.Name = types.StringValue(vrInstance.Name)
-	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUUID)
+	plan.VirtualRouterOfferingUuid = types.StringValue(vrInstance.InstanceOfferingUuid)
 
 	plan.State = types.StringValue(vrInstance.State)
-	plan.Status = types.StringValue(vrInstance.Status)
+	plan.Status = types.StringValue(vrInstance.State)
 
 	if !plan.Description.IsNull() {
 		plan.Description = types.StringValue(vrInstance.Description)
@@ -162,7 +162,7 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 	state.Uuid = types.StringValue(vrInstance.UUID)
 	state.Name = types.StringValue(vrInstance.Name)
 	state.State = types.StringValue(vrInstance.State)
-	state.Status = types.StringValue(vrInstance.Status)
+	state.Status = types.StringValue(vrInstance.State)
 
 	if vrInstance.Description != "" {
 		state.Description = types.StringValue(vrInstance.Description)

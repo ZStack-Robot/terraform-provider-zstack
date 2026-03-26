@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -140,7 +140,7 @@ func (d *zoneDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	zones, err := d.client.QueryZone(params)
+	zones, err := d.client.QueryZone(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack zones",

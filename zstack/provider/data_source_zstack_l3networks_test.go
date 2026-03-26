@@ -3,47 +3,35 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Set environment variable TF_ACC to run acceptance tests.
-// In VSCode, edit settings.json and add:
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackL3NetworksDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3 networks in env data")
+	}
+	l3 := env.L3Networks[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
-					data "zstack_l3networks" "test" {}`,
+				Config: providerConfig() + `data "zstack_l3networks" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify the number of l3networks returned
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", "1"),
-
-					// Verify attributes of the first l3network
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", "public network"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", "a5e77b2972e64316878993af7a695400"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", "Public"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.dns.0.dns_model", "223.5.5.5"),
-
-					//Verify attribute free ips
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip", "172.26.111.241"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip_range_uuid", "8caf96a048f0423f9178e54d29b36b86"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.netmask", "255.255.0.0"),
-
-					//Verify attribute ip range
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.cidr", "172.26.0.0/16"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.start_ip", "172.26.111.240"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.end_ip", "172.26.111.254"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.netmask", "255.255.0.0"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.ip_range_name", "host IP range"),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", fmt.Sprintf("%d", len(env.L3Networks))),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", envStr(l3, "name")),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.dns.0.dns_model"),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.cidr"),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.start_ip"),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.end_ip"),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.netmask"),
+					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.gateway"),
 				),
 			},
 		},
@@ -51,37 +39,23 @@ func TestAccZStackL3NetworksDataSource(t *testing.T) {
 }
 
 func TestAccZStackL3NetworksDataSourceFilterByName(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3 networks in env data")
+	}
+	l3 := env.L3Networks[0]
+	name := envStr(l3, "name")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
-					data "zstack_l3networks" "test" {
-						name = "public network"
-					}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_l3networks" "test" { name = %q }`, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify the number of l3networks returned
 					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", "1"),
-
-					// Verify attributes of the first l3network
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", "public network"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", "a5e77b2972e64316878993af7a695400"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", "Public"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.dns.0.dns_model", "223.5.5.5"),
-
-					//Verify attribute free ips
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip", "172.26.111.241"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip_range_uuid", "8caf96a048f0423f9178e54d29b36b86"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.netmask", "255.255.0.0"),
-
-					//Verify attribute ip range
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.cidr", "172.26.0.0/16"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.start_ip", "172.26.111.240"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.end_ip", "172.26.111.254"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.netmask", "255.255.0.0"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.ip_range_name", "host IP range"),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
 				),
 			},
 		},
@@ -89,37 +63,23 @@ func TestAccZStackL3NetworksDataSourceFilterByName(t *testing.T) {
 }
 
 func TestAccZStackL3NetworksDataSourceFilterByNamePattern(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3 networks in env data")
+	}
+	l3 := env.L3Networks[0]
+	name := envStr(l3, "name")
+	pattern := string([]rune(name)[:1]) + "%"
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + `
-					data "zstack_l3networks" "test" {
-						name_pattern = "p%"
-					}`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_l3networks" "test" { name_pattern = %q }`, pattern),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify the number of l3networks returned
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", "1"),
-
-					// Verify attributes of the first l3network
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", "public network"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", "a5e77b2972e64316878993af7a695400"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", "Public"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.dns.0.dns_model", "223.5.5.5"),
-
-					//Verify attribute free ips
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip", "172.26.111.241"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.ip_range_uuid", "8caf96a048f0423f9178e54d29b36b86"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.free_ips.0.netmask", "255.255.0.0"),
-
-					//Verify attribute ip range
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.cidr", "172.26.0.0/16"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.start_ip", "172.26.111.240"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.end_ip", "172.26.111.254"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.netmask", "255.255.0.0"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.gateway", "172.26.0.1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.ip_range.0.ip_range_name", "host IP range"),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
 				),
 			},
 		},

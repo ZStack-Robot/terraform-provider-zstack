@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -68,7 +68,7 @@ func (r *diskOfferingResource) Create(ctx context.Context, req resource.CreateRe
 	diskSizeBytes := utils.GBToBytes(plan.DiskSize.ValueInt64())
 	offerParam := param.CreateDiskOfferingParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateDiskOfferingDetailParam{
+		Params: param.CreateDiskOfferingParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: plan.Description.ValueStringPointer(),
 			DiskSize:    diskSizeBytes,
@@ -76,7 +76,7 @@ func (r *diskOfferingResource) Create(ctx context.Context, req resource.CreateRe
 		},
 	}
 
-	disk_offer, err := r.client.CreateDiskOffering(&offerParam)
+	disk_offer, err := r.client.CreateDiskOffering(offerParam)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

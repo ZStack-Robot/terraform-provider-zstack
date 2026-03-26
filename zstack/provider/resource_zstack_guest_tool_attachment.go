@@ -10,7 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -97,7 +98,7 @@ func (r *guestToolsResource) Create(ctx context.Context, request resource.Create
 		return
 	}
 
-	err := r.client.AttachGuestToolsIsoToVm(instance_uuid)
+	_, err := r.client.AttachGuestToolsIsoToVm(instance_uuid, param.AttachGuestToolsIsoToVmParam{})
 
 	if err != nil {
 		response.Diagnostics.AddError(

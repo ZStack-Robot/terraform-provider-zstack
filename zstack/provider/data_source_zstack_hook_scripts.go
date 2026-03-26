@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -82,7 +82,7 @@ func (d *hookScriptsDataSource) Read(ctx context.Context, req datasource.ReadReq
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	hook_scripts, err := d.client.QueryVmUserDefinedXmlHookScript(params)
+	hook_scripts, err := d.client.QueryVmUserDefinedXmlHookScript(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack Hosts ",

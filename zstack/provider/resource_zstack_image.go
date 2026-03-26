@@ -15,8 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -37,12 +37,12 @@ type imageResourceModel struct {
 	Url                types.String `tfsdk:"url"`
 	MediaType          types.String `tfsdk:"media_type"`
 	GuestOsType        types.String `tfsdk:"guest_os_type"`
-	System             types.Bool   `tfsdk:"system"`
+	System             types.String `tfsdk:"system"`
 	Platform           types.String `tfsdk:"platform"`
 	Format             types.String `tfsdk:"format"`
 	BackupStorageUuids types.List   `tfsdk:"backup_storage_uuids"`
 	Architecture       types.String `tfsdk:"architecture"`
-	Virtio             types.Bool   `tfsdk:"virtio"`
+	Virtio             types.String `tfsdk:"virtio"`
 	//	Type               types.String `tfsdk:"type"`
 	//Marketplace        types.Bool   `tfsdk:"marketplace"`
 	BootMode types.String `tfsdk:"boot_mode"`
@@ -82,7 +82,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	var backupStorageUuids []string
 	if imagePlan.BackupStorageUuids.IsNull() {
-		storage, err := r.client.QueryBackupStorage(param.QueryParam{})
+		storage, err := r.client.QueryBackupStorage(&param.QueryParam{})
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"fail to get backup storage",
@@ -100,18 +100,18 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if imagePlan.BootMode.IsNull() || imagePlan.BootMode.ValueString() == "" {
 		// if boot mode not set, use uefi in aarch64 and legacy in x86_64
 		if imagePlan.Architecture.ValueString() == "aarch64" {
-			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+			systemTags = append(systemTags, "bootMode::UEFI")
 		} else {
-			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+			systemTags = append(systemTags, "bootMode::Legacy")
 		}
 	} else {
 		bootMode := strings.ToLower(imagePlan.BootMode.ValueString())
 
 		switch bootMode {
 		case "uefi":
-			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+			systemTags = append(systemTags, "bootMode::UEFI")
 		case "legacy":
-			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+			systemTags = append(systemTags, "bootMode::Legacy")
 		default:
 			resp.Diagnostics.AddError(
 				"invalid boot mode",
@@ -136,20 +136,20 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
-		Params: param.AddImageDetailParam{
+		Params: param.AddImageParamDetail{
 			Name:               imagePlan.Name.ValueString(),
-			Description:        imagePlan.Description.ValueString(),
+			Description:        stringPtr(imagePlan.Description.ValueString()),
 			Url:                imagePlan.Url.ValueString(),
-			MediaType:          param.MediaType(imagePlan.MediaType.ValueString()), // param.RootVolumeTemplate,
-			GuestOsType:        imagePlan.GuestOsType.ValueString(),
+			MediaType:          stringPtr(imagePlan.MediaType.ValueString()),
+			GuestOsType:        stringPtr(imagePlan.GuestOsType.ValueString()),
 			System:             false,
-			Format:             param.ImageFormat(imagePlan.Format.ValueString()), // param.Qcow2,
-			Platform:           imagePlan.Platform.ValueString(),
+			Format:             stringPtr(imagePlan.Format.ValueString()),
+			Platform:           stringPtr(imagePlan.Platform.ValueString()),
 			BackupStorageUuids: backupStorageUuids,
 			//Type:               imagePlan.Type.ValueString(),
-			ResourceUuid: "",
-			Architecture: param.Architecture(imagePlan.Architecture.ValueString()),
-			Virtio:       imagePlan.Virtio.ValueBool(),
+			//ResourceUuid: stringPtr(""),
+			Architecture: stringPtr(imagePlan.Architecture.ValueString()),
+			Virtio:       boolPtr(imagePlan.Virtio.ValueString() == "true"),
 		},
 	}
 
@@ -157,7 +157,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	image, err := r.client.AddImage(imageParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not Add image to ZStack Image storage"+image.Name, "Error "+err.Error(),
+			"Could not Add image to ZStack Image storage", "Error "+err.Error(),
 		)
 		return
 	}
@@ -167,7 +167,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	imagePlan.Description = types.StringValue(image.Description)
 	imagePlan.Url = types.StringValue(image.Url)
 	imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
-	imagePlan.System = types.BoolValue(image.System)
+	imagePlan.System = types.StringValue(fmt.Sprintf("%t", image.System))
 	imagePlan.Platform = types.StringValue(image.Platform)
 	//imagePlan.Type = types.StringValue(image.Type)
 	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
@@ -339,7 +339,7 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 					Description: "The type of the image, for example, 'ISO' or 'RootVolumeTemplate'.",
 				},
 			*/
-			"virtio": schema.BoolAttribute{
+			"virtio": schema.StringAttribute{
 				Optional:    true,
 				Description: "Indicates if the VirtIO drivers are required for the image.",
 			},
