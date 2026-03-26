@@ -15,8 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -76,7 +76,8 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 
 	var backupStorageUuids []string
 	if plan.BackupStorageUuids.IsNull() {
-		storage, err := r.client.QueryBackupStorage(param.QueryParam{})
+		q := param.NewQueryParam()
+		storage, err := r.client.QueryBackupStorage(&q)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"fail to get backup storage",
@@ -94,18 +95,18 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 	if plan.BootMode.IsNull() || plan.BootMode.ValueString() == "" {
 		// if boot mode not set, use uefi in aarch64 and legacy in x86_64
 		if plan.Architecture.ValueString() == "aarch64" {
-			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+			systemTags = append(systemTags, "bootMode::UEFI")
 		} else {
-			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+			systemTags = append(systemTags, "bootMode::Legacy")
 		}
 	} else {
 		bootMode := strings.ToLower(plan.BootMode.ValueString())
 
 		switch bootMode {
 		case "uefi":
-			systemTags = append(systemTags, param.SystemTagBootModeUEFI)
+			systemTags = append(systemTags, "bootMode::UEFI")
 		case "legacy":
-			systemTags = append(systemTags, param.SystemTagBootModeLegacy)
+			systemTags = append(systemTags, "bootMode::Legacy")
 		default:
 			resp.Diagnostics.AddError(
 				"invalid boot mode",
@@ -115,27 +116,34 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 		}
 	}
 
-	systemTags = append(systemTags, param.SystemTagApplianceTypeVRouter)
+	systemTags = append(systemTags, "applianceType::vrouter")
 
-	//systemTags = append(systemTags, param.vr)
+	platform := plan.Platform.ValueString()
+	if platform == "" {
+		platform = "Linux"
+	}
+	guestOsType := plan.GuestOsType.ValueString()
+	if guestOsType == "" {
+		guestOsType = "Linux"
+	}
+
 	tflog.Info(ctx, "Configuring ZStack client")
 	imageParam := param.AddImageParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
-		Params: param.AddImageDetailParam{
+		Params: param.AddImageParamDetail{
 			Name:               plan.Name.ValueString(),
-			Description:        plan.Description.ValueString(),
+			Description:        stringPtr(plan.Description.ValueString()),
 			Url:                plan.Url.ValueString(),
-			MediaType:          param.RootVolumeTemplate,
-			GuestOsType:        plan.GuestOsType.ValueString(),
+			MediaType:          stringPtr("RootVolumeTemplate"),
+			GuestOsType:        stringPtr(guestOsType),
 			System:             true,
-			Format:             param.Qcow2,
-			Platform:           plan.Platform.ValueString(),
+			Format:             stringPtr("qcow2"),
+			Platform:           stringPtr(platform),
 			BackupStorageUuids: backupStorageUuids,
-			ResourceUuid:       "",
-			Architecture:       param.Architecture(plan.Architecture.ValueString()),
-			Virtio:             plan.Virtio.ValueBool(),
+			Architecture:       stringPtr(plan.Architecture.ValueString()),
+			Virtio:             boolPtr(plan.Virtio.ValueBool()),
 		},
 	}
 
@@ -143,7 +151,7 @@ func (r *virtualRouterImageResource) Create(ctx context.Context, req resource.Cr
 	image, err := r.client.AddImage(imageParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not Add image to ZStack Image storage"+image.Name, "Error "+err.Error(),
+			"Could not Add image to ZStack Image storage", "Error "+err.Error(),
 		)
 		return
 	}

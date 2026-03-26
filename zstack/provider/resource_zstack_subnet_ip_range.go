@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -118,17 +118,17 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 
 	p := param.AddIpRangeParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddIpRangeDetailParam{
+		Params: param.AddIpRangeParamDetail{
 			Name:        plan.Name.ValueString(),
 			StartIp:     plan.StartIp.ValueString(),
 			EndIp:       plan.EndIp.ValueString(),
 			Netmask:     plan.Netmask.ValueString(),
-			Gateway:     plan.Gateway.ValueString(),
-			IpRangeType: plan.IpRangeType.ValueString(),
+			Gateway:     stringPtr(plan.Gateway.ValueString()),
+			IpRangeType: stringPtr(plan.IpRangeType.ValueString()),
 		},
 	}
 
-	subnet, err := r.client.AddIpRange(plan.L3NetworkUuid.ValueString(), p)
+	subnet, err := r.client.AddIpRange(p)
 
 	//AddReservedIpRange(plan.Uuid.String().L3NetworkUuid.ValueString(), p)
 	if err != nil {
@@ -139,7 +139,7 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 		return
 	}
 
-	plan.Uuid = types.StringValue(subnet.Uuid)
+	plan.Uuid = types.StringValue(subnet.UUID)
 	plan.Name = types.StringValue(subnet.Name)
 	plan.StartIp = types.StringValue(subnet.StartIp)
 	plan.EndIp = types.StringValue(subnet.EndIp)
@@ -162,7 +162,8 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
-	subnets, err := r.client.QueryIpRange(param.NewQueryParam())
+	q := param.NewQueryParam()
+	subnets, err := r.client.QueryIpRange(&q)
 
 	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
@@ -175,10 +176,10 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 	// Iterate over the fetched subnets and match the UUID
 	found := false
 	for _, subnet := range subnets {
-		if subnet.Uuid == state.Uuid.ValueString() {
+		if subnet.UUID == state.Uuid.ValueString() {
 			// Update state with the matched subnet details
 			state = subnetModel{
-				Uuid:          types.StringValue(subnet.Uuid),
+				Uuid:          types.StringValue(subnet.UUID),
 				Name:          types.StringValue(subnet.Name),
 				StartIp:       types.StringValue(subnet.StartIp),
 				EndIp:         types.StringValue(subnet.EndIp),

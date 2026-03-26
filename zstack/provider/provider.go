@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 )
 
 var (
@@ -58,7 +58,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		resp.Diagnostics.AddAttributeError(
 			path.Root("host"),
 			"Unknown ZStack Cloud API Host",
-			"The provider cannt create the ZStack Cloud API client as an unknown configuration value for the ZStack Cloud API host."+
+			"The provider cannot create the ZStack Cloud API client as an unknown configuration value for the ZStack Cloud API host. "+
 				"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_HOST environment variable.",
 		)
 	}
@@ -67,7 +67,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		resp.Diagnostics.AddAttributeError(
 			path.Root("port"),
 			"Unknown ZStack Cloud API Port",
-			"The provider cannt create the ZStack Cloud API client as an unknown configuration value for the ZStack Cloud API port."+
+			"The provider cannot create the ZStack Cloud API client as an unknown configuration value for the ZStack Cloud API port. "+
 				"Either target apply the source of the value first, set the value statically in the configuration, or use the ZSTACK_PORT environment variable.",
 		)
 	}
@@ -108,8 +108,8 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	//Defaukt value to environment vairiable, but override
-	//with Terraform configuration value if set.
+	// Default value to environment variable, but override
+	// with Terraform configuration value if set.
 
 	port := 8080
 
@@ -151,7 +151,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	// If any of the expected configuration are missing, return
-	// errors with provider-sepecific guidance.
+	// errors with provider-specific guidance.
 
 	if host == "" {
 		resp.Diagnostics.AddAttributeError(
@@ -237,6 +237,8 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackDiskOfferingDataSource,
 		ZStackPrimaryStorageDataSource,
 		ZStackDisksDataSource,
+		ZStackVolumesDataSource,
+		ZStackVolumeSnapshotsDataSource,
 		ZStackInstanceScriptDataSource,
 		ZStackGuestToolsDataSource,
 		ZStackTagDataSource,
@@ -244,6 +246,16 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackNetworkingSecGroupRuleDataSource,
 		ZStackSdnControllerDataSource,
 		ZStackHookScriptsDataSource,
+		ZStackAccountDataSource,
+		ZStackIAM2ProjectDataSource,
+		ZStackAffinityGroupDataSource,
+		ZStackSshKeyPairDataSource,
+		ZStackL2VlanNetworkDataSource,
+		ZStackPortForwardingRuleDataSource,
+		ZStackLoadBalancerDataSource,
+		ZStackLoadBalancerListenerDataSource,
+		ZStackGpuDeviceDataSource,
+		ZStackAutoScalingGroupDataSource,
 	}
 
 }
@@ -272,11 +284,27 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		GuestToolsResource,
 		ScriptResource,
 		ScriptExecutionResource,
+		VolumeResource,
+		VolumeSnapshotResource,
 		TagResource,
 		TagAttachmentResource,
 		SecurityGroupAttachmentResource,
 		SecurityGroupResource,
 		SecurityGroupRuleResource,
+		AccountResource,
+		IAM2ProjectResource,
+		AffinityGroupResource,
+		SshKeyPairResource,
+		L2VlanNetworkResource,
+		PortForwardingRuleResource,
+		LoadBalancerResource,
+		LoadBalancerListenerResource,
+		AutoScalingGroupResource,
+		ZoneResource,
+		ClusterResource,
+		HostResource,
+		PrimaryStorageResource,
+		BackupStorageResource,
 	}
 }
 
@@ -299,7 +327,7 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				},
 			*/
 			"account_name": schema.StringAttribute{
-				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUN_TNAME environment variable. " +
+				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUNT_NAME environment variable. " +
 					"Required if using Account authentication.  Only supports the platform administrator account (`admin`). " +
 					"Mutually exclusive with `access_key_id` and `access_key_secret`. " +
 					"Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.",

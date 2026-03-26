@@ -3,32 +3,30 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackZonesDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env data")
+	}
+	z := env.Zones[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_zones" "test" {}`,
+				Config: providerConfig() + `data "zstack_zones" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of image returned
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.#", "1"),
-
-					// Verify the first image to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.name", "zone1"),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.uuid", "1df948fedd3b45dd89e9549348280e17"),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.type", "zstack"),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.state", "Enabled"),
+					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.#", fmt.Sprintf("%d", len(env.Zones))),
+					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.name", envStr(z, "name")),
+					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.uuid", envStr(z, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.type", envStr(z, "type")),
+					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.state", envStr(z, "state")),
 				),
 			},
 		},

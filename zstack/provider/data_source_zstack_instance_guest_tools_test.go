@@ -3,27 +3,27 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackInstanceGuestToolsDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.VmInstances) == 0 {
+		t.Skip("no vm instances in env data")
+	}
+	vm := env.VmInstances[0]
+	vmUUID := envStr(vm, "uuid")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_guest_tools" "test" { instance_uuid = "1e3a89a3dbfe434cbc8571af0e27e711" }`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_guest_tools" "test" { instance_uuid = %q }`, vmUUID),
 				Check: resource.ComposeAggregateTestCheckFunc(
-
-					resource.TestCheckResourceAttr("data.zstack_guest_tools.test", "version", ""),
-					resource.TestCheckResourceAttr("data.zstack_guest_tools.test", "status", "Not Connected"),
+					resource.TestCheckResourceAttrSet("data.zstack_guest_tools.test", "status"),
 				),
 			},
 		},

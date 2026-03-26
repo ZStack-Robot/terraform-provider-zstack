@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -105,7 +105,7 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	//Query L3 networks with name filtering
-	l3networks, err := d.client.QueryL3Network(params)
+	l3networks, err := d.client.QueryL3Network(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack L3Networks ",
@@ -132,18 +132,7 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 	}
 
 	// Process each L3 network in the result
-	//l3freeIps, err := d.client.GetFreeIp(uuid, param.QueryParam{})
 	for _, l3network := range filterL3Networks {
-		// Query free IPs for the current L3 network UUID
-		l3freeIps, err := d.client.GetFreeIp(l3network.UUID, param.QueryParam{})
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Unable to Fetch Free IPs for L3 Network",
-				fmt.Sprintf("Failed to retrieve free IPs for L3 network with UUID %s: %s", l3network.UUID, err.Error()),
-			)
-			return
-		}
-
 		// Build the L3 network model with nested attributes
 		l3networkState := l3networksModel{
 			Name:     types.StringValue(l3network.Name),
@@ -151,7 +140,7 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 			Category: types.StringValue(l3network.Category),
 			Dns:      make([]dnsModel, len(l3network.Dns)),
 			Iprange:  make([]ipRangeModel, len(l3network.IpRanges)),
-			FreeIps:  make([]freeIpModel, len(l3freeIps)),
+			FreeIps:  []freeIpModel{},
 		}
 
 		// Populate DNS information
@@ -170,16 +159,6 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 				Netmask:     types.StringValue(iprange.Netmask),
 				Gateway:     types.StringValue(iprange.Gateway),
 				NetworkCidr: types.StringValue(iprange.NetworkCidr),
-			}
-		}
-
-		// Populate free IP information
-		for i, freeIp := range l3freeIps {
-			l3networkState.FreeIps[i] = freeIpModel{
-				IpRangeUuid: freeIp.IpRangeUuid,
-				Ip:          freeIp.Ip,
-				Netmask:     freeIp.Netmask,
-				Gateway:     freeIp.Gateway,
 			}
 		}
 

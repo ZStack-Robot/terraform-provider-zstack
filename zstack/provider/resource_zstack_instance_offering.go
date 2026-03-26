@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -74,7 +74,7 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 
 	offerParam := param.CreateInstanceOfferingParam{
 		BaseParam: param.BaseParam{},
-		Params: param.CreateInstanceOfferingDetailParam{
+		Params: param.CreateInstanceOfferingParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: plan.Description.ValueStringPointer(),
 			CpuNum:      int(plan.CpuNum.ValueInt64()),
@@ -83,7 +83,7 @@ func (r *instanceOfferingResource) Create(ctx context.Context, req resource.Crea
 		},
 	}
 
-	instance_offer, err := r.client.CreateInstanceOffering(&offerParam)
+	instance_offer, err := r.client.CreateInstanceOffering(offerParam)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

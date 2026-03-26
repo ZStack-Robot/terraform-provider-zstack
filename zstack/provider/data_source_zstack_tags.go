@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -135,7 +135,7 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 
 	switch tagType {
 	case "user":
-		userTags, err := d.client.QueryUserTag(params)
+		userTags, err := d.client.QueryUserTag(&params)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Failed to Fetch User Tags from ZStack",
@@ -150,7 +150,7 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		}
 		for _, tag := range filteredTags {
 			state.UserTags = append(state.UserTags, userTagModel{
-				Uuid:         types.StringValue(tag.Uuid),
+				Uuid:         types.StringValue(tag.UUID),
 				ResourceType: types.StringValue(tag.ResourceType),
 				ResourceUuid: types.StringValue(tag.ResourceUuid),
 				Tag:          types.StringValue(tag.Tag),
@@ -158,7 +158,7 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 			})
 		}
 	case "system":
-		systemTags, err := d.client.QuerySystemTags(params)
+		systemTags, err := d.client.QuerySystemTag(&params)
 		if err != nil {
 			resp.Diagnostics.AddError("Unable to query system tags", err.Error())
 			return
@@ -180,7 +180,7 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 			})
 		}
 	case "tag":
-		tags, err := d.client.QueryTag(params)
+		tags, err := d.client.QueryTag(&params)
 		if err != nil {
 			resp.Diagnostics.AddError("Unable to query tags", err.Error())
 			return

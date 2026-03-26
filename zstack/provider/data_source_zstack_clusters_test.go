@@ -3,34 +3,32 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackClusterDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Clusters) == 0 {
+		t.Skip("no clusters in env data")
+	}
+	c := env.Clusters[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_clusters" "test" {}`,
+				Config: providerConfig() + `data "zstack_clusters" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of clusters returned
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", "1"),
-
-					// Verify the first Cluster to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisortype", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", "cluster1"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", "zstack"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", "1df948fedd3b45dd89e9549348280e17"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", "8087f700b6474a6fb916e0ba139f767c"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", fmt.Sprintf("%d", len(env.Clusters))),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", envStr(c, "name")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
 				),
 			},
 		},
@@ -38,23 +36,26 @@ func TestAccZStackClusterDataSource(t *testing.T) {
 }
 
 func TestAccZStackClusterDataSourceFilterByName(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Clusters) == 0 {
+		t.Skip("no clusters in env data")
+	}
+	c := env.Clusters[0]
+	name := envStr(c, "name")
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_clusters" "test" { name ="cluster1" }`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_clusters" "test" { name = %q }`, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of clusters returned
 					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", "1"),
-
-					// Verify the first Cluster to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisortype", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", "cluster1"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", "zstack"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", "1df948fedd3b45dd89e9549348280e17"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", "8087f700b6474a6fb916e0ba139f767c"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
 				),
 			},
 		},
@@ -62,23 +63,26 @@ func TestAccZStackClusterDataSourceFilterByName(t *testing.T) {
 }
 
 func TestAccZStackClusterDataSourceFilterByNamePattern(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Clusters) == 0 {
+		t.Skip("no clusters in env data")
+	}
+	c := env.Clusters[0]
+	name := envStr(c, "name")
+	pattern := name[:3] + "%"
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_clusters" "test" { name_pattern = "clu%" }`,
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_clusters" "test" { name_pattern = %q }`, pattern),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of clusters returned
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", "1"),
-
-					// Verify the first Cluster to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisortype", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", "cluster1"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", "Enabled"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", "zstack"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", "1df948fedd3b45dd89e9549348280e17"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", "8087f700b6474a6fb916e0ba139f767c"),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", name),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
+					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
 				),
 			},
 		},

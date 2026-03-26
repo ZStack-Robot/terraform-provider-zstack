@@ -11,6 +11,7 @@ project {
     ".goreleaser.yml",
     ".release/**",
     "vendor/**",
-    "examples/**"
+    "examples/**",
+    ".agent/**"
   ]
 }
