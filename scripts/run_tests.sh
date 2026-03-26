@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) ZStack.io, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # Batch test runner for terraform-provider-zstack
 # Usage:
 #   ./scripts/run_tests.sh                    # Run all tests

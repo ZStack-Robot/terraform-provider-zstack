@@ -53,6 +53,10 @@ type EnvData struct {
 	MnNodes                []map[string]interface{} `json:"mn_nodes"`
 	IpRanges               []map[string]interface{} `json:"ip_ranges"`
 	VmNics                 []map[string]interface{} `json:"vm_nics"`
+	Accounts               []map[string]interface{} `json:"accounts"`
+	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
+	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
 }
 
 func main() {
@@ -461,6 +465,65 @@ func main() {
 		fmt.Fprintf(os.Stderr, "QueryManagementNode error: %v\n", err)
 	}
 
+	// Accounts
+	if accounts, err := cli.QueryAccount(q()); err == nil {
+		for _, a := range accounts {
+			data.Accounts = append(data.Accounts, map[string]interface{}{
+				"name":        a.Name,
+				"uuid":        a.UUID,
+				"type":        a.Type,
+				"description": a.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAccount error: %v\n", err)
+	}
+
+	// IAM2 Projects
+	if projects, err := cli.QueryIAM2Project(q()); err == nil {
+		for _, p := range projects {
+			data.IAM2Projects = append(data.IAM2Projects, map[string]interface{}{
+				"name":        p.Name,
+				"uuid":        p.UUID,
+				"state":       p.State,
+				"description": p.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryIAM2Project error: %v\n", err)
+	}
+
+	// Affinity Groups
+	if ags, err := cli.QueryAffinityGroup(q()); err == nil {
+		for _, ag := range ags {
+			data.AffinityGroups = append(data.AffinityGroups, map[string]interface{}{
+				"name":        ag.Name,
+				"uuid":        ag.UUID,
+				"policy":      ag.Policy,
+				"type":        ag.Type,
+				"zone_uuid":   ag.ZoneUuid,
+				"state":       ag.State,
+				"description": ag.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAffinityGroup error: %v\n", err)
+	}
+
+	// SSH Key Pairs
+	if skps, err := cli.QuerySshKeyPair(q()); err == nil {
+		for _, skp := range skps {
+			data.SshKeyPairs = append(data.SshKeyPairs, map[string]interface{}{
+				"name":        skp.Name,
+				"uuid":        skp.UUID,
+				"public_key":  skp.PublicKey,
+				"description": skp.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySshKeyPair error: %v\n", err)
+	}
+
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "JSON marshal error: %v\n", err)
@@ -490,4 +553,6 @@ func main() {
 		len(data.SdnControllers), len(data.InstanceScripts), len(data.MnNodes))
 	fmt.Printf("  IpRanges: %d, VmNics: %d\n",
 		len(data.IpRanges), len(data.VmNics))
+	fmt.Printf("  Accounts: %d, IAM2Projects: %d, AffinityGroups: %d, SshKeyPairs: %d\n",
+		len(data.Accounts), len(data.IAM2Projects), len(data.AffinityGroups), len(data.SshKeyPairs))
 }

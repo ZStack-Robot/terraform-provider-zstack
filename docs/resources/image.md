@@ -59,7 +59,7 @@ output "zstack_image" {
 - `guest_os_type` (String) The guest operating system type that the image is optimized for.
 - `media_type` (String) The type of media for the image. Examples include 'ISO' or 'RootVolumeTemplate' or DataVolumeTemplate.
 - `platform` (String) The platform that the image is intended for, such as 'Linux', 'Windows', or others.
-- `virtio` (Boolean) Indicates if the VirtIO drivers are required for the image.
+- `virtio` (String) Indicates if the VirtIO drivers are required for the image.
 
 ### Read-Only
 

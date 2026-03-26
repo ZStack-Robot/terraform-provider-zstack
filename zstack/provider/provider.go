@@ -246,6 +246,10 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackNetworkingSecGroupRuleDataSource,
 		ZStackSdnControllerDataSource,
 		ZStackHookScriptsDataSource,
+		ZStackAccountDataSource,
+		ZStackIAM2ProjectDataSource,
+		ZStackAffinityGroupDataSource,
+		ZStackSshKeyPairDataSource,
 	}
 
 }
@@ -281,6 +285,10 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		SecurityGroupAttachmentResource,
 		SecurityGroupResource,
 		SecurityGroupRuleResource,
+		AccountResource,
+		IAM2ProjectResource,
+		AffinityGroupResource,
+		SshKeyPairResource,
 	}
 }
 
