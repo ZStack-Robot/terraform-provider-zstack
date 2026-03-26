@@ -1,0 +1,118 @@
+# Copyright (c) ZStack.io, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+version: "6.0.0"
+project_name: "terraform-provider-zstack"
+project_level: 2
+current_sprint: 3
+sprint_plan_path: "docs/sprint-plan-terraform-provider-zstack.md"
+source_prd: "zcf_prd/stories/STORY-TF-001_terraform_provider_zstack_cloud.md"
+
+sprints:
+  - sprint_number: 1
+    start_date: "2026-03-03"
+    end_date: "2026-03-14"
+    capacity_points: 30
+    committed_points: 25
+    completed_points: 25
+    status: "done"
+    goal: "Complete v2 SDK migration for all existing 20 resources and 24 data sources"
+    stories:
+      - story_id: "STORY-TF-001-01"
+        title: "已有 Resource v2 SDK 迁移"
+        points: 25
+        status: "done"
+        jira: "ZCF-1534"
+
+  - sprint_number: 2
+    start_date: "2026-03-17"
+    end_date: "2026-03-28"
+    capacity_points: 30
+    committed_points: 15
+    completed_points: 15
+    status: "done"
+    goal: "Volume/Snapshot resources, Account/IAM2, Affinity Group/SSH Key"
+    stories:
+      - story_id: "STORY-TF-001-02"
+        title: "存储域 — Volume + Volume Snapshot"
+        points: 5
+        status: "done"
+        jira: "ZCF-1535"
+      - story_id: "STORY-TF-001-03"
+        title: "系统域 — Account + IAM2 Project"
+        points: 5
+        status: "done"
+        jira: "ZCF-1536"
+      - story_id: "STORY-TF-001-07"
+        title: "辅助域 — Affinity Group + SSH Key Pair"
+        points: 5
+        status: "done"
+        jira: "ZCF-1540"
+
+  - sprint_number: 3
+    start_date: "2026-03-26"
+    end_date: "2026-04-08"
+    capacity_points: 30
+    committed_points: 18
+    completed_points: 18
+    status: "done"
+    goal: "GPU/Auto Scaling, L2 VLAN/Port Forwarding, Load Balancer"
+    stories:
+      - story_id: "STORY-TF-001-05"
+        title: "网络域 — L2 VLAN + 端口转发"
+        points: 5
+        status: "done"
+        jira: "ZCF-1538"
+      - story_id: "STORY-TF-001-06"
+        title: "网络域 — 负载均衡 + 监听器"
+        points: 5
+        status: "done"
+        jira: "ZCF-1539"
+      - story_id: "STORY-TF-001-04"
+        title: "计算域 — GPU Device (Data Source) + Auto Scaling Group"
+        points: 8
+        status: "done"
+        jira: "ZCF-1537"
+    deferred:
+      - story_id: "STORY-TF-001-08"
+        title: "辅助域 — Scheduler Job + Trigger"
+        points: 5
+        reason: "Scheduler 是运维/运行时概念，不适合 Terraform 声明式管理，延后评估"
+        jira: "ZCF-1541"
+
+  - sprint_number: 4
+    start_date: "2026-04-14"
+    end_date: "2026-04-25"
+    capacity_points: 30
+    committed_points: 21
+    completed_points: 0
+    status: "not_started"
+    goal: "Infrastructure resources (Zone/Cluster/Host, Storage), docs and release"
+    stories:
+      - story_id: "STORY-TF-001-09"
+        title: "基础设施域 — Zone + Cluster + Host"
+        points: 8
+        status: "not_started"
+        jira: "ZCF-1542"
+      - story_id: "STORY-TF-001-10"
+        title: "基础设施域 — Primary Storage + Backup Storage"
+        points: 8
+        status: "not_started"
+        jira: "ZCF-1543"
+      - story_id: "STORY-TF-001-11"
+        title: "文档完善与 Terraform Registry 发布"
+        points: 5
+        status: "not_started"
+        jira: "ZCF-1544"
+
+velocity:
+  sprint_1: 25
+  sprint_2: 15
+  sprint_3: 18
+  sprint_4: null
+  rolling_average: 19
+
+team:
+  size: 1
+  sprint_length_weeks: 2
+  capacity_per_sprint: 30

@@ -169,6 +169,54 @@ var FieldMapping = map[string]map[string]string{
 	"ssh_key_pair": {
 		"public_key": "publicKey",
 	},
+	"l2vlan_network": {
+		"physical_interface": "physicalInterface",
+		"zone_uuid":          "zoneUuid",
+		"vswitch_type":       "vSwitchType",
+		"virtual_network_id": "virtualNetworkId",
+	},
+	"port_forwarding_rule": {
+		"vip_uuid":           "vipUuid",
+		"vip_ip":             "vipIp",
+		"guest_ip":           "guestIp",
+		"vip_port_start":     "vipPortStart",
+		"vip_port_end":       "vipPortEnd",
+		"private_port_start": "privatePortStart",
+		"private_port_end":   "privatePortEnd",
+		"vm_nic_uuid":        "vmNicUuid",
+		"protocol_type":      "protocolType",
+		"allowed_cidr":       "allowedCidr",
+	},
+	"load_balancer": {
+		"vip_uuid":          "vipUuid",
+		"server_group_uuid": "serverGroupUuid",
+	},
+	"load_balancer_listener": {
+		"load_balancer_uuid":   "loadBalancerUuid",
+		"load_balancer_port":   "loadBalancerPort",
+		"instance_port":        "instancePort",
+		"security_policy_type": "securityPolicyType",
+		"server_group_uuid":    "serverGroupUuid",
+	},
+	"gpu_device": {
+		"gpu_type":           "gpuType",
+		"gpu_status":         "gpuStatus",
+		"allocate_status":    "allocateStatus",
+		"host_uuid":          "hostUuid",
+		"vm_instance_uuid":   "vmInstanceUuid",
+		"vendor_id":          "vendorId",
+		"device_id":          "deviceId",
+		"pci_device_address": "pciDeviceAddress",
+		"subvendor_id":       "subvendorId",
+		"subdevice_id":       "subdeviceId",
+	},
+	"auto_scaling_group": {
+		"scaling_resource_type": "scalingResourceType",
+		"default_cooldown":      "defaultCooldown",
+		"min_resource_size":     "minResourceSize",
+		"max_resource_size":     "maxResourceSize",
+		"removal_policy":        "removalPolicy",
+	},
 }
 
 // GetFieldMapping

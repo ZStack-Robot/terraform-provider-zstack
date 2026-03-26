@@ -250,6 +250,12 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackIAM2ProjectDataSource,
 		ZStackAffinityGroupDataSource,
 		ZStackSshKeyPairDataSource,
+		ZStackL2VlanNetworkDataSource,
+		ZStackPortForwardingRuleDataSource,
+		ZStackLoadBalancerDataSource,
+		ZStackLoadBalancerListenerDataSource,
+		ZStackGpuDeviceDataSource,
+		ZStackAutoScalingGroupDataSource,
 	}
 
 }
@@ -289,6 +295,11 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		IAM2ProjectResource,
 		AffinityGroupResource,
 		SshKeyPairResource,
+		L2VlanNetworkResource,
+		PortForwardingRuleResource,
+		LoadBalancerResource,
+		LoadBalancerListenerResource,
+		AutoScalingGroupResource,
 	}
 }
 
