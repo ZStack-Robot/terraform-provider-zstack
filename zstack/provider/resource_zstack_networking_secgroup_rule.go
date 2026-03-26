@@ -13,9 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var (
@@ -158,46 +158,45 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 	}
 
 	// Prepare the rule to be added
-	rule := param.AddSecurityGroupRule{
-		RuleType:  rulePlan.Direction.ValueString(), // Maps to "type" in the API
-		State:     rulePlan.State.ValueString(),
-		Protocol:  rulePlan.Protocol.ValueString(),
-		Action:    rulePlan.Action.ValueString(),
-		IpVersion: int(rulePlan.IpVersion.ValueInt32()),
-		//SrcIpRange: rulePlan.IpRanges.ValueString(), // Maps to srcIpRange in the API
+	rule := param.AddSecurityGroupRule_SecurityGroupRuleAOParam{
+		Type:      rulePlan.Direction.ValueString(), // Maps to "type" in the API
+		State:     stringPtr(rulePlan.State.ValueString()),
+		Protocol:  stringPtr(rulePlan.Protocol.ValueString()),
+		Action:    stringPtr(rulePlan.Action.ValueString()),
+		IpVersion: intPtr(int(rulePlan.IpVersion.ValueInt32())),
 	}
 
 	// Set IP ranges based on direction
 	if rulePlan.Direction.ValueString() == "Ingress" {
-		rule.SrcIpRange = rulePlan.IpRanges.ValueString()
+		rule.SrcIpRange = stringPtr(rulePlan.IpRanges.ValueString())
 	} else {
-		rule.DstIpRange = rulePlan.IpRanges.ValueString()
+		rule.DstIpRange = stringPtr(rulePlan.IpRanges.ValueString())
 	}
 
 	// Add optional fields if provided
 	if !rulePlan.Description.IsNull() {
-		rule.Description = rulePlan.Description.ValueString()
+		rule.Description = stringPtr(rulePlan.Description.ValueString())
 	}
 
 	if !rulePlan.DestinationPortRanges.IsNull() {
-		rule.DstPortRange = rulePlan.DestinationPortRanges.ValueString()
+		rule.DstPortRange = stringPtr(rulePlan.DestinationPortRanges.ValueString())
 	}
 
 	if !rulePlan.RemoteSecurityGroupUuid.IsNull() {
-		rule.RemoteSecurityGroupUuid = rulePlan.RemoteSecurityGroupUuid.ValueString()
+		rule.RemoteSecurityGroupUuid = stringPtr(rulePlan.RemoteSecurityGroupUuid.ValueString())
 	}
 
 	// Create the parameter for adding security group rule
 	params := param.AddSecurityGroupRuleParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddSecurityGroupRuleDetailParam{
-			Rules:    []param.AddSecurityGroupRule{rule},
-			Priority: int(rulePlan.Priority.ValueInt32()),
+		Params: param.AddSecurityGroupRuleParamDetail{
+			Rules:    []param.AddSecurityGroupRule_SecurityGroupRuleAOParam{rule},
+			Priority: intPtr(int(rulePlan.Priority.ValueInt32())),
 		},
 	}
 
 	// Call the API to add the security group rule
-	resp, err := r.client.AddSecurityGroupRule(rulePlan.SecurityGroupUuid.ValueString(), params)
+	resp, err := r.client.AddSecurityGroupRule(params)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to create security group rule",
@@ -213,37 +212,37 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 	var created *view.SecurityGroupRuleInventoryView
 	for i := range resp.Rules {
 		rv := resp.Rules[i]
-		if rv.Type != rule.RuleType {
+		if rv.Type != rule.Type {
 			continue
 		}
-		if rv.Protocol != rule.Protocol {
+		if rule.Protocol != nil && rv.Protocol != *rule.Protocol {
 			continue
 		}
-		if rv.Action != rule.Action {
+		if rule.Action != nil && rv.Action != *rule.Action {
 			continue
 		}
-		if rv.State != rule.State {
+		if rule.State != nil && rv.State != *rule.State {
 			continue
 		}
-		if rv.IpVersion != rule.IpVersion {
+		if rule.IpVersion != nil && rv.IpVersion != *rule.IpVersion {
 			continue
 		}
-		if rv.Priority != params.Params.Priority {
+		if params.Params.Priority != nil && rv.Priority != *params.Params.Priority {
 			continue
 		}
-		if rule.RuleType == "Ingress" {
-			if rv.SrcIpRange != rule.SrcIpRange {
+		if rule.Type == "Ingress" {
+			if rule.SrcIpRange != nil && rv.SrcIpRange != *rule.SrcIpRange {
 				continue
 			}
 		} else {
-			if rv.DstIpRange != rule.DstIpRange {
+			if rule.DstIpRange != nil && rv.DstIpRange != *rule.DstIpRange {
 				continue
 			}
 		}
-		if rv.DstPortRange != rule.DstPortRange {
+		if rule.DstPortRange != nil && rv.DstPortRange != *rule.DstPortRange {
 			continue
 		}
-		if rule.Description != "" && rv.Description != rule.Description {
+		if rule.Description != nil && *rule.Description != "" && rv.Description != *rule.Description {
 			continue
 		}
 		created = &rv
@@ -393,48 +392,48 @@ func (r *securityGroupRuleResource) Update(ctx context.Context, request resource
 		return
 	}
 
-	change := param.UpdateSecurityGroupRuleDetailParam{
-		Priority: int(plan.Priority.ValueInt32()),
+	change := param.ChangeSecurityGroupRuleParamDetail{
+		Priority: intPtr(int(plan.Priority.ValueInt32())),
 	}
 
 	if !plan.State.Equal(state.State) {
-		change.State = plan.State.ValueString()
+		change.State = stringPtr(plan.State.ValueString())
 	}
 	if !plan.Action.Equal(state.Action) {
-		change.Action = plan.Action.ValueString()
+		change.Action = stringPtr(plan.Action.ValueString())
 	}
 	if !plan.Protocol.Equal(state.Protocol) {
-		change.Protocol = plan.Protocol.ValueString()
+		change.Protocol = stringPtr(plan.Protocol.ValueString())
 	}
 	if !plan.Description.Equal(state.Description) {
 		if !plan.Description.IsNull() {
-			change.Description = plan.Description.ValueString()
+			change.Description = stringPtr(plan.Description.ValueString())
 		} else {
-			change.Description = ""
+			change.Description = stringPtr("")
 		}
 	}
 	if !plan.RemoteSecurityGroupUuid.Equal(state.RemoteSecurityGroupUuid) {
-		change.RemoteSecurityGroupUuid = plan.RemoteSecurityGroupUuid.ValueString()
+		change.RemoteSecurityGroupUuid = stringPtr(plan.RemoteSecurityGroupUuid.ValueString())
 	}
 	if !plan.IpRanges.Equal(state.IpRanges) {
 		if plan.Direction.ValueString() == "Ingress" {
-			change.SrcIpRange = plan.IpRanges.ValueString()
+			change.SrcIpRange = stringPtr(plan.IpRanges.ValueString())
 		} else {
-			change.DstIpRange = plan.IpRanges.ValueString()
+			change.DstIpRange = stringPtr(plan.IpRanges.ValueString())
 		}
 	}
 	if !plan.DestinationPortRanges.Equal(state.DestinationPortRanges) {
 		if !plan.DestinationPortRanges.IsNull() {
-			change.DstPortRange = plan.DestinationPortRanges.ValueString()
+			change.DstPortRange = stringPtr(plan.DestinationPortRanges.ValueString())
 		} else {
-			change.DstPortRange = ""
+			change.DstPortRange = stringPtr("")
 		}
 	}
 
 	needUpdate := true
-	_, err := r.client.UpdateSecurityGroupRule(ruleUUID, param.UpdateSecurityGroupRuleParam{
-		BaseParam:               param.BaseParam{},
-		ChangeSecurityGroupRule: change,
+	_, err := r.client.ChangeSecurityGroupRule(ruleUUID, param.ChangeSecurityGroupRuleParam{
+		BaseParam: param.BaseParam{},
+		Params:    change,
 	})
 	if err != nil {
 		response.Diagnostics.AddError("Failed to update security group rule", fmt.Sprintf("Error: %s", err))
@@ -493,7 +492,7 @@ func (r *securityGroupRuleResource) Delete(ctx context.Context, request resource
 		return
 	}
 
-	err := r.client.DeleteSecurityGroupRule(state.Uuid.ValueString())
+	err := r.client.DeleteSecurityGroupRule(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Fail to delete security group",

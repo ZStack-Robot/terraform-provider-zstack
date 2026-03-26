@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -91,7 +91,7 @@ func (d *instanceOfferingDataSource) Read(ctx context.Context, req datasource.Re
 
 	params.AddQ("type=UserVm")
 
-	instanceOffers, err := d.client.QueryInstaceOffering(params)
+	instanceOffers, err := d.client.QueryInstanceOffering(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read instance offers",

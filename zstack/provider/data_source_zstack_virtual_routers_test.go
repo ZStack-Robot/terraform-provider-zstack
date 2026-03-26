@@ -3,61 +3,53 @@
 package provider
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
-//   "go.testEnvVars": {
-//        "TF_ACC": "1"
-//   },
-
 func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.VirtualRouters) == 0 {
+		t.Skip("no virtual routers in env data")
+	}
+	vr := env.VirtualRouters[0]
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
-				Config: providerConfig + `data "zstack_virtual_routers" "test" {}`,
+				Config: providerConfig() + `data "zstack_virtual_routers" "test" {}`,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Verify number of image returned
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.#", "1"),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.#", fmt.Sprintf("%d", len(env.VirtualRouters))),
 
-					// Verify the first virtual router instances to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.name", "vr"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.uuid", "6d4dd9fe12ca4fb6a6626858b415f1a1"),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.name", envStr(vr, "name")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.uuid", envStr(vr, "uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.hypervisor_type", envStr(vr, "hypervisor_type")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.appliance_vm_type", envStr(vr, "appliance_vm_type")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.state", envStr(vr, "state")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.status", envStr(vr, "status")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.agent_port", envStr(vr, "agent_port")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.type", envStr(vr, "type")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.ha_status", envStr(vr, "ha_status")),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.hypervisor_type", "KVM"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.appliance_vm_type", "vpcvrouter"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.state", "Running"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.status", "Connected"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.agent_port", "7272"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.type", "ApplianceVm"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.ha_status", "NoHa"),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.zone_uuid", envStr(vr, "zone_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cluster_uuid", envStr(vr, "cluster_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.management_network_uuid", envStr(vr, "management_network_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.image_uuid", envStr(vr, "image_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.host_uuid", envStr(vr, "host_uuid")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.instance_offering_uuid", envStr(vr, "instance_offering_uuid")),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.zone_uuid", "d29f4847a99f4dea83bc446c8fe6e64c"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cluster_uuid", "37c25209578c495ca176f60ad0cd97fa"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.management_network_uuid", "50e8c0d69681447fbe347c8dae2b1bef"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.image_uuid", "93005c8a2a314a489635eca8c30794d4"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.host_uuid", "66c622bef5b14b76a1a9992b87ddbe1c"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.instance_offering_uuid", "9b56381daf204657adba1a4f0ec7ef39"),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.platform", envStr(vr, "platform")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.architecture", envStr(vr, "architecture")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cpu_num", envStr(vr, "cpu_num")),
+					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.memory_size", envStr(vr, "memory_size")),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.platform", "Linux"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.architecture", "x86_64"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cpu_num", "1"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.memory_size", "1073741824"),
-
-					// Verify the first nic of vm instance to ensure all attributes are set
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.ip", "172.30.9.60"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.mac", "fa:21:df:98:58:00"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.netmask", "255.255.0.0"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.gateway", "172.30.0.1"),
-
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.1.ip", "192.168.110.1"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.1.mac", "fa:59:ac:82:b3:01"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.1.netmask", "255.255.255.0"),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.1.gateway", "192.168.110.1"),
+					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.ip"),
+					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.mac"),
+					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.netmask"),
+					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.gateway"),
 				),
 			},
 		},

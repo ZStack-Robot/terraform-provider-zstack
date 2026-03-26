@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -107,7 +107,7 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	vrouters, err := d.client.QueryVirtualRouterVm(params)
+	vrouters, err := d.client.QueryVirtualRouterVm(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read virtual router instances",
@@ -146,21 +146,21 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			HaStatus:        types.StringValue(vrouter.HaStatus),
 
 			ZoneUuid:              types.StringValue(vrouter.ZoneUuid),
-			ClusterUuid:           types.StringValue(vrouter.ClusterUUID),
+			ClusterUuid:           types.StringValue(vrouter.ClusterUuid),
 			ManagementNetworkUuid: types.StringValue(vrouter.ManagementNetworkUuid),
-			ImageUuid:             types.StringValue(vrouter.ImageUUID),
+			ImageUuid:             types.StringValue(vrouter.ImageUuid),
 			HostUuid:              types.StringValue(vrouter.HostUuid),
-			InstanceOfferingUUID:  types.StringValue(vrouter.InstanceOfferingUUID),
+			InstanceOfferingUUID:  types.StringValue(vrouter.InstanceOfferingUuid),
 
 			Platform:     types.StringValue(vrouter.Platform),
 			Architecture: types.StringValue(vrouter.Architecture),
-			CPUNum:       types.Int64Value(int64(vrouter.CPUNum)),
+			CPUNum:       types.Int64Value(int64(vrouter.CpuNum)),
 			MemorySize:   types.Int64Value(utils.BytesToMB(vrouter.MemorySize)),
 		}
 
-		for _, vmnics := range vrouter.VMNics {
+		for _, vmnics := range vrouter.VmNics {
 			vrouterState.VmNics = append(vrouterState.VmNics, vrouterNicsModel{
-				IP:      types.StringValue(vmnics.IP),
+				IP:      types.StringValue(vmnics.Ip),
 				Mac:     types.StringValue(vmnics.Mac),
 				Netmask: types.StringValue(vmnics.Netmask),
 				Gateway: types.StringValue(vmnics.Gateway),

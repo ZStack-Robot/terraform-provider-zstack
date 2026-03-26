@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -84,7 +84,8 @@ func (d *mnNodeDataSource) Schema(_ context.Context, req datasource.SchemaReques
 func (d *mnNodeDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var state mnNodeDataSourceModel
 	//var state clusterModel
-	mn_nodes, err := d.client.QueryManagementNode(param.NewQueryParam())
+	queryParam := param.NewQueryParam()
+	mn_nodes, err := d.client.QueryManagementNode(&queryParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack Management Nodes",

@@ -1,7 +1,27 @@
 
 dist/
-# Ignore provider test file
-/zstack/provider/provider_test.go
+# Ignore test environment config (contains secrets)
+.env.test
+# Ignore generated test environment data (env-specific)
+zstack/provider/testdata/env.json
+# Ignore generated binary from go build/run
+generate_env
+# Ignore generated Terraform batch-test files
+zstack/provider/testdata/terraform/
+# Ignore test reports
+test-reports/
 
 # Ignore all files under test1 directory
 /zstack-sdk-go/pkg/test1/
+
+# Added via AI request
+.agent/
+.claude/
+bmad/
+/coverage.out
+# Ignore docs 下除 resources 和 data-sources 目录外的内容
+docs/*
+!docs/resources/
+!docs/data-sources/
+
+.generate_env

@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -91,7 +91,7 @@ func (d *disksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	disks, err := d.client.QueryVolume(params)
+	disks, err := d.client.QueryVolume(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read disks",
@@ -122,9 +122,9 @@ func (d *disksDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 			Name:               types.StringValue(disk.Name),
 			Uuid:               types.StringValue(disk.UUID),
 			Description:        types.StringValue(disk.Description),
-			PrimaryStorageUUID: types.StringValue(disk.PrimaryStorageUUID),
-			VMInstanceUUID:     types.StringValue(disk.VMInstanceUUID),
-			DiskOfferingUUID:   types.StringValue(disk.DiskOfferingUUID),
+			PrimaryStorageUUID: types.StringValue(disk.PrimaryStorageUuid),
+			VMInstanceUUID:     types.StringValue(disk.VmInstanceUuid),
+			DiskOfferingUUID:   types.StringValue(disk.DiskOfferingUuid),
 			Type:               types.StringValue(disk.Type),
 			Format:             types.StringValue(disk.Format),
 			Size:               types.Int64Value(utils.BytesToGB(int64(disk.Size))),

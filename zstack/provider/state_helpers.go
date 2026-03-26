@@ -42,6 +42,13 @@ func stringPtr(s string) *string {
 	return &s
 }
 
+func stringPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }

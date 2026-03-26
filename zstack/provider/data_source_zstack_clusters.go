@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -158,9 +158,9 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	//images, err := d.client.QueryImage(params)
+	//images, err := d.client.QueryImage(&params)
 
-	clusters, err := d.client.QueryCluster(params)
+	clusters, err := d.client.QueryCluster(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack Clusters",
@@ -209,7 +209,7 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			HypervisorType: types.StringValue(cluster.HypervisorType),
 			State:          types.StringValue(cluster.State),
 			Type:           types.StringValue(cluster.Type),
-			Uuid:           types.StringValue(cluster.Uuid),
+			Uuid:           types.StringValue(cluster.UUID),
 			ZoneUuid:       types.StringValue(cluster.ZoneUuid),
 			Name:           types.StringValue(cluster.Name),
 			Architecture:   types.StringValue(cluster.Architecture),

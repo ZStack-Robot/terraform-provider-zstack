@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -108,19 +108,14 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	attachedNics.UUID = nicUUID
 
 	// Step 1: get candidates vm nics
-	candidates, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
+	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
 	if err != nil {
 		response.Diagnostics.AddError("GetCandidateVmNicForSecurityGroup failed", err.Error())
 		return
 	}
 
-	// Step 2: Set for query
-	allowed := make(map[string]struct{}, len(candidates))
-	for _, nic := range candidates {
-		allowed[nic.UUID] = struct{}{}
-	}
-
-	if _, ok := allowed[nicUUID]; !ok {
+	// Step 2: Check if the NIC UUID matches the candidate
+	if candidate == nil || candidate.UUID != nicUUID {
 		response.Diagnostics.AddError(
 			"Invalid NIC UUID",
 			fmt.Sprintf("VM NIC UUID %s is not a valid candidate for security group %s", nicUUID, secgroupUUID),
@@ -129,9 +124,9 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	}
 
 	// Step 3: Add VM NIC to security group
-	err = r.client.AddVmNicToSecurityGroup(secgroupUUID, param.AddVmNicToSecurityGroupParam{
+	_, err = r.client.AddVmNicToSecurityGroup(param.AddVmNicToSecurityGroupParam{
 		BaseParam: param.BaseParam{},
-		Params: param.AddVmNicToSecurityGroupDetailParam{
+		Params: param.AddVmNicToSecurityGroupParamDetail{
 			VmNicUuids: []string{nicUUID},
 		},
 	})
@@ -165,7 +160,7 @@ func (r *securityGroupAttachmentResource) Read(ctx context.Context, req resource
 	secgroupUUID := state.SecurityGroupUuid.ValueString()
 	vmNicUUID := state.VmNicUuid.ValueString()
 
-	candidates, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
+	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Security Group Attachment",
@@ -174,11 +169,9 @@ func (r *securityGroupAttachmentResource) Read(ctx context.Context, req resource
 		return
 	}
 
-	for _, candidate := range candidates {
-		if candidate.UUID == vmNicUUID {
-			resp.State.RemoveResource(ctx)
-			return
-		}
+	if candidate != nil && candidate.UUID == vmNicUUID {
+		resp.State.RemoveResource(ctx)
+		return
 	}
 
 	state.ID = types.StringValue(fmt.Sprintf("%s::%s", secgroupUUID, vmNicUUID))
@@ -218,7 +211,7 @@ func (r *securityGroupAttachmentResource) Delete(ctx context.Context, request re
 		return
 	}
 
-	err := r.client.DeleteVmNicFromSecurityGroup(secgroupUUID, []string{nicUUID})
+	err := r.client.DeleteVmNicFromSecurityGroup(nicUUID, param.DeleteModePermissive)
 	if err != nil {
 		tflog.Warn(ctx, "Failed to delete VM NIC from security group, it might already be gone.", map[string]interface{}{"error": err.Error()})
 	}

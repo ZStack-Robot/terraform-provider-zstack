@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -177,23 +177,23 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 
 	var systemTags []string
 
-	Param := param.CreateVmInstanceScriptParam{
+	Param := param.CreateGuestVmScriptParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
-		Params: param.CreateVmInstanceScriptDetailParam{
+		Params: param.CreateGuestVmScriptParamDetail{
 			Name:          plan.Name.ValueString(),
-			Description:   description,
+			Description:   stringPtr(description),
 			ScriptContent: plan.ScriptContent.ValueString(),
 			EncodingType:  encodingType,
 			Platform:      plan.Platform.ValueString(),
 			ScriptType:    plan.ScriptType.ValueString(),
-			ScriptTimeout: int(scriptTimeout),
-			RenderParams:  renderParams,
+			ScriptTimeout: intPtr(int(scriptTimeout)),
+			RenderParams:  stringPtr(renderParams),
 		},
 	}
 
-	script, err := r.client.CreateVmInstanceScript(Param)
+	script, err := r.client.CreateGuestVmScript(Param)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to create VM instance script",
@@ -233,7 +233,7 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
-	scripts, err := r.client.GetVmInstanceScript(state.Uuid.ValueString())
+	scripts, err := r.client.GetGuestVmScript(state.Uuid.ValueString())
 
 	if err != nil {
 		tflog.Warn(ctx, "Unable to retrieve VM instance script. It may have been deleted.", map[string]interface{}{
@@ -310,13 +310,13 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	}
 
 	var systemTags []string
-	detailParam := param.UpdateVmInstanceScriptDetailParam{
+	detailParam := param.UpdateGuestVmScriptParamDetail{
 		Name:          plan.Name.ValueString(),
-		Description:   description,
-		Platform:      plan.Platform.ValueString(),
-		ScriptType:    plan.ScriptType.ValueString(),
-		ScriptTimeout: int(scriptTimeout),
-		RenderParams:  renderParams,
+		Description:   stringPtr(description),
+		Platform:      stringPtr(plan.Platform.ValueString()),
+		ScriptType:    stringPtr(plan.ScriptType.ValueString()),
+		ScriptTimeout: intPtr(int(scriptTimeout)),
+		RenderParams:  stringPtr(renderParams),
 	}
 
 	scriptContent := plan.ScriptContent.ValueString()
@@ -330,11 +330,11 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 			)
 			return
 		}
-		detailParam.ScriptContent = scriptContent
-		detailParam.EncodingType = encodingType
+		detailParam.ScriptContent = stringPtr(scriptContent)
+		detailParam.EncodingType = stringPtr(encodingType)
 	}
 
-	Param := param.UpdateVmInstanceScriptParam{
+	Param := param.UpdateGuestVmScriptParam{
 		BaseParam: param.BaseParam{
 			SystemTags: systemTags,
 		},
@@ -346,7 +346,7 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 		"name": plan.Name.ValueString(),
 	})
 
-	err := r.client.UpdateVmInstanceScript(state.Uuid.ValueString(), Param)
+	_, err := r.client.UpdateGuestVmScript(state.Uuid.ValueString(), Param)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to update VM instance script",
@@ -379,7 +379,7 @@ func (r *scriptResource) Delete(ctx context.Context, request resource.DeleteRequ
 		return
 	}
 
-	err := r.client.DeleteVmInstanceScrpt(state.Uuid.ValueString(), param.DeleteModePermissive)
+	err := r.client.DeleteGuestVmScript(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to delete VM instance script",

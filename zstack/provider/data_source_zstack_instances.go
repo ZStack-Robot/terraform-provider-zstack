@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 var (
@@ -111,7 +111,7 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		params.AddQ("name~=" + state.NamePattern.ValueString())
 	}
 
-	vminstances, err := d.client.QueryVmInstance(params)
+	vminstances, err := d.client.QueryVmInstance(&params)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read vm instances",
@@ -144,19 +144,19 @@ func (d *vmsDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 			State:          types.StringValue(vminstance.State),
 			Type:           types.StringValue(vminstance.Type),
 			Uuid:           types.StringValue(vminstance.UUID),
-			ZoneUuid:       types.StringValue(vminstance.ZoneUUID),
-			ClusterUuid:    types.StringValue(vminstance.ClusterUUID),
-			ImageUuid:      types.StringValue(vminstance.ImageUUID),
-			HostUuid:       types.StringValue(vminstance.HostUUID),
+			ZoneUuid:       types.StringValue(vminstance.ZoneUuid),
+			ClusterUuid:    types.StringValue(vminstance.ClusterUuid),
+			ImageUuid:      types.StringValue(vminstance.ImageUuid),
+			HostUuid:       types.StringValue(vminstance.HostUuid),
 			Platform:       types.StringValue(vminstance.Platform),
 			Architecture:   types.StringValue(vminstance.Architecture),
-			CPUNum:         types.Int64Value(int64(vminstance.CPUNum)),
+			CPUNum:         types.Int64Value(int64(vminstance.CpuNum)),
 			MemorySize:     types.Int64Value(utils.BytesToMB(vminstance.MemorySize)),
 		}
 
-		for _, vmnics := range vminstance.VMNics {
+		for _, vmnics := range vminstance.VmNics {
 			vminstanceState.VmNics = append(vminstanceState.VmNics, vmNicsModel{
-				IP:      types.StringValue(vmnics.IP),
+				IP:      types.StringValue(vmnics.Ip),
 				Mac:     types.StringValue(vmnics.Mac),
 				Netmask: types.StringValue(vmnics.Netmask),
 				Gateway: types.StringValue(vmnics.Gateway),
