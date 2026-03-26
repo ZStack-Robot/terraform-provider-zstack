@@ -5,7 +5,7 @@
 **Epic:** ZCF-1317 — 自动化与IaC
 **Source PRD:** `zcf_prd/stories/STORY-TF-001_terraform_provider_zstack_cloud.md`
 **Total Stories:** 11
-**Total Points:** 84 (Completed: 58 + Remaining: 26)
+**Total Points:** 84 (Completed: 79 + Deferred: 5)
 **Planned Sprints:** 4 (2 weeks each, 8 weeks total)
 **Team:** 1 Senior Developer
 **Capacity:** ~30 pts/sprint (target 80% = 24 committed)
@@ -138,13 +138,13 @@
 | ~~STORY-TF-001-08 辅助域 — Scheduler Job + Trigger~~ | ~~5~~ | Deferred |
 | **Total** | **18/30** | |
 
-### Sprint 4 — Infrastructure + Docs + Release (Apr 14–25)
+### Sprint 4 — Infrastructure + Docs + Release (Apr 14–25) ✅ DONE
 
 | Story | Points | Status |
 |-------|--------|--------|
-| STORY-TF-001-09 基础设施域 — Zone + Cluster + Host | 8 | Not Started |
-| STORY-TF-001-10 基础设施域 — Primary/Backup Storage | 8 | Not Started |
-| STORY-TF-001-11 文档完善与 Registry 发布 | 5 | Not Started |
+| STORY-TF-001-09 基础设施域 — Zone + Cluster + Host | 8 | Done |
+| STORY-TF-001-10 基础设施域 — Primary/Backup Storage | 8 | Done |
+| STORY-TF-001-11 文档完善与 Registry 发布 | 5 | Done |
 | **Total** | **21/30** | |
 
 ---
