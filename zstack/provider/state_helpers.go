@@ -2,7 +2,10 @@
 
 package provider
 
-import "github.com/hashicorp/terraform-plugin-framework/types"
+import (
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
 
 func copyStringValues(values []types.String) []types.String {
 	if len(values) == 0 {
@@ -59,6 +62,17 @@ func intPtr(i int) *int {
 
 func int64Ptr(i int64) *int64 {
 	return &i
+}
+
+func stringSliceToList(values []string) types.List {
+	if len(values) == 0 {
+		return types.ListValueMust(types.StringType, []attr.Value{})
+	}
+	elems := make([]attr.Value, len(values))
+	for i, v := range values {
+		elems[i] = types.StringValue(v)
+	}
+	return types.ListValueMust(types.StringType, elems)
 }
 
 func listToStringSlice(list types.List) []string {

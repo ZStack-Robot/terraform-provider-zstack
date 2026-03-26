@@ -55,6 +55,10 @@ err := r.client.ZSHttpClient.Post(
 | `zstack_l2vlan_network` | `resource_zstack_l2vlan_network.go` | `attachCluster()` | `AttachL2NetworkToCluster()` | `v1/l2-networks/{l2NetworkUuid}/clusters/{clusterUuid}` | 改回 `r.client.AttachL2NetworkToCluster(params)` |
 | `zstack_port_forwarding_rule` | `resource_zstack_port_forwarding_rule.go` | `attachToVmNic()` | `AttachPortForwardingRule()` | `v1/port-forwarding/{ruleUuid}/vm-instances/nics/{vmNicUuid}` | 改回 `r.client.AttachPortForwardingRule(params)` |
 | `zstack_load_balancer_listener` | `resource_zstack_load_balancer_listener.go` | `Create()` | `CreateLoadBalancerListener()` | `v1/load-balancers/{loadBalancerUuid}/listeners` | 改回 `r.client.CreateLoadBalancerListener(params)` |
+| `zstack_primary_storage` | `resource_zstack_primary_storage.go` | `Create()` (Local) | `AddLocalPrimaryStorage()` | `v1/primary-storage/local-storage` | SDK 方法签名 bug（无参数），修复后改回 `r.client.AddLocalPrimaryStorage(params)` |
+| `zstack_primary_storage` | `resource_zstack_primary_storage.go` | `Create()` (NFS) | `AddNfsPrimaryStorage()` | `v1/primary-storage/nfs` | SDK 方法签名 bug（无参数），修复后改回 `r.client.AddNfsPrimaryStorage(params)` |
+| `zstack_primary_storage` | `resource_zstack_primary_storage.go` | `attachCluster()` | `AttachPrimaryStorageToCluster()` | `v1/clusters/{clusterUuid}/primary-storage/{primaryStorageUuid}` | 改回 `r.client.AttachPrimaryStorageToCluster(params)` |
+| `zstack_backup_storage` | `resource_zstack_backup_storage.go` | `attachZone()` | `AttachBackupStorageToZone()` | `v1/zones/{zoneUuid}/backup-storage/{backupStorageUuid}` | 改回 `r.client.AttachBackupStorageToZone(params)` |
 
 ### 未绕过但存在同样问题的资源
 
@@ -64,14 +68,10 @@ err := r.client.ZSHttpClient.Post(
 
 ### 后续新增资源注意
 
-Sprint 3/4 中以下资源如果涉及 attach 操作，大概率需要同样绕过：
-
 | 计划资源 | 可能涉及的 SDK attach 方法 |
 |---------|-------------------------|
-| `zstack_load_balancer_listener` | ~~`CreateLoadBalancerListener`~~ (已绕过), `AddBackendServerToServerGroup` 等 |
+| `zstack_load_balancer_listener` | `AddBackendServerToServerGroup` 等 |
 | `zstack_scheduler_trigger` | `AddSchedulerJobToTrigger` |
-| `zstack_primary_storage` | `AttachPrimaryStorageToCluster` |
-| `zstack_backup_storage` | `AttachBackupStorageToZone` |
 
 ---
 

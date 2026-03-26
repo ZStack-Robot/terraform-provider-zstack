@@ -300,6 +300,11 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		LoadBalancerResource,
 		LoadBalancerListenerResource,
 		AutoScalingGroupResource,
+		ZoneResource,
+		ClusterResource,
+		HostResource,
+		PrimaryStorageResource,
+		BackupStorageResource,
 	}
 }
 
