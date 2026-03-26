@@ -15,31 +15,58 @@ import (
 
 // EnvData holds all environment resource data loaded from testdata/env.json
 type EnvData struct {
-	Zones                  []map[string]interface{} `json:"zones"`
-	Clusters               []map[string]interface{} `json:"clusters"`
-	Hosts                  []map[string]interface{} `json:"hosts"`
-	Images                 []map[string]interface{} `json:"images"`
-	BackupStorages         []map[string]interface{} `json:"backup_storages"`
-	PrimaryStorages        []map[string]interface{} `json:"primary_storages"`
-	InstanceOfferings      []map[string]interface{} `json:"instance_offerings"`
-	DiskOfferings          []map[string]interface{} `json:"disk_offerings"`
-	L2Networks             []map[string]interface{} `json:"l2_networks"`
-	L3Networks             []map[string]interface{} `json:"l3_networks"`
-	VmInstances            []map[string]interface{} `json:"vm_instances"`
-	SecurityGroups         []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules     []map[string]interface{} `json:"security_group_rules"`
+	// Infrastructure
+	Zones           []map[string]interface{} `json:"zones"`
+	Clusters        []map[string]interface{} `json:"clusters"`
+	Hosts           []map[string]interface{} `json:"hosts"`
+	PrimaryStorages []map[string]interface{} `json:"primary_storages"`
+	BackupStorages  []map[string]interface{} `json:"backup_storages"`
+
+	// Compute
+	Images            []map[string]interface{} `json:"images"`
+	InstanceOfferings []map[string]interface{} `json:"instance_offerings"`
+	DiskOfferings     []map[string]interface{} `json:"disk_offerings"`
+	VmInstances       []map[string]interface{} `json:"vm_instances"`
+	GpuDevices        []map[string]interface{} `json:"gpu_devices"`
+	AutoScalingGroups []map[string]interface{} `json:"auto_scaling_groups"`
+
+	// Storage
+	Volumes         []map[string]interface{} `json:"volumes"`
+	VolumeSnapshots []map[string]interface{} `json:"volume_snapshots"`
+
+	// Network
+	L2Networks            []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks            []map[string]interface{} `json:"l3_networks"`
+	IpRanges              []map[string]interface{} `json:"ip_ranges"`
+	Vips                  []map[string]interface{} `json:"vips"`
+	Eips                  []map[string]interface{} `json:"eips"`
+	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
+	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
+	SecurityGroups        []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
+	VmNics                []map[string]interface{} `json:"vm_nics"`
+
+	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
-	SdnControllers         []map[string]interface{} `json:"sdn_controllers"`
-	InstanceScripts        []map[string]interface{} `json:"instance_scripts"`
-	ScriptExecutions       []map[string]interface{} `json:"script_executions"`
-	MnNodes                []map[string]interface{} `json:"mn_nodes"`
-	IpRanges               []map[string]interface{} `json:"ip_ranges"`
-	VmNics                 []map[string]interface{} `json:"vm_nics"`
-	Accounts               []map[string]interface{} `json:"accounts"`
-	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
-	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
-	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
+
+	// System / IAM
+	Accounts     []map[string]interface{} `json:"accounts"`
+	IAM2Projects []map[string]interface{} `json:"iam2_projects"`
+
+	// Auxiliary
+	AffinityGroups []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs    []map[string]interface{} `json:"ssh_key_pairs"`
+	UserTags       []map[string]interface{} `json:"user_tags"`
+	SystemTags     []map[string]interface{} `json:"system_tags"`
+
+	// Operations
+	SdnControllers   []map[string]interface{} `json:"sdn_controllers"`
+	InstanceScripts  []map[string]interface{} `json:"instance_scripts"`
+	ScriptExecutions []map[string]interface{} `json:"script_executions"`
+	MnNodes          []map[string]interface{} `json:"mn_nodes"`
 }
 
 var (

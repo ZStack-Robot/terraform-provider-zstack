@@ -32,31 +32,58 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 // EnvData is the top-level structure written to env.json
 type EnvData struct {
-	Zones                  []map[string]interface{} `json:"zones"`
-	Clusters               []map[string]interface{} `json:"clusters"`
-	Hosts                  []map[string]interface{} `json:"hosts"`
-	Images                 []map[string]interface{} `json:"images"`
-	BackupStorages         []map[string]interface{} `json:"backup_storages"`
-	PrimaryStorages        []map[string]interface{} `json:"primary_storages"`
-	InstanceOfferings      []map[string]interface{} `json:"instance_offerings"`
-	DiskOfferings          []map[string]interface{} `json:"disk_offerings"`
-	L2Networks             []map[string]interface{} `json:"l2_networks"`
-	L3Networks             []map[string]interface{} `json:"l3_networks"`
-	VmInstances            []map[string]interface{} `json:"vm_instances"`
-	SecurityGroups         []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules     []map[string]interface{} `json:"security_group_rules"`
+	// Infrastructure
+	Zones           []map[string]interface{} `json:"zones"`
+	Clusters        []map[string]interface{} `json:"clusters"`
+	Hosts           []map[string]interface{} `json:"hosts"`
+	PrimaryStorages []map[string]interface{} `json:"primary_storages"`
+	BackupStorages  []map[string]interface{} `json:"backup_storages"`
+
+	// Compute
+	Images            []map[string]interface{} `json:"images"`
+	InstanceOfferings []map[string]interface{} `json:"instance_offerings"`
+	DiskOfferings     []map[string]interface{} `json:"disk_offerings"`
+	VmInstances       []map[string]interface{} `json:"vm_instances"`
+	GpuDevices        []map[string]interface{} `json:"gpu_devices"`
+	AutoScalingGroups []map[string]interface{} `json:"auto_scaling_groups"`
+
+	// Storage
+	Volumes         []map[string]interface{} `json:"volumes"`
+	VolumeSnapshots []map[string]interface{} `json:"volume_snapshots"`
+
+	// Network
+	L2Networks            []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks            []map[string]interface{} `json:"l3_networks"`
+	IpRanges              []map[string]interface{} `json:"ip_ranges"`
+	Vips                  []map[string]interface{} `json:"vips"`
+	Eips                  []map[string]interface{} `json:"eips"`
+	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
+	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
+	SecurityGroups        []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
+	VmNics                []map[string]interface{} `json:"vm_nics"`
+
+	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
-	SdnControllers         []map[string]interface{} `json:"sdn_controllers"`
-	InstanceScripts        []map[string]interface{} `json:"instance_scripts"`
-	ScriptExecutions       []map[string]interface{} `json:"script_executions"`
-	MnNodes                []map[string]interface{} `json:"mn_nodes"`
-	IpRanges               []map[string]interface{} `json:"ip_ranges"`
-	VmNics                 []map[string]interface{} `json:"vm_nics"`
-	Accounts               []map[string]interface{} `json:"accounts"`
-	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
-	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
-	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
+
+	// System / IAM
+	Accounts     []map[string]interface{} `json:"accounts"`
+	IAM2Projects []map[string]interface{} `json:"iam2_projects"`
+
+	// Auxiliary
+	AffinityGroups []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs    []map[string]interface{} `json:"ssh_key_pairs"`
+	UserTags       []map[string]interface{} `json:"user_tags"`
+	SystemTags     []map[string]interface{} `json:"system_tags"`
+
+	// Operations
+	SdnControllers   []map[string]interface{} `json:"sdn_controllers"`
+	InstanceScripts  []map[string]interface{} `json:"instance_scripts"`
+	ScriptExecutions []map[string]interface{} `json:"script_executions"`
+	MnNodes          []map[string]interface{} `json:"mn_nodes"`
 }
 
 func main() {
@@ -524,6 +551,238 @@ func main() {
 		fmt.Fprintf(os.Stderr, "QuerySshKeyPair error: %v\n", err)
 	}
 
+	// Volumes
+	if vols, err := cli.QueryVolume(q()); err == nil {
+		for _, v := range vols {
+			data.Volumes = append(data.Volumes, map[string]interface{}{
+				"name":                 v.Name,
+				"uuid":                 v.UUID,
+				"type":                 v.Type,
+				"state":                v.State,
+				"status":               v.Status,
+				"size":                 v.Size,
+				"actual_size":          v.ActualSize,
+				"format":               v.Format,
+				"vm_instance_uuid":     v.VmInstanceUuid,
+				"primary_storage_uuid": v.PrimaryStorageUuid,
+				"disk_offering_uuid":   v.DiskOfferingUuid,
+				"is_shareable":         v.IsShareable,
+				"device_id":            v.DeviceId,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVolume error: %v\n", err)
+	}
+
+	// Volume Snapshots
+	if snaps, err := cli.QueryVolumeSnapshot(q()); err == nil {
+		for _, s := range snaps {
+			data.VolumeSnapshots = append(data.VolumeSnapshots, map[string]interface{}{
+				"name":                 s.Name,
+				"uuid":                 s.UUID,
+				"type":                 s.Type,
+				"state":                s.State,
+				"status":               s.Status,
+				"size":                 s.Size,
+				"volume_uuid":          s.VolumeUuid,
+				"volume_type":          s.VolumeType,
+				"tree_uuid":            s.TreeUuid,
+				"parent_uuid":          s.ParentUuid,
+				"primary_storage_uuid": s.PrimaryStorageUuid,
+				"format":               s.Format,
+				"latest":               s.Latest,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVolumeSnapshot error: %v\n", err)
+	}
+
+	// VIPs
+	if vips, err := cli.QueryVip(q()); err == nil {
+		for _, v := range vips {
+			data.Vips = append(data.Vips, map[string]interface{}{
+				"name":            v.Name,
+				"uuid":            v.UUID,
+				"ip":              v.Ip,
+				"state":           v.State,
+				"gateway":         v.Gateway,
+				"netmask":         v.Netmask,
+				"l3_network_uuid": v.L3NetworkUuid,
+				"use_for":         v.UseFor,
+				"system":          v.System,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVip error: %v\n", err)
+	}
+
+	// EIPs
+	if eips, err := cli.QueryEip(q()); err == nil {
+		for _, e := range eips {
+			data.Eips = append(data.Eips, map[string]interface{}{
+				"name":       e.Name,
+				"uuid":       e.UUID,
+				"state":      e.State,
+				"vip_uuid":   e.VipUuid,
+				"vip_ip":     e.VipIp,
+				"guest_ip":   e.GuestIp,
+				"vm_nic_uuid": e.VmNicUuid,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryEip error: %v\n", err)
+	}
+
+	// L2 VLAN Networks (with vlan_id)
+	if l2vlans, err := cli.QueryL2VlanNetwork(q()); err == nil {
+		for _, l2v := range l2vlans {
+			m := map[string]interface{}{
+				"name":               l2v.Name,
+				"uuid":               l2v.UUID,
+				"vlan":               l2v.Vlan,
+				"zone_uuid":          l2v.ZoneUuid,
+				"physical_interface": l2v.PhysicalInterface,
+				"type":               l2v.Type,
+			}
+			if l2v.AttachedClusterUuids != nil {
+				m["attached_cluster_uuids"] = l2v.AttachedClusterUuids
+			}
+			data.L2VlanNetworks = append(data.L2VlanNetworks, m)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryL2VlanNetwork error: %v\n", err)
+	}
+
+	// Port Forwarding Rules
+	if pfrs, err := cli.QueryPortForwardingRule(q()); err == nil {
+		for _, pf := range pfrs {
+			data.PortForwardingRules = append(data.PortForwardingRules, map[string]interface{}{
+				"name":               pf.Name,
+				"uuid":               pf.UUID,
+				"state":              pf.State,
+				"vip_uuid":           pf.VipUuid,
+				"vip_ip":             pf.VipIp,
+				"vip_port_start":     pf.VipPortStart,
+				"vip_port_end":       pf.VipPortEnd,
+				"private_port_start": pf.PrivatePortStart,
+				"private_port_end":   pf.PrivatePortEnd,
+				"vm_nic_uuid":        pf.VmNicUuid,
+				"protocol_type":      pf.ProtocolType,
+				"guest_ip":           pf.GuestIp,
+				"allowed_cidr":       pf.AllowedCidr,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPortForwardingRule error: %v\n", err)
+	}
+
+	// Load Balancers
+	if lbs, err := cli.QueryLoadBalancer(q()); err == nil {
+		for _, lb := range lbs {
+			data.LoadBalancers = append(data.LoadBalancers, map[string]interface{}{
+				"name":              lb.Name,
+				"uuid":              lb.UUID,
+				"state":             lb.State,
+				"type":              lb.Type,
+				"vip_uuid":          lb.VipUuid,
+				"server_group_uuid": lb.ServerGroupUuid,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryLoadBalancer error: %v\n", err)
+	}
+
+	// Load Balancer Listeners
+	if lbls, err := cli.QueryLoadBalancerListener(q()); err == nil {
+		for _, lbl := range lbls {
+			data.LoadBalancerListeners = append(data.LoadBalancerListeners, map[string]interface{}{
+				"name":                 lbl.Name,
+				"uuid":                 lbl.UUID,
+				"load_balancer_uuid":   lbl.LoadBalancerUuid,
+				"protocol":             lbl.Protocol,
+				"load_balancer_port":   lbl.LoadBalancerPort,
+				"instance_port":        lbl.InstancePort,
+				"security_policy_type": lbl.SecurityPolicyType,
+				"server_group_uuid":    lbl.ServerGroupUuid,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryLoadBalancerListener error: %v\n", err)
+	}
+
+	// GPU Devices
+	if gpus, err := cli.QueryGpuDevice(q()); err == nil {
+		for _, g := range gpus {
+			data.GpuDevices = append(data.GpuDevices, map[string]interface{}{
+				"name":               g.Name,
+				"uuid":               g.UUID,
+				"gpu_type":           g.GpuType,
+				"gpu_status":         g.GpuStatus,
+				"allocate_status":    g.AllocateStatus,
+				"host_uuid":          g.HostUuid,
+				"vm_instance_uuid":   g.VmInstanceUuid,
+				"vendor":             g.Vendor,
+				"device":             g.Device,
+				"memory":             g.Memory,
+				"pci_device_address": g.PciDeviceAddress,
+				"state":              g.State,
+				"status":             g.Status,
+				"type":               g.Type,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryGpuDevice error: %v\n", err)
+	}
+
+	// Auto Scaling Groups
+	if asgs, err := cli.QueryAutoScalingGroup(q()); err == nil {
+		for _, asg := range asgs {
+			data.AutoScalingGroups = append(data.AutoScalingGroups, map[string]interface{}{
+				"name":                  asg.Name,
+				"uuid":                  asg.UUID,
+				"state":                 asg.State,
+				"scaling_resource_type": asg.ScalingResourceType,
+				"default_cooldown":      asg.DefaultCooldown,
+				"min_resource_size":     asg.MinResourceSize,
+				"max_resource_size":     asg.MaxResourceSize,
+				"removal_policy":        asg.RemovalPolicy,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAutoScalingGroup error: %v\n", err)
+	}
+
+	// User Tags
+	if tags, err := cli.QueryUserTag(q()); err == nil {
+		for _, t := range tags {
+			data.UserTags = append(data.UserTags, map[string]interface{}{
+				"uuid":          t.UUID,
+				"tag":           t.Tag,
+				"type":          t.Type,
+				"resource_uuid": t.ResourceUuid,
+				"resource_type": t.ResourceType,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryUserTag error: %v\n", err)
+	}
+
+	// System Tags
+	if tags, err := cli.QuerySystemTag(q()); err == nil {
+		for _, t := range tags {
+			data.SystemTags = append(data.SystemTags, map[string]interface{}{
+				"uuid":          t.UUID,
+				"tag":           t.Tag,
+				"type":          t.Type,
+				"inherent":      t.Inherent,
+				"resource_uuid": t.ResourceUuid,
+				"resource_type": t.ResourceType,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySystemTag error: %v\n", err)
+	}
+
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "JSON marshal error: %v\n", err)
@@ -555,4 +814,14 @@ func main() {
 		len(data.IpRanges), len(data.VmNics))
 	fmt.Printf("  Accounts: %d, IAM2Projects: %d, AffinityGroups: %d, SshKeyPairs: %d\n",
 		len(data.Accounts), len(data.IAM2Projects), len(data.AffinityGroups), len(data.SshKeyPairs))
+	fmt.Printf("  Volumes: %d, VolumeSnapshots: %d\n",
+		len(data.Volumes), len(data.VolumeSnapshots))
+	fmt.Printf("  L2VlanNetworks: %d, Vips: %d, Eips: %d, PortForwardingRules: %d\n",
+		len(data.L2VlanNetworks), len(data.Vips), len(data.Eips), len(data.PortForwardingRules))
+	fmt.Printf("  LoadBalancers: %d, LoadBalancerListeners: %d\n",
+		len(data.LoadBalancers), len(data.LoadBalancerListeners))
+	fmt.Printf("  GpuDevices: %d, AutoScalingGroups: %d\n",
+		len(data.GpuDevices), len(data.AutoScalingGroups))
+	fmt.Printf("  UserTags: %d, SystemTags: %d\n",
+		len(data.UserTags), len(data.SystemTags))
 }
