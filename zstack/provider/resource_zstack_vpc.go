@@ -21,21 +21,6 @@ var (
 	_ resource.ResourceWithImportState = &vpcResource{}
 )
 
-type NetworkServiceProviderInventoryView struct {
-	Type                string   `json:"type"`
-	Uuid                string   `json:"uuid"`
-	NetworkServiceTypes []string `json:"networkServiceTypes"`
-}
-
-type AttachNetworkServiceToL3NetworkParam struct {
-	BaseParam struct{}
-	Params    AttachNetworkServiceToL3NetworkDetailParam
-}
-
-type AttachNetworkServiceToL3NetworkDetailParam struct {
-	NetworkServices map[string][]string
-}
-
 type vpcResource struct {
 	client *client.ZSClient
 }
@@ -222,10 +207,48 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	plan.L2NetworkUuid = types.StringValue(pvc.L2NetworkUuid)
 	plan.EnableIPAM = types.BoolValue(pvc.EnableIPAM)
 
-	r.client.AttachNetworkServiceToL3Network(netSvcParam)
-	r.client.AddIpRangeByNetworkCidr(cidrParam)
-	r.client.AddDnsToL3Network(dnsParam)
-	r.client.AttachL3NetworkToVm(attachVRtoVPC)
+	// Save partial state so the L3 network UUID is tracked even if follow-up steps fail
+	diags = response.State.Set(ctx, plan)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	if _, err := r.client.AttachNetworkServiceToL3Network(pvc.UUID, netSvcParam); err != nil {
+		response.Diagnostics.AddError(
+			"Failed to attach network services to VPC",
+			"VPC created (UUID: "+pvc.UUID+"), but attaching network services failed: "+err.Error(),
+		)
+		return
+	}
+
+	if _, err := r.client.AddIpRangeByNetworkCidr(pvc.UUID, cidrParam); err != nil {
+		response.Diagnostics.AddError(
+			"Failed to add IP range to VPC",
+			"VPC created (UUID: "+pvc.UUID+"), but adding IP range by CIDR failed: "+err.Error(),
+		)
+		return
+	}
+
+	if !plan.Dns.IsNull() && plan.Dns.ValueString() != "" {
+		if _, err := r.client.AddDnsToL3Network(pvc.UUID, dnsParam); err != nil {
+			response.Diagnostics.AddError(
+				"Failed to add DNS to VPC",
+				"VPC created (UUID: "+pvc.UUID+"), but adding DNS failed: "+err.Error(),
+			)
+			return
+		}
+	}
+
+	if !plan.VirtualRouterUuid.IsNull() && plan.VirtualRouterUuid.ValueString() != "" {
+		if _, err := r.client.AttachL3NetworkToVm(plan.VirtualRouterUuid.ValueString(), pvc.UUID, attachVRtoVPC); err != nil {
+			response.Diagnostics.AddError(
+				"Failed to attach VPC to virtual router",
+				"VPC created (UUID: "+pvc.UUID+"), but attaching to virtual router failed: "+err.Error(),
+			)
+			return
+		}
+	}
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {

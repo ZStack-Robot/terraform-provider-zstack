@@ -128,7 +128,7 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 		},
 	}
 
-	subnet, err := r.client.AddIpRange(p)
+	subnet, err := r.client.AddIpRange(plan.L3NetworkUuid.ValueString(), p)
 
 	//AddReservedIpRange(plan.Uuid.String().L3NetworkUuid.ValueString(), p)
 	if err != nil {

@@ -206,9 +206,9 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 		if !plan.Description.IsNull() && plan.Description.ValueString() != "" {
 			addLocalParam.Params.Description = stringPtr(plan.Description.ValueString())
 		}
-		// SDK bug: AddLocalPrimaryStorage() takes no parameters, use ZSHttpClient.Post directly
+		// SDK bug: AddLocalPrimaryStorage() takes no parameters, use Post directly
 		ps = &view.PrimaryStorageInventoryView{}
-		err = r.client.ZSHttpClient.Post("v1/primary-storage/local-storage", addLocalParam, ps)
+		err = r.client.Post("v1/primary-storage/local-storage", addLocalParam, ps)
 
 	case "NFS":
 		addNfsParam := param.AddNfsPrimaryStorageParam{
@@ -222,9 +222,9 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 		if !plan.Description.IsNull() && plan.Description.ValueString() != "" {
 			addNfsParam.Params.Description = stringPtr(plan.Description.ValueString())
 		}
-		// SDK bug: AddNfsPrimaryStorage() takes no parameters, use ZSHttpClient.Post directly
+		// SDK bug: AddNfsPrimaryStorage() takes no parameters, use Post directly
 		ps = &view.PrimaryStorageInventoryView{}
-		err = r.client.ZSHttpClient.Post("v1/primary-storage/nfs", addNfsParam, ps)
+		err = r.client.Post("v1/primary-storage/nfs", addNfsParam, ps)
 
 	case "Ceph":
 		monUrls := listToStringSlice(plan.MonUrls)
@@ -281,15 +281,18 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
+	// Save partial state so the primary storage UUID is tracked even if cluster attachment fails
+	partialState := primaryStorageModelFromView(ps, &plan)
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Handle cluster attachment after creation
 	desiredClusters := listToStringSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
-		var attachResult view.PrimaryStorageInventoryView
-		if err := r.client.ZSHttpClient.Post(
-			fmt.Sprintf("v1/clusters/%s/primary-storage/%s", clusterUuid, ps.UUID),
-			param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}},
-			&attachResult,
-		); err != nil {
+		if _, err := r.client.AttachPrimaryStorageToCluster(clusterUuid, ps.UUID, param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}}); err != nil {
 			resp.Diagnostics.AddError("Could not attach primary storage to cluster",
 				fmt.Sprintf("Failed to attach to cluster %s: %s", clusterUuid, err.Error()))
 			return
@@ -378,12 +381,7 @@ func (r *primaryStorageResource) Update(ctx context.Context, req resource.Update
 	// Attach new clusters
 	for _, clusterUuid := range desiredClusters {
 		if !currentSet[clusterUuid] {
-			var attachResult view.PrimaryStorageInventoryView
-			if err := r.client.ZSHttpClient.Post(
-				fmt.Sprintf("v1/clusters/%s/primary-storage/%s", clusterUuid, uuid),
-				param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}},
-				&attachResult,
-			); err != nil {
+			if _, err := r.client.AttachPrimaryStorageToCluster(clusterUuid, uuid, param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}}); err != nil {
 				resp.Diagnostics.AddError("Could not attach primary storage to cluster",
 					fmt.Sprintf("Failed to attach to cluster %s: %s", clusterUuid, err.Error()))
 				return

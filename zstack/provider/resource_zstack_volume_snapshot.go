@@ -161,7 +161,7 @@ func (r *volumeSnapshotResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	snapshot, err := r.client.CreateVolumeSnapshot(param.CreateVolumeSnapshotParam{
+	snapshot, err := r.client.CreateVolumeSnapshot(plan.VolumeUuid.ValueString(), param.CreateVolumeSnapshotParam{
 		Params: param.CreateVolumeSnapshotParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: stringPtr(plan.Description.ValueString()),
@@ -173,6 +173,7 @@ func (r *volumeSnapshotResource) Create(ctx context.Context, req resource.Create
 	}
 
 	state := volumeSnapshotModelFromView(snapshot)
+	state.Revert = plan.Revert
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -186,6 +187,8 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
+	currentRevert := state.Revert
+
 	snapshot, err := r.client.GetVolumeSnapshot(state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read volume snapshot", err.Error())
@@ -193,6 +196,7 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	state = volumeSnapshotModelFromView(snapshot)
+	state.Revert = currentRevert
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -238,6 +242,7 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 	}
 
 	updatedState := volumeSnapshotModelFromView(snapshot)
+	updatedState.Revert = plan.Revert
 	diags = resp.State.Set(ctx, &updatedState)
 	resp.Diagnostics.Append(diags...)
 }
@@ -284,6 +289,6 @@ func volumeSnapshotModelFromView(snapshot *view.VolumeSnapshotInventoryView) vol
 		Status:             stringValueOrNull(snapshot.Status),
 		Distance:           types.Int64Value(int64(snapshot.Distance)),
 		GroupUuid:          stringValueOrNull(snapshot.GroupUuid),
-		Revert:             types.BoolValue(false),
+		Revert:             types.BoolNull(),
 	}
 }

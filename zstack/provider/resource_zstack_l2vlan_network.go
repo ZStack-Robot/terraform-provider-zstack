@@ -164,10 +164,22 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
+	// Save partial state so the L2 VLAN network UUID is tracked even if cluster attachment fails
+	partialState, err := r.readL2VlanNetwork(ctx, l2Network.UUID)
+	if err != nil {
+		resp.Diagnostics.AddError("Could not read created L2 VLAN network", err.Error())
+		return
+	}
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Attach to clusters if specified
 	desiredClusters := terraformStringsToSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
-		if err := r.attachCluster(l2Network.UUID, clusterUuid); err != nil {
+		if err := r.attachCluster(ctx, l2Network.UUID, clusterUuid); err != nil {
 			resp.Diagnostics.AddError(
 				"L2 VLAN network created but cluster attach failed",
 				fmt.Sprintf("Failed to attach cluster %s: %s", clusterUuid, err.Error()),
@@ -177,7 +189,7 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	// Read back the created resource
-	state, err := r.readL2VlanNetwork(l2Network.UUID)
+	state, err := r.readL2VlanNetwork(ctx, l2Network.UUID)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read created L2 VLAN network", err.Error())
 		return
@@ -196,7 +208,7 @@ func (r *l2VlanNetworkResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	refreshedState, err := r.readL2VlanNetwork(state.Uuid.ValueString())
+	refreshedState, err := r.readL2VlanNetwork(ctx, state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read L2 VLAN network", err.Error())
 		return
@@ -238,13 +250,13 @@ func (r *l2VlanNetworkResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	// Reconcile cluster attachments
-	if err := r.reconcileClusterAttachments(uuid, state.AttachedClusterUuids, plan.AttachedClusterUuids); err != nil {
+	if err := r.reconcileClusterAttachments(ctx, uuid, state.AttachedClusterUuids, plan.AttachedClusterUuids); err != nil {
 		resp.Diagnostics.AddError("Could not update cluster attachments", err.Error())
 		return
 	}
 
 	// Read back the updated resource
-	refreshedState, err := r.readL2VlanNetwork(uuid)
+	refreshedState, err := r.readL2VlanNetwork(ctx, uuid)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read updated L2 VLAN network", err.Error())
 		return
@@ -279,7 +291,7 @@ func (r *l2VlanNetworkResource) ImportState(ctx context.Context, req resource.Im
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
 
-func (r *l2VlanNetworkResource) readL2VlanNetwork(uuid string) (l2VlanNetworkResourceModel, error) {
+func (r *l2VlanNetworkResource) readL2VlanNetwork(ctx context.Context, uuid string) (l2VlanNetworkResourceModel, error) {
 	l2Network, err := r.client.GetL2VlanNetwork(uuid)
 	if err != nil {
 		return l2VlanNetworkResourceModel{}, err
@@ -288,24 +300,19 @@ func (r *l2VlanNetworkResource) readL2VlanNetwork(uuid string) (l2VlanNetworkRes
 	return l2VlanNetworkModelFromView(l2Network), nil
 }
 
-func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string) error {
+func (r *l2VlanNetworkResource) attachCluster(ctx context.Context, l2NetworkUuid, clusterUuid string) error {
 	attachParam := param.AttachL2NetworkToClusterParam{
 		BaseParam: param.BaseParam{},
 		Params:    param.AttachL2NetworkToClusterParamDetail{},
 	}
 
-	var resp view.L2NetworkInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/l2-networks/%s/clusters/%s", l2NetworkUuid, clusterUuid),
-		attachParam,
-		&resp,
-	); err != nil {
+	if _, err := r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, attachParam); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current, desired []types.String) error {
+func (r *l2VlanNetworkResource) reconcileClusterAttachments(ctx context.Context, uuid string, current, desired []types.String) error {
 	currentSet := make(map[string]bool)
 	for _, c := range current {
 		if !c.IsNull() && c.ValueString() != "" {
@@ -332,7 +339,7 @@ func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current
 	// Attach clusters that are newly desired
 	for clusterUuid := range desiredSet {
 		if !currentSet[clusterUuid] {
-			if err := r.attachCluster(uuid, clusterUuid); err != nil {
+			if err := r.attachCluster(ctx, uuid, clusterUuid); err != nil {
 				return fmt.Errorf("failed to attach cluster %s: %w", clusterUuid, err)
 			}
 		}

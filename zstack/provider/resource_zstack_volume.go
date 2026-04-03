@@ -205,8 +205,16 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
+	// Save partial state so the volume UUID is tracked even if attachment fails
+	partialState := volumeModelFromView(volume, plan)
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	if !plan.VmInstanceUuid.IsNull() && plan.VmInstanceUuid.ValueString() != "" {
-		if _, err := r.client.AttachDataVolumeToVm(param.AttachDataVolumeToVmParam{
+		if _, err := r.client.AttachDataVolumeToVm(volume.UUID, plan.VmInstanceUuid.ValueString(), param.AttachDataVolumeToVmParam{
 			BaseParam: param.BaseParam{},
 		}); err != nil {
 			resp.Diagnostics.AddError("Volume created but attach failed", err.Error())
@@ -214,7 +222,7 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		}
 	}
 
-	state, err := r.readVolume(volume.UUID, plan)
+	state, err := r.readVolume(ctx,volume.UUID, plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read created volume", err.Error())
 		return
@@ -233,7 +241,7 @@ func (r *volumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	refreshedState, err := r.readVolume(state.Uuid.ValueString(), state)
+	refreshedState, err := r.readVolume(ctx,state.Uuid.ValueString(), state)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read volume", err.Error())
 		return
@@ -289,12 +297,12 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		}
 	}
 
-	if err := r.reconcileAttachment(state, plan); err != nil {
+	if err := r.reconcileAttachment(ctx,state, plan); err != nil {
 		resp.Diagnostics.AddError("Could not update volume attachment", err.Error())
 		return
 	}
 
-	refreshedState, err := r.readVolume(state.Uuid.ValueString(), plan)
+	refreshedState, err := r.readVolume(ctx,state.Uuid.ValueString(), plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read updated volume", err.Error())
 		return
@@ -329,7 +337,7 @@ func (r *volumeResource) ImportState(ctx context.Context, req resource.ImportSta
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
 
-func (r *volumeResource) readVolume(uuid string, prior volumeResourceModel) (volumeResourceModel, error) {
+func (r *volumeResource) readVolume(ctx context.Context, uuid string, prior volumeResourceModel) (volumeResourceModel, error) {
 	volume, err := r.client.GetVolume(uuid)
 	if err != nil {
 		return volumeResourceModel{}, err
@@ -338,7 +346,7 @@ func (r *volumeResource) readVolume(uuid string, prior volumeResourceModel) (vol
 	return volumeModelFromView(volume, prior), nil
 }
 
-func (r *volumeResource) reconcileAttachment(state, plan volumeResourceModel) error {
+func (r *volumeResource) reconcileAttachment(ctx context.Context, state, plan volumeResourceModel) error {
 	currentVm := state.VmInstanceUuid.ValueString()
 	desiredVm := plan.VmInstanceUuid.ValueString()
 
@@ -347,13 +355,13 @@ func (r *volumeResource) reconcileAttachment(state, plan volumeResourceModel) er
 	}
 
 	if currentVm != "" {
-		if err := r.client.DetachDataVolumeFromVm(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
+		if err := r.client.DeleteWithSpec("v1/volumes", state.Uuid.ValueString(), "vm-instances", fmt.Sprintf("deleteMode=%s", param.DeleteModePermissive), nil); err != nil {
 			return err
 		}
 	}
 
 	if desiredVm != "" {
-		if _, err := r.client.AttachDataVolumeToVm(param.AttachDataVolumeToVmParam{
+		if _, err := r.client.AttachDataVolumeToVm(state.Uuid.ValueString(), desiredVm, param.AttachDataVolumeToVmParam{
 			BaseParam: param.BaseParam{},
 		}); err != nil {
 			return err

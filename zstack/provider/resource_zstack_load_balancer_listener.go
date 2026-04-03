@@ -164,18 +164,13 @@ func (r *loadBalancerListenerResource) Create(ctx context.Context, req resource.
 		createParam.Params.SecurityPolicyType = stringPtr(plan.SecurityPolicyType.ValueString())
 	}
 
-	// SDK Workaround: use ZSHttpClient.Post directly to resolve URL template
-	var listener view.LoadBalancerListenerInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/load-balancers/%s/listeners", plan.LoadBalancerUuid.ValueString()),
-		createParam,
-		&listener,
-	); err != nil {
+	listener, err := r.client.CreateLoadBalancerListener(plan.LoadBalancerUuid.ValueString(), createParam)
+	if err != nil {
 		resp.Diagnostics.AddError("Could not create load balancer listener", err.Error())
 		return
 	}
 
-	state := loadBalancerListenerModelFromView(&listener)
+	state := loadBalancerListenerModelFromView(listener)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)

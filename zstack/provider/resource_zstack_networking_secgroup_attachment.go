@@ -124,7 +124,7 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	}
 
 	// Step 3: Add VM NIC to security group
-	_, err = r.client.AddVmNicToSecurityGroup(param.AddVmNicToSecurityGroupParam{
+	_, err = r.client.AddVmNicToSecurityGroup(secgroupUUID, param.AddVmNicToSecurityGroupParam{
 		BaseParam: param.BaseParam{},
 		Params: param.AddVmNicToSecurityGroupParamDetail{
 			VmNicUuids: []string{nicUUID},
