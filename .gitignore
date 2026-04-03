@@ -24,4 +24,4 @@ docs/*
 !docs/resources/
 !docs/data-sources/
 
-.generate_env
+.generate_env.DS_Store
