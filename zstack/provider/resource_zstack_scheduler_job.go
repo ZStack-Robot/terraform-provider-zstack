@@ -91,10 +91,8 @@ func (r *schedulerJobResource) Schema(_ context.Context, request resource.Schema
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
-				Computed:    true,
 				Description: "The type of the scheduler job.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},

@@ -227,13 +227,13 @@ func (r *licenseResource) Read(ctx context.Context, request resource.ReadRequest
 	existingLicense := state.License
 	license, err := r.client.GetLicenseInfo()
 	if err != nil {
-		tflog.Warn(ctx, "Unable to get license info: "+err.Error())
-		response.Diagnostics.AddWarning(
-			"Unable to read license info",
-			"GetLicenseInfo returned an error: "+err.Error()+
-				". Existing state is preserved. If the license was intentionally deleted, "+
-				"remove it from your configuration and run 'terraform state rm' manually.",
-		)
+		if isZStackNotFoundError(err) {
+			tflog.Warn(ctx, "License not found. It may have been deleted outside of Terraform: "+err.Error())
+			response.State.RemoveResource(ctx)
+			return
+		}
+
+		response.Diagnostics.AddError("Unable to read license info", err.Error())
 		return
 	}
 

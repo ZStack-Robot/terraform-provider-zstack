@@ -83,10 +83,8 @@ func (r *vpcFirewallResource) Schema(_ context.Context, request resource.SchemaR
 			},
 			"vpc_uuid": schema.StringAttribute{
 				Required:    true,
-				Computed:    true,
 				Description: "The UUID of the VPC.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},

@@ -253,9 +253,6 @@ func (r *snsHttpEndpointResource) Update(ctx context.Context, request resource.U
 
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
-	plan.Url = plan.Url
-	plan.Username = plan.Username
-	plan.Password = plan.Password
 	plan.Description = stringValueOrNull(result.Description)
 	plan.PlatformUuid = stringValueOrNull(result.PlatformUuid)
 	plan.Type = types.StringValue(result.Type)

@@ -3,8 +3,11 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	zstackerrors "github.com/zstackio/zstack-sdk-go-v2/pkg/errors"
 )
 
 func copyStringValues(values []types.String) []types.String {
@@ -86,4 +89,16 @@ func listToStringSlice(list types.List) []string {
 		}
 	}
 	return result
+}
+
+func isZStackNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if zstackerrors.Cause(err) == zstackerrors.ErrNotFound {
+		return true
+	}
+
+	return strings.Contains(err.Error(), "status code 404")
 }

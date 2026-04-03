@@ -154,7 +154,6 @@ func (r *volumeBackupResource) Create(ctx context.Context, request resource.Crea
 	plan.Name = types.StringValue(result.Name)
 	plan.Description = stringValueOrNull(result.Description)
 	plan.VolumeUuid = types.StringValue(result.VolumeUuid)
-	plan.BackupStorageUuid = plan.BackupStorageUuid
 	if len(result.BackupStorageRefs) > 0 {
 		plan.BackupStorageUuid = types.StringValue(result.BackupStorageRefs[0].BackupStorageUuid)
 	}
@@ -199,7 +198,6 @@ func (r *volumeBackupResource) Read(ctx context.Context, request resource.ReadRe
 			state.Name = types.StringValue(volumeBackup.Name)
 			state.Description = stringValueOrNull(volumeBackup.Description)
 			state.VolumeUuid = types.StringValue(volumeBackup.VolumeUuid)
-			state.BackupStorageUuid = state.BackupStorageUuid
 			if len(volumeBackup.BackupStorageRefs) > 0 {
 				state.BackupStorageUuid = types.StringValue(volumeBackup.BackupStorageRefs[0].BackupStorageUuid)
 			}

@@ -145,7 +145,9 @@ func (r *databaseBackupResource) Create(ctx context.Context, request resource.Cr
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = stringValueOrNull(result.Name)
 	plan.Description = stringValueOrNull(result.Description)
-	plan.BackupStorageUuid = plan.BackupStorageUuid
+	if len(result.BackupStorageRefs) > 0 {
+		plan.BackupStorageUuid = types.StringValue(result.BackupStorageRefs[0].BackupStorageUuid)
+	}
 	plan.State = stringValueOrNull(result.State)
 	plan.Status = stringValueOrNull(result.Status)
 	plan.Size = types.Int64Value(result.Size)
@@ -179,7 +181,9 @@ func (r *databaseBackupResource) Read(ctx context.Context, request resource.Read
 			state.Uuid = types.StringValue(databaseBackup.UUID)
 			state.Name = stringValueOrNull(databaseBackup.Name)
 			state.Description = stringValueOrNull(databaseBackup.Description)
-			state.BackupStorageUuid = state.BackupStorageUuid
+			if len(databaseBackup.BackupStorageRefs) > 0 {
+				state.BackupStorageUuid = types.StringValue(databaseBackup.BackupStorageRefs[0].BackupStorageUuid)
+			}
 			state.State = stringValueOrNull(databaseBackup.State)
 			state.Status = stringValueOrNull(databaseBackup.Status)
 			state.Size = types.Int64Value(databaseBackup.Size)
