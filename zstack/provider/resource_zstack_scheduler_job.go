@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -90,8 +91,10 @@ func (r *schedulerJobResource) Schema(_ context.Context, request resource.Schema
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
+				Computed:    true,
 				Description: "The type of the scheduler job.",
 				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
@@ -139,7 +142,7 @@ func (r *schedulerJobResource) Create(ctx context.Context, request resource.Crea
 	plan.Name = types.StringValue(job.Name)
 	plan.Description = stringValueOrNull(job.Description)
 	plan.TargetResourceUuid = types.StringValue(job.TargetResourceUuid)
-	plan.Type = stringValueOrNull(plan.Type.ValueString())
+	plan.Type = types.StringValue(plan.Type.ValueString())
 	plan.State = stringValueOrNull(job.State)
 	plan.JobData = stringValueOrNull(job.JobData)
 	plan.JobClassName = stringValueOrNull(job.JobClassName)
@@ -177,7 +180,6 @@ func (r *schedulerJobResource) Read(ctx context.Context, request resource.ReadRe
 	state.Name = types.StringValue(job.Name)
 	state.Description = stringValueOrNull(job.Description)
 	state.TargetResourceUuid = types.StringValue(job.TargetResourceUuid)
-	state.Type = state.Type // Type is immutable, keep from state
 	state.State = stringValueOrNull(job.State)
 	state.JobData = stringValueOrNull(job.JobData)
 	state.JobClassName = stringValueOrNull(job.JobClassName)
@@ -222,7 +224,6 @@ func (r *schedulerJobResource) Update(ctx context.Context, request resource.Upda
 	plan.Name = types.StringValue(job.Name)
 	plan.Description = stringValueOrNull(job.Description)
 	plan.TargetResourceUuid = types.StringValue(job.TargetResourceUuid)
-	plan.Type = plan.Type
 	plan.State = stringValueOrNull(job.State)
 	plan.JobData = stringValueOrNull(job.JobData)
 	plan.JobClassName = stringValueOrNull(job.JobClassName)
@@ -250,5 +251,15 @@ func (r *schedulerJobResource) Delete(ctx context.Context, request resource.Dele
 }
 
 func (r *schedulerJobResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), request, response)
+	parts := strings.SplitN(request.ID, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		response.Diagnostics.AddError(
+			"Invalid import ID format",
+			"Expected format: <uuid>:<type> (e.g. abc123:VmInstanceBackupSchedulerJob). "+
+				"The 'type' field is not returned by the API and must be supplied at import time.",
+		)
+		return
+	}
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("uuid"), parts[0])...)
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("type"), parts[1])...)
 }

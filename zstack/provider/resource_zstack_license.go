@@ -227,10 +227,13 @@ func (r *licenseResource) Read(ctx context.Context, request resource.ReadRequest
 	existingLicense := state.License
 	license, err := r.client.GetLicenseInfo()
 	if err != nil {
-		tflog.Warn(ctx, "Unable to get license info. It may have been deleted.: "+err.Error())
-		state = licenseModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		tflog.Warn(ctx, "Unable to get license info: "+err.Error())
+		response.Diagnostics.AddWarning(
+			"Unable to read license info",
+			"GetLicenseInfo returned an error: "+err.Error()+
+				". Existing state is preserved. If the license was intentionally deleted, "+
+				"remove it from your configuration and run 'terraform state rm' manually.",
+		)
 		return
 	}
 

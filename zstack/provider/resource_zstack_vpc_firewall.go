@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -82,8 +83,10 @@ func (r *vpcFirewallResource) Schema(_ context.Context, request resource.SchemaR
 			},
 			"vpc_uuid": schema.StringAttribute{
 				Required:    true,
+				Computed:    true,
 				Description: "The UUID of the VPC.",
 				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
@@ -125,7 +128,6 @@ func (r *vpcFirewallResource) Create(ctx context.Context, request resource.Creat
 	plan.Uuid = types.StringValue(vpcFirewall.UUID)
 	plan.Name = types.StringValue(vpcFirewall.Name)
 	plan.Description = types.StringValue(vpcFirewall.Description)
-	plan.VpcUuid = plan.VpcUuid
 
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
@@ -237,5 +239,15 @@ func (r *vpcFirewallResource) Delete(ctx context.Context, request resource.Delet
 }
 
 func (r *vpcFirewallResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
+	parts := strings.SplitN(req.ID, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		resp.Diagnostics.AddError(
+			"Invalid import ID format",
+			"Expected format: <uuid>:<vpc_uuid> (e.g. abc123:def456). "+
+				"The 'vpc_uuid' field is not returned by the API and must be supplied at import time.",
+		)
+		return
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), parts[0])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("vpc_uuid"), parts[1])...)
 }
