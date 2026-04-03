@@ -1,14 +1,16 @@
 # Sprint Plan: terraform-provider-zstack — ZCF-1317 自动化与IaC
 
-**Date:** 2026-03-23
+**Date:** 2026-04-03 (Updated)
 **Project Level:** 2 (Medium)
 **Epic:** ZCF-1317 — 自动化与IaC
 **Source PRD:** `zcf_prd/stories/STORY-TF-001_terraform_provider_zstack_cloud.md`
-**Total Stories:** 11
-**Total Points:** 84 (Completed: 79 + Deferred: 5)
-**Planned Sprints:** 4 (2 weeks each, 8 weeks total)
+**Source ROADMAP:** `docs/ROADMAP.md`
+**Total Stories:** 20 (11 original + 9 new)
+**Total Points:** 127 (Completed: 117 + Deferred: 5 + New: 5)
+**Planned Sprints:** 7 (2 weeks each, 14 weeks total)
 **Team:** 1 Senior Developer
 **Capacity:** ~30 pts/sprint (target 80% = 24 committed)
+**Rolling Velocity:** ~20 pts/sprint (based on Sprint 1–4)
 
 ---
 
@@ -88,7 +90,7 @@
 
 ### STORY-TF-001-09: 基础设施域 — Zone + Cluster + Host
 
-**Priority:** P2 | **Points:** 8 | **Status:** Not Started | **Sprint:** 4 | **Jira:** ZCF-1542
+**Priority:** P2 | **Points:** 8 | **Status:** Done | **Sprint:** 4 | **Jira:** ZCF-1542
 
 使用 Terraform 管理区域、集群和物理机，实现平台初始化 IaC。
 
@@ -96,7 +98,7 @@
 
 ### STORY-TF-001-10: 基础设施域 — Primary Storage + Backup Storage
 
-**Priority:** P2 | **Points:** 8 | **Status:** Not Started | **Sprint:** 4 | **Jira:** ZCF-1543
+**Priority:** P2 | **Points:** 8 | **Status:** Done | **Sprint:** 4 | **Jira:** ZCF-1543
 
 使用 Terraform 管理主存储和镜像存储，支持多种存储类型。
 
@@ -104,9 +106,73 @@
 
 ### STORY-TF-001-11: 文档完善与 Terraform Registry 发布
 
-**Priority:** P1 | **Points:** 5 | **Status:** Not Started | **Sprint:** 4 | **Jira:** ZCF-1544
+**Priority:** P1 | **Points:** 5 | **Status:** Done | **Sprint:** 4 | **Jira:** ZCF-1544
 
 完成全部 Resource/Data Source 文档，发布到 Terraform Registry。
+
+---
+
+### STORY-TF-001-12: SDK URL Workaround 修复 + 已知问题修复
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 5 | **Jira:** TBD
+
+修复 8 处 SDK URL 占位符运行时 bug（6 个文件），修复 VPC error handling 和 Tag Value 字段问题。
+
+---
+
+### STORY-TF-001-13: 补充 Data Source — EIP + Reserved IP + Subnet IP Range
+
+**Priority:** P0 | **Points:** 3 | **Status:** Done | **Sprint:** 5 | **Jira:** TBD
+
+为已有 Resource 补充缺失的 Data Source（eip, reserved_ip, subnet_ip_range），实现完整查询能力。
+
+---
+
+### STORY-TF-001-14: 补充 Resource — SDN Controller + L3 Network
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 5 | **Jira:** TBD
+
+为已有 Data Source 补充缺失的 Resource（sdn_controller, l3network），实现完整生命周期管理。
+
+---
+
+### STORY-TF-001-15: 网络域 — VM NIC 管理
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 5 | **Jira:** TBD
+
+独立管理云主机网卡，支持多网卡场景和精细化网络配置。
+
+---
+
+### STORY-TF-001-16: 网络域 — IPSec VPN 连接 + VPC VPN 网关
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 6 | **Jira:** TBD
+
+管理 IPSec VPN 连接和 VPC VPN 网关，实现站点到站点 VPN 隧道自动化。
+
+---
+
+### STORY-TF-001-17: 网络域 — VPC Firewall + 路由表/路由条目
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 6 | **Jira:** TBD
+
+管理 VPC 防火墙和虚拟路由表/条目，实现声明式网络安全策略和路由规则。
+
+---
+
+### STORY-TF-001-18: 存储域 — Ceph 存储 + ImageStore 备份存储
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 6 | **Jira:** TBD
+
+管理 Ceph 主存储、Ceph 备份存储和镜像仓库备份存储。
+
+---
+
+### STORY-TF-001-19: 系统域 — IAM2 Virtual ID + Access Key + Global Config
+
+**Priority:** P0 | **Points:** 5 | **Status:** Done | **Sprint:** 6 | **Jira:** TBD
+
+管理 IAM2 虚拟身份、Access Key 和全局配置，扩展 IAM 和平台配置能力。
 
 ---
 
@@ -146,6 +212,63 @@
 | STORY-TF-001-10 基础设施域 — Primary/Backup Storage | 8 | Done |
 | STORY-TF-001-11 文档完善与 Registry 发布 | 5 | Done |
 | **Total** | **21/30** | |
+
+### Sprint 5 — SDK 修复 + 覆盖补全 + VM NIC (Apr 28 – May 9) ✅ DONE
+
+| Story | Points | Status |
+|-------|--------|--------|
+| STORY-TF-001-12 SDK Workaround 修复 + 已知问题 | 5 | Done |
+| STORY-TF-001-13 补充 Data Source (EIP/Reserved IP/Subnet IP Range) | 3 | Done |
+| STORY-TF-001-14 补充 Resource (SDN Controller + L3 Network) | 5 | Done |
+| STORY-TF-001-15 网络域 — VM NIC 管理 | 5 | Done |
+| **Total** | **18/30** | |
+
+> Completed ahead of schedule — all work done during Sprint 3–4 timeframe. SDK v0.0.4 resolved all URL placeholder issues.
+
+---
+
+### Sprint 6 — P0 VPN/防火墙/存储/IAM 扩展 (May 12–23) ✅ DONE
+
+| Story | Points | Status |
+|-------|--------|--------|
+| STORY-TF-001-16 网络域 — IPSec VPN + VPC VPN Gateway | 5 | Done |
+| STORY-TF-001-17 网络域 — VPC Firewall + Route Table/Entry | 5 | Done |
+| STORY-TF-001-18 存储域 — Ceph + ImageStore Backup Storage | 5 | Done |
+| STORY-TF-001-19 系统域 — IAM2 Virtual ID + Access Key + Global Config | 5 | Done |
+| **Total** | **20/30** | |
+
+> Completed ahead of schedule. vpc_vpn_gateway skipped (SDK has no Create method). All other resources fully implemented.
+
+---
+
+### Sprint 7 — License 许可证管理 + 测试修复 (TBD)
+
+| Story | Points | Status |
+|-------|--------|--------|
+| STORY-TF-001-20 系统域 — License 许可证管理 | 5 | Done |
+| **Total** | **5/30** | |
+
+**Sprint Goal:** 实现 License 许可证资源管理，补充 Day-0 平台初始化 IaC 能力；修复已有测试问题
+
+**Notes:**
+- SDK 有完整 License API（Update/Delete License + Query Authorized Node + Get Authorized Capacity）
+- License 是特殊资源：Create = UpdateLicense（上传），无独立 Get API
+- 可结合其他 backlog 项（如测试修复、P2/P3 补充资源）充实此 Sprint
+
+---
+
+## Story Inventory (continued)
+
+### STORY-TF-001-20: 系统域 — License 许可证管理
+
+**Priority:** P1 | **Points:** 5 | **Status:** Done | **Sprint:** 7 | **Jira:** TBD
+
+使用 Terraform 管理 ZStack Cloud 许可证，支持许可证上传/更新/删除，查询授权节点和容量。实现 Day-0 平台初始化 IaC 场景。
+
+**Terraform 资源:**
+- `resource.zstack_license` — 许可证上传/更新/删除（SDK: UpdateLicense / DeleteLicense）
+- `data.zstack_license_authorized_nodes` — 授权节点列表查询（SDK: QueryLicenseAuthorizedNode）
+- `data.zstack_license_authorized_capacity` — 授权容量查询（SDK: GetLicenseAuthorizedCapacity）
 
 ---
 
