@@ -386,7 +386,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			)
 			return
 		}
-		err := isDiskParamValid(ctx, r, rootDiskPlan)
+		err := isDiskParamValid(r, rootDiskPlan)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Params Error",
@@ -430,7 +430,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 		//only support one type data disk now
 		if len(dataDisksPlan) > 0 {
-			err := isDiskParamValid(ctx, r, dataDisksPlan[0])
+			err := isDiskParamValid(r, dataDisksPlan[0])
 			if err != nil {
 				resp.Diagnostics.AddError(
 					"Params Error",
@@ -1031,7 +1031,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 
 }
 
-func isDiskParamValid(ctx context.Context, r *vmResource, model diskModel) error {
+func isDiskParamValid(r *vmResource, model diskModel) error {
 	if model.PrimaryStorageUuid.IsNull() || model.PrimaryStorageUuid.ValueString() == "" {
 		return nil
 	}

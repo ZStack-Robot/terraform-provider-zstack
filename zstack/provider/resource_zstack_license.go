@@ -115,6 +115,7 @@ func (r *licenseResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"management_node_uuid": schema.StringAttribute{
 				Required:    true,
+				Computed:    true,
 				Description: "The management node UUID used for license upload.",
 			},
 			"user": schema.StringAttribute{
@@ -237,8 +238,16 @@ func (r *licenseResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
+	existingManagementNodeUuid := state.ManagementNodeUuid
 	populateLicenseModelFromInventory(&state, license)
 	state.License = existingLicense
+
+	// Preserve management_node_uuid from state if API returns null/empty
+	if state.ManagementNodeUuid.IsNull() || state.ManagementNodeUuid.IsUnknown() {
+		if !existingManagementNodeUuid.IsNull() && !existingManagementNodeUuid.IsUnknown() {
+			state.ManagementNodeUuid = existingManagementNodeUuid
+		}
+	}
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)

@@ -4,7 +4,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -72,7 +71,7 @@ func TestAccPortForwardingRuleResource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
@@ -83,7 +82,7 @@ resource "zstack_port_forwarding_rule" "test" {
   protocol_type  = "TCP"
   allowed_cidr   = "0.0.0.0/0"
 }
-`),
+`,
 				Check: tfresource.ComposeAggregateTestCheckFunc(
 					tfresource.TestCheckResourceAttrSet("zstack_port_forwarding_rule.test", "uuid"),
 					tfresource.TestCheckResourceAttr("zstack_port_forwarding_rule.test", "name", "acc-test-pf-rule"),

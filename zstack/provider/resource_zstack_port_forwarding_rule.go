@@ -269,7 +269,7 @@ func (r *portForwardingRuleResource) Update(ctx context.Context, req resource.Up
 
 		// Attach to new NIC if specified
 		if desiredNic != "" {
-			if err := r.attachToVmNic(ctx, uuid, desiredNic); err != nil {
+			if err := r.attachToVmNic(uuid, desiredNic); err != nil {
 				resp.Diagnostics.AddError("Could not attach port forwarding rule to VM NIC", err.Error())
 				return
 			}
@@ -314,7 +314,7 @@ func (r *portForwardingRuleResource) ImportState(ctx context.Context, req resour
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
 
-func (r *portForwardingRuleResource) attachToVmNic(ctx context.Context, ruleUuid, vmNicUuid string) error {
+func (r *portForwardingRuleResource) attachToVmNic(ruleUuid, vmNicUuid string) error {
 	attachParam := param.AttachPortForwardingRuleParam{
 		BaseParam: param.BaseParam{},
 		Params:    param.AttachPortForwardingRuleParamDetail{},

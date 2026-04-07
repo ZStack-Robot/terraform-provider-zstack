@@ -4,7 +4,7 @@ package provider
 
 import (
 	"context"
-	"fmt"
+
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -69,7 +69,7 @@ func TestAccLoadBalancerResource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
@@ -77,7 +77,7 @@ resource "zstack_load_balancer" "test" {
   name     = "acc-test-lb"
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
-`),
+`,
 				Check: tfresource.ComposeAggregateTestCheckFunc(
 					tfresource.TestCheckResourceAttrSet("zstack_load_balancer.test", "uuid"),
 					tfresource.TestCheckResourceAttr("zstack_load_balancer.test", "name", "acc-test-lb"),

@@ -30,21 +30,21 @@ type volumeResource struct {
 }
 
 type volumeResourceModel struct {
-	Uuid               types.String   `tfsdk:"uuid"`
-	Name               types.String   `tfsdk:"name"`
-	Description        types.String   `tfsdk:"description"`
-	DiskOfferingUuid   types.String   `tfsdk:"disk_offering_uuid"`
-	DiskSize           types.Int64    `tfsdk:"disk_size"`
-	PrimaryStorageUuid types.String   `tfsdk:"primary_storage_uuid"`
-	ResourceUuid       types.String   `tfsdk:"resource_uuid"`
-	TagUuids           types.List     `tfsdk:"tag_uuids"`
-	VmInstanceUuid     types.String   `tfsdk:"vm_instance_uuid"`
-	Type               types.String   `tfsdk:"type"`
-	Format             types.String   `tfsdk:"format"`
-	State              types.String   `tfsdk:"state"`
-	Status             types.String   `tfsdk:"status"`
-	ActualSize         types.Int64    `tfsdk:"actual_size"`
-	IsShareable        types.Bool     `tfsdk:"is_shareable"`
+	Uuid               types.String `tfsdk:"uuid"`
+	Name               types.String `tfsdk:"name"`
+	Description        types.String `tfsdk:"description"`
+	DiskOfferingUuid   types.String `tfsdk:"disk_offering_uuid"`
+	DiskSize           types.Int64  `tfsdk:"disk_size"`
+	PrimaryStorageUuid types.String `tfsdk:"primary_storage_uuid"`
+	ResourceUuid       types.String `tfsdk:"resource_uuid"`
+	TagUuids           types.List   `tfsdk:"tag_uuids"`
+	VmInstanceUuid     types.String `tfsdk:"vm_instance_uuid"`
+	Type               types.String `tfsdk:"type"`
+	Format             types.String `tfsdk:"format"`
+	State              types.String `tfsdk:"state"`
+	Status             types.String `tfsdk:"status"`
+	ActualSize         types.Int64  `tfsdk:"actual_size"`
+	IsShareable        types.Bool   `tfsdk:"is_shareable"`
 }
 
 func VolumeResource() resource.Resource {
@@ -222,7 +222,7 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		}
 	}
 
-	state, err := r.readVolume(ctx,volume.UUID, plan)
+	state, err := r.readVolume(volume.UUID, plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read created volume", err.Error())
 		return
@@ -241,7 +241,7 @@ func (r *volumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	refreshedState, err := r.readVolume(ctx,state.Uuid.ValueString(), state)
+	refreshedState, err := r.readVolume(state.Uuid.ValueString(), state)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read volume", err.Error())
 		return
@@ -297,12 +297,12 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		}
 	}
 
-	if err := r.reconcileAttachment(ctx,state, plan); err != nil {
+	if err := r.reconcileAttachment(state, plan); err != nil {
 		resp.Diagnostics.AddError("Could not update volume attachment", err.Error())
 		return
 	}
 
-	refreshedState, err := r.readVolume(ctx,state.Uuid.ValueString(), plan)
+	refreshedState, err := r.readVolume(state.Uuid.ValueString(), plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Could not read updated volume", err.Error())
 		return
@@ -337,7 +337,7 @@ func (r *volumeResource) ImportState(ctx context.Context, req resource.ImportSta
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
 
-func (r *volumeResource) readVolume(ctx context.Context, uuid string, prior volumeResourceModel) (volumeResourceModel, error) {
+func (r *volumeResource) readVolume(uuid string, prior volumeResourceModel) (volumeResourceModel, error) {
 	volume, err := r.client.GetVolume(uuid)
 	if err != nil {
 		return volumeResourceModel{}, err
@@ -346,7 +346,7 @@ func (r *volumeResource) readVolume(ctx context.Context, uuid string, prior volu
 	return volumeModelFromView(volume, prior), nil
 }
 
-func (r *volumeResource) reconcileAttachment(ctx context.Context, state, plan volumeResourceModel) error {
+func (r *volumeResource) reconcileAttachment(state, plan volumeResourceModel) error {
 	currentVm := state.VmInstanceUuid.ValueString()
 	desiredVm := plan.VmInstanceUuid.ValueString()
 
