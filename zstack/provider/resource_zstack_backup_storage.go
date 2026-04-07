@@ -247,15 +247,26 @@ func (r *backupStorageResource) Create(ctx context.Context, request resource.Cre
 		return
 	}
 
+	// Save partial state so the backup storage UUID is tracked even if zone attachment fails
+	partialBs, err := r.client.GetBackupStorage(bsUuid)
+	if err != nil {
+		response.Diagnostics.AddError("Failed to read backup storage after creation", err.Error())
+		return
+	}
+	partialModel := backupStorageModelFromView(partialBs, plan)
+	diags = response.State.Set(ctx, partialModel)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	// Handle zone attachments
 	zoneUuids := listToStringSlice(plan.AttachedZoneUuids)
 	for _, zoneUuid := range zoneUuids {
 		attachParam := param.AttachBackupStorageToZoneParam{
 			BaseParam: param.BaseParam{},
 		}
-		var result view.BackupStorageInventoryView
-		// Use direct Post to work around URL template bug in AttachBackupStorageToZone
-		if err := r.client.Post(fmt.Sprintf("v1/zones/%s/backup-storage/%s", zoneUuid, bsUuid), attachParam, &result); err != nil {
+		if _, err := r.client.AttachBackupStorageToZone(zoneUuid, bsUuid, attachParam); err != nil {
 			response.Diagnostics.AddError("Failed to attach backup storage to zone",
 				fmt.Sprintf("Error attaching backup storage %s to zone %s: %s", bsUuid, zoneUuid, err.Error()))
 			return
@@ -354,9 +365,7 @@ func (r *backupStorageResource) Update(ctx context.Context, request resource.Upd
 			attachParam := param.AttachBackupStorageToZoneParam{
 				BaseParam: param.BaseParam{},
 			}
-			var result view.BackupStorageInventoryView
-			// Use direct Post to work around URL template bug
-			if err := r.client.Post(fmt.Sprintf("v1/zones/%s/backup-storage/%s", zoneUuid, uuid), attachParam, &result); err != nil {
+			if _, err := r.client.AttachBackupStorageToZone(zoneUuid, uuid, attachParam); err != nil {
 				response.Diagnostics.AddError("Failed to attach backup storage to zone",
 					fmt.Sprintf("Error attaching backup storage %s to zone %s: %s", uuid, zoneUuid, err.Error()))
 				return

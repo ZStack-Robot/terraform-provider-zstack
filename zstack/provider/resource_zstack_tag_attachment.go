@@ -110,7 +110,7 @@ func (r *tagAttachmentResource) Create(ctx context.Context, request resource.Cre
 		attachParams.Params.Tokens = tokenMap
 	}
 
-	_, err := r.client.AttachTagToResources(attachParams)
+	_, err := r.client.AttachTagToResources(plan.TagUuid.ValueString(), attachParams)
 	if err != nil {
 		response.Diagnostics.AddError("Error attaching tag", err.Error())
 		return

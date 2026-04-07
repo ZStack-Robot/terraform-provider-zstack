@@ -111,16 +111,7 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 		},
 	}
 
-	// The SDK's AddReservedIpRange has a bug: it uses a literal {l3NetworkUuid}
-	// placeholder in the URL path that never gets substituted. Work around it
-	// by calling Post directly with the l3NetworkUuid interpolated into the path.
-	var ipRange view.ReservedIpRangeInventoryView
-	err := r.client.Post(
-		fmt.Sprintf("v1/l3-networks/%s/reserved-ip-ranges", reservedIpPlan.L3NetworkUuid.ValueString()),
-		p,
-		&ipRange,
-	)
-	// ipRange, err := r.client.AddReservedIpRange(p)
+	ipRange, err := r.client.AddReservedIpRange(reservedIpPlan.L3NetworkUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Fail to add reserved ip range to L3 network",
@@ -148,7 +139,7 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 	}
 
 	var reservedIpRanges []view.ReservedIpRangeInventoryView
-	_, err := r.client.Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	_, err := r.client.Zql(ctx, fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
 		return
 	}

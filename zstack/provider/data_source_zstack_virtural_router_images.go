@@ -104,7 +104,7 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 		} `json:"results"`
 	}
 
-	_, err := d.client.Zql(query, &zqlResponse)
+	_, err := d.client.Zql(ctx, query, &zqlResponse)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to execute ZQL query, got error: %s", err))
 		return

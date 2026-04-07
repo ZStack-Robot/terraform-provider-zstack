@@ -4,7 +4,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -69,7 +68,7 @@ func TestAccLoadBalancerListenerResource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
@@ -85,7 +84,7 @@ resource "zstack_load_balancer_listener" "test" {
   load_balancer_port = 80
   instance_port      = 8080
 }
-`),
+`,
 				Check: tfresource.ComposeAggregateTestCheckFunc(
 					tfresource.TestCheckResourceAttrSet("zstack_load_balancer_listener.test", "uuid"),
 					tfresource.TestCheckResourceAttr("zstack_load_balancer_listener.test", "name", "acc-test-lb-listener"),

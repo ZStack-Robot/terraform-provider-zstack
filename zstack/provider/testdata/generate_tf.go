@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // EnvData mirrors the structure in generate_env.go / env.json.
@@ -279,13 +280,15 @@ func dataSourceGenerators() []generator {
 				if len(env.VmInstances) == 0 {
 					return "", false, "vm_instances empty"
 				}
-				return `data "zstack_guest_tools" "test" {
+				vmUUID := getStr(env.VmInstances[0], "uuid")
+				return fmt.Sprintf(`data "zstack_guest_tools" "test" {
+  instance_uuid = %q
 }
 
 output "result" {
   value = data.zstack_guest_tools.test
 }
-`, true, ""
+`, vmUUID), true, ""
 			},
 		},
 		{
@@ -441,15 +444,16 @@ output "uuid" {
 		{
 			name: "res-iam2_project",
 			fn: func(env *EnvData) (string, bool, string) {
-				return `resource "zstack_iam2_project" "test" {
-  name        = "tf-batch-test-iam2-project"
+				suffix := time.Now().Format("20060102150405")
+				return fmt.Sprintf(`resource "zstack_iam2_project" "test" {
+  name        = "tf-batch-test-iam2-project-%s"
   description = "[batch-test] IAM2 project"
 }
 
 output "uuid" {
   value = zstack_iam2_project.test.uuid
 }
-`, true, ""
+`, suffix), true, ""
 			},
 		},
 	}
@@ -661,7 +665,7 @@ resource "zstack_networking_secgroup_rule" "test" {
   state                = "Enabled"
   ip_version           = 4
   protocol             = "TCP"
-  ip_ranges            = "0.0.0.0/0"
+  ip_ranges            = "10.0.0.0/8"
   destination_port_ranges = "22"
   description          = "[batch-test] security group rule"
 }

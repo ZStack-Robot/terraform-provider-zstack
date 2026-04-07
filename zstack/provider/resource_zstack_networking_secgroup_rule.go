@@ -195,8 +195,9 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 		},
 	}
 
-	// Call the API to add the security group rule
-	resp, err := r.client.AddSecurityGroupRule(params)
+	// Call the API to add the security group rule.
+	securityGroupUuid := rulePlan.SecurityGroupUuid.ValueString()
+	respPtr, err := r.client.AddSecurityGroupRule(securityGroupUuid, params)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Failed to create security group rule",
@@ -204,7 +205,8 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 		)
 		return
 	}
-	if resp == nil || len(resp.Rules) == 0 {
+	resp := respPtr
+	if len(resp.Rules) == 0 {
 		response.Diagnostics.AddError("Empty response", "AddSecurityGroupRule returned no rules")
 		return
 	}

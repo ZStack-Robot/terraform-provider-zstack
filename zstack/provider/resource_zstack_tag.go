@@ -150,9 +150,7 @@ func (r *tagResource) Read(ctx context.Context, request resource.ReadRequest, re
 	}
 
 	state.Name = types.StringValue(tag.Name)
-	// TODO: SDK TagInventoryView is missing Value field - needs SDK update
-	// state.Value = types.StringValue(tag.Value)
-	state.Description = stringValueOrNull(tag.Description)
+	state.Value = stringValueOrNull(tag.Value)
 	state.Color = stringValueOrNull(tag.Color)
 	state.Type = stringValueOrNull(tag.Type)
 
@@ -274,12 +272,11 @@ func (r *tagResource) ImportState(ctx context.Context, request resource.ImportSt
 	}
 
 	response.State.Set(ctx, &tagResourceModel{
-		Uuid: types.StringValue(tag.UUID),
-		Name: types.StringValue(tag.Name),
-		// TODO: SDK TagInventoryView is missing Value field - needs SDK update
-		// Value:       types.StringValue(tag.Value),
-		Description: types.StringValue(tag.Description),
-		Color:       types.StringValue(tag.Color),
-		Type:        types.StringValue(tag.Type),
+		Uuid:        types.StringValue(tag.UUID),
+		Name:        types.StringValue(tag.Name),
+		Value:       stringValueOrNull(tag.Value),
+		Description: stringValueOrNull(tag.Description),
+		Color:       stringValueOrNull(tag.Color),
+		Type:        stringValueOrNull(tag.Type),
 	})
 }

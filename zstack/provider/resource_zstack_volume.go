@@ -30,21 +30,21 @@ type volumeResource struct {
 }
 
 type volumeResourceModel struct {
-	Uuid               types.String   `tfsdk:"uuid"`
-	Name               types.String   `tfsdk:"name"`
-	Description        types.String   `tfsdk:"description"`
-	DiskOfferingUuid   types.String   `tfsdk:"disk_offering_uuid"`
-	DiskSize           types.Int64    `tfsdk:"disk_size"`
-	PrimaryStorageUuid types.String   `tfsdk:"primary_storage_uuid"`
-	ResourceUuid       types.String   `tfsdk:"resource_uuid"`
-	TagUuids           types.List     `tfsdk:"tag_uuids"`
-	VmInstanceUuid     types.String   `tfsdk:"vm_instance_uuid"`
-	Type               types.String   `tfsdk:"type"`
-	Format             types.String   `tfsdk:"format"`
-	State              types.String   `tfsdk:"state"`
-	Status             types.String   `tfsdk:"status"`
-	ActualSize         types.Int64    `tfsdk:"actual_size"`
-	IsShareable        types.Bool     `tfsdk:"is_shareable"`
+	Uuid               types.String `tfsdk:"uuid"`
+	Name               types.String `tfsdk:"name"`
+	Description        types.String `tfsdk:"description"`
+	DiskOfferingUuid   types.String `tfsdk:"disk_offering_uuid"`
+	DiskSize           types.Int64  `tfsdk:"disk_size"`
+	PrimaryStorageUuid types.String `tfsdk:"primary_storage_uuid"`
+	ResourceUuid       types.String `tfsdk:"resource_uuid"`
+	TagUuids           types.List   `tfsdk:"tag_uuids"`
+	VmInstanceUuid     types.String `tfsdk:"vm_instance_uuid"`
+	Type               types.String `tfsdk:"type"`
+	Format             types.String `tfsdk:"format"`
+	State              types.String `tfsdk:"state"`
+	Status             types.String `tfsdk:"status"`
+	ActualSize         types.Int64  `tfsdk:"actual_size"`
+	IsShareable        types.Bool   `tfsdk:"is_shareable"`
 }
 
 func VolumeResource() resource.Resource {
@@ -205,8 +205,16 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
+	// Save partial state so the volume UUID is tracked even if attachment fails
+	partialState := volumeModelFromView(volume, plan)
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	if !plan.VmInstanceUuid.IsNull() && plan.VmInstanceUuid.ValueString() != "" {
-		if _, err := r.client.AttachDataVolumeToVm(param.AttachDataVolumeToVmParam{
+		if _, err := r.client.AttachDataVolumeToVm(volume.UUID, plan.VmInstanceUuid.ValueString(), param.AttachDataVolumeToVmParam{
 			BaseParam: param.BaseParam{},
 		}); err != nil {
 			resp.Diagnostics.AddError("Volume created but attach failed", err.Error())
@@ -347,13 +355,13 @@ func (r *volumeResource) reconcileAttachment(state, plan volumeResourceModel) er
 	}
 
 	if currentVm != "" {
-		if err := r.client.DetachDataVolumeFromVm(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
+		if err := r.client.DeleteWithSpec("v1/volumes", state.Uuid.ValueString(), "vm-instances", fmt.Sprintf("deleteMode=%s", param.DeleteModePermissive), nil); err != nil {
 			return err
 		}
 	}
 
 	if desiredVm != "" {
-		if _, err := r.client.AttachDataVolumeToVm(param.AttachDataVolumeToVmParam{
+		if _, err := r.client.AttachDataVolumeToVm(state.Uuid.ValueString(), desiredVm, param.AttachDataVolumeToVmParam{
 			BaseParam: param.BaseParam{},
 		}); err != nil {
 			return err

@@ -164,6 +164,18 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
+	// Save partial state so the L2 VLAN network UUID is tracked even if cluster attachment fails
+	partialState, err := r.readL2VlanNetwork(l2Network.UUID)
+	if err != nil {
+		resp.Diagnostics.AddError("Could not read created L2 VLAN network", err.Error())
+		return
+	}
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	// Attach to clusters if specified
 	desiredClusters := terraformStringsToSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
@@ -294,12 +306,7 @@ func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string)
 		Params:    param.AttachL2NetworkToClusterParamDetail{},
 	}
 
-	var resp view.L2NetworkInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/l2-networks/%s/clusters/%s", l2NetworkUuid, clusterUuid),
-		attachParam,
-		&resp,
-	); err != nil {
+	if _, err := r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, attachParam); err != nil {
 		return err
 	}
 	return nil

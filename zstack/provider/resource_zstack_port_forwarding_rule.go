@@ -320,12 +320,7 @@ func (r *portForwardingRuleResource) attachToVmNic(ruleUuid, vmNicUuid string) e
 		Params:    param.AttachPortForwardingRuleParamDetail{},
 	}
 
-	var resp view.PortForwardingRuleInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/port-forwarding/%s/vm-instances/nics/%s", ruleUuid, vmNicUuid),
-		attachParam,
-		&resp,
-	); err != nil {
+	if _, err := r.client.AttachPortForwardingRule(ruleUuid, vmNicUuid, attachParam); err != nil {
 		return err
 	}
 	return nil
