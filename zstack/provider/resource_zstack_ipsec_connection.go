@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -86,6 +89,9 @@ func (r *ipsecConnectionResource) Schema(_ context.Context, request resource.Sch
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the IPsec connection.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -225,8 +231,8 @@ func (r *ipsecConnectionResource) Create(ctx context.Context, request resource.C
 	ipsecConnection, err := r.client.CreateIPsecConnection(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create IPsec connection",
-			"Error "+err.Error(),
+			"Error creating IPsec Connection",
+			"Could not create IPsec connection, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -262,10 +268,12 @@ func (r *ipsecConnectionResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	ipsecConnections, err := r.client.QueryIPSecConnection(&queryParam)
-
+	ipsecConnection, err := findResourceByQuery(r.client.QueryIPSecConnection, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query IPsec connections. It may have been deleted.: "+err.Error())
 		state = ipsecConnectionResourceModel{
 			Uuid: types.StringValue(""),
@@ -275,35 +283,21 @@ func (r *ipsecConnectionResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	found := false
-
-	for _, ipsecConnection := range ipsecConnections {
-		if ipsecConnection.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(ipsecConnection.UUID)
-			state.Name = types.StringValue(ipsecConnection.Name)
-			state.Description = types.StringValue(ipsecConnection.Description)
-			state.VipUuid = types.StringValue(ipsecConnection.VipUuid)
-			state.PeerAddress = types.StringValue(ipsecConnection.PeerAddress)
-			state.AuthMode = types.StringValue(ipsecConnection.AuthMode)
-			state.IkeAuthAlgorithm = types.StringValue(ipsecConnection.IkeAuthAlgorithm)
-			state.IkeEncryptionAlgorithm = types.StringValue(ipsecConnection.IkeEncryptionAlgorithm)
-			state.PolicyAuthAlgorithm = types.StringValue(ipsecConnection.PolicyAuthAlgorithm)
-			state.PolicyEncryptionAlgorithm = types.StringValue(ipsecConnection.PolicyEncryptionAlgorithm)
-			state.Pfs = types.StringValue(ipsecConnection.Pfs)
-			state.PolicyMode = types.StringValue(ipsecConnection.PolicyMode)
-			state.TransformProtocol = types.StringValue(ipsecConnection.TransformProtocol)
-			state.State = types.StringValue(ipsecConnection.State)
-			state.Status = types.StringValue(ipsecConnection.Status)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "IPsec connection not found. It might have been deleted outside of Terraform.")
-		state = ipsecConnectionResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(ipsecConnection.UUID)
+	state.Name = types.StringValue(ipsecConnection.Name)
+	state.Description = types.StringValue(ipsecConnection.Description)
+	state.VipUuid = types.StringValue(ipsecConnection.VipUuid)
+	state.PeerAddress = types.StringValue(ipsecConnection.PeerAddress)
+	state.AuthMode = types.StringValue(ipsecConnection.AuthMode)
+	state.IkeAuthAlgorithm = types.StringValue(ipsecConnection.IkeAuthAlgorithm)
+	state.IkeEncryptionAlgorithm = types.StringValue(ipsecConnection.IkeEncryptionAlgorithm)
+	state.PolicyAuthAlgorithm = types.StringValue(ipsecConnection.PolicyAuthAlgorithm)
+	state.PolicyEncryptionAlgorithm = types.StringValue(ipsecConnection.PolicyEncryptionAlgorithm)
+	state.Pfs = types.StringValue(ipsecConnection.Pfs)
+	state.PolicyMode = types.StringValue(ipsecConnection.PolicyMode)
+	state.TransformProtocol = types.StringValue(ipsecConnection.TransformProtocol)
+	state.State = types.StringValue(ipsecConnection.State)
+	state.Status = types.StringValue(ipsecConnection.Status)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -340,8 +334,8 @@ func (r *ipsecConnectionResource) Update(ctx context.Context, request resource.U
 	ipsecConnection, err := r.client.UpdateIPsecConnection(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update IPsec connection",
-			"Error "+err.Error(),
+			"Error updating IPsec Connection",
+			"Could not update IPsec connection, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -385,7 +379,7 @@ func (r *ipsecConnectionResource) Delete(ctx context.Context, request resource.D
 	err := r.client.DeleteIPsecConnection(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete IPsec connection", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting IPsec Connection", "Could not delete IPsec connection, unexpected error: "+err.Error())
 		return
 	}
 }

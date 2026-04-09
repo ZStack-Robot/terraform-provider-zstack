@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_hook_scripts Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Fetches a list of hook_scripts and their associated attributes from the ZStack environment.
 ---

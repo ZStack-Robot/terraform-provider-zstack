@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestSshKeyPairResource_Schema(t *testing.T) {
@@ -60,8 +63,9 @@ func TestSshKeyPairResource_Metadata(t *testing.T) {
 func TestAccSshKeyPairResource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSshKeyPairDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -70,10 +74,38 @@ resource "zstack_ssh_key_pair" "test" {
   public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7 test@example.com"
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_ssh_key_pair.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_ssh_key_pair.test", "name", "acc-test-ssh-key-pair"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-ssh-key-pair")),
+				},
+			},
+			{
+				ResourceName:      "zstack_ssh_key_pair.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func TestAccSshKeyPairResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSshKeyPairDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_ssh_key_pair" "test_disappears" {
+  name = "acc-test-ssh-disappears"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckSshKeyPairDisappears("zstack_ssh_key_pair.test_disappears"),
+				},
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

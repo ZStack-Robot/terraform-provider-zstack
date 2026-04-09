@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -81,6 +84,9 @@ func (r *flkSecSecurityMachineResource) Schema(_ context.Context, _ resource.Sch
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the security machine.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -161,7 +167,10 @@ func (r *flkSecSecurityMachineResource) Create(ctx context.Context, req resource
 
 	item, err := r.client.AddFlkSecSecurityMachine(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to add FLK security machine", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating FLK Security Machine",
+			"Could not create FLK security machine, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -179,9 +188,12 @@ func (r *flkSecSecurityMachineResource) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QuerySecurityMachine(&queryParam)
+	item, err := findResourceByQuery(r.client.QuerySecurityMachine, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query security machines. It may have been deleted.: "+err.Error())
 		state = flkSecSecurityMachineModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -189,19 +201,7 @@ func (r *flkSecSecurityMachineResource) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state = flkSecSecurityMachineModelFromView(&item, state)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Security machine not found. It might have been deleted outside of Terraform.")
-		state = flkSecSecurityMachineModel{Uuid: types.StringValue("")}
-	}
+	state = flkSecSecurityMachineModelFromView(item, state)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -232,7 +232,10 @@ func (r *flkSecSecurityMachineResource) Update(ctx context.Context, req resource
 
 	item, err := r.client.UpdateFlkSecSecurityMachine(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update FLK security machine", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating FLK Security Machine",
+			"Could not update FLK security machine, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -256,7 +259,10 @@ func (r *flkSecSecurityMachineResource) Delete(ctx context.Context, req resource
 	}
 
 	if err := r.client.DeleteSecurityMachine(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete security machine", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting FLK Security Machine",
+			"Could not delete FLK security machine, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

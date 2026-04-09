@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -67,10 +68,16 @@ func (r *multicastRouterResource) Schema(_ context.Context, request resource.Sch
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the multicast router.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Computed:    true,
 				Description: "The name of the multicast router.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -78,6 +85,7 @@ func (r *multicastRouterResource) Schema(_ context.Context, request resource.Sch
 				Description: "A description for the multicast router.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"vpc_router_vm_uuid": schema.StringAttribute{
@@ -90,6 +98,9 @@ func (r *multicastRouterResource) Schema(_ context.Context, request resource.Sch
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the multicast router.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -118,7 +129,7 @@ func (r *multicastRouterResource) Create(ctx context.Context, request resource.C
 
 	multicastRouter, err := r.client.CreateMulticastRouter(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create multicast router", "Error "+err.Error())
+		response.Diagnostics.AddError("Error creating Multicast Router", "Could not create multicast router, unexpected error: "+err.Error())
 		return
 	}
 
@@ -142,9 +153,12 @@ func (r *multicastRouterResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	multicastRouters, err := r.client.QueryMulticastRouter(&queryParam)
+	multicastRouter, err := findResourceByQuery(r.client.QueryMulticastRouter, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query multicast routers. It may have been deleted.: "+err.Error())
 		state = multicastRouterModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -152,22 +166,10 @@ func (r *multicastRouterResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	found := false
-	for _, multicastRouter := range multicastRouters {
-		if multicastRouter.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(multicastRouter.UUID)
-			state.Name = stringValueOrNull(multicastRouter.Name)
-			state.Description = stringValueOrNull(multicastRouter.Description)
-			state.State = stringValueOrNull(multicastRouter.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Multicast router not found. It might have been deleted outside of Terraform.")
-		state = multicastRouterModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(multicastRouter.UUID)
+	state.Name = stringValueOrNull(multicastRouter.Name)
+	state.Description = stringValueOrNull(multicastRouter.Description)
+	state.State = stringValueOrNull(multicastRouter.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -177,6 +179,10 @@ func (r *multicastRouterResource) Read(ctx context.Context, request resource.Rea
 }
 
 func (r *multicastRouterResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Multicast Router resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *multicastRouterResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -194,7 +200,7 @@ func (r *multicastRouterResource) Delete(ctx context.Context, request resource.D
 
 	err := r.client.DeleteMulticastRouter(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete multicast router", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Multicast Router", "Could not delete multicast router UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

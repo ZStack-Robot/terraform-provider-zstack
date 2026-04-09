@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -80,6 +83,9 @@ func (r *zboxBackupResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the ZBox backup.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -154,8 +160,8 @@ func (r *zboxBackupResource) Create(ctx context.Context, request resource.Create
 	result, err := r.client.CreateZBoxBackup(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create zbox backup",
-			"Error "+err.Error(),
+			"Error creating ZBox Backup",
+			"Could not create zbox backup, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -181,9 +187,12 @@ func (r *zboxBackupResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	zboxBackups, err := r.client.QueryZBoxBackup(&queryParam)
+	zboxBackup, err := findResourceByQuery(r.client.QueryZBoxBackup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query zbox backups. It may have been deleted.: "+err.Error())
 		state = zboxBackupModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -191,33 +200,25 @@ func (r *zboxBackupResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	found := false
-	for _, zboxBackup := range zboxBackups {
-		if zboxBackup.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(zboxBackup.UUID)
-			state.Name = stringValueOrNull(zboxBackup.Name)
-			state.ZBoxUuid = stringValueOrNull(zboxBackup.ZBoxUuid)
-			state.Description = stringValueOrNull(zboxBackup.Description)
-			state.State = stringValueOrNull(zboxBackup.State)
-			state.InstallPath = stringValueOrNull(zboxBackup.InstallPath)
-			state.TotalSize = types.Int64Value(zboxBackup.TotalSize)
-			state.Version = stringValueOrNull(zboxBackup.Version)
-			state.Type = stringValueOrNull(zboxBackup.Type)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "ZBox backup not found. It might have been deleted outside of Terraform.")
-		state = zboxBackupModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(zboxBackup.UUID)
+	state.Name = stringValueOrNull(zboxBackup.Name)
+	state.ZBoxUuid = stringValueOrNull(zboxBackup.ZBoxUuid)
+	state.Description = stringValueOrNull(zboxBackup.Description)
+	state.State = stringValueOrNull(zboxBackup.State)
+	state.InstallPath = stringValueOrNull(zboxBackup.InstallPath)
+	state.TotalSize = types.Int64Value(zboxBackup.TotalSize)
+	state.Version = stringValueOrNull(zboxBackup.Version)
+	state.Type = stringValueOrNull(zboxBackup.Type)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 }
 
 func (r *zboxBackupResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"ZBox Backup resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *zboxBackupResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -235,7 +236,10 @@ func (r *zboxBackupResource) Delete(ctx context.Context, request resource.Delete
 
 	err := r.client.DeleteExternalBackup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete zbox backup", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting ZBox Backup",
+			"Could not delete zbox backup, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

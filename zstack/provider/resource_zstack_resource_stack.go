@@ -4,13 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -76,15 +80,24 @@ func (r *resourceStackResource) Schema(_ context.Context, request resource.Schem
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the resource stack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the resource stack.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the resource stack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
@@ -92,17 +105,24 @@ func (r *resourceStackResource) Schema(_ context.Context, request resource.Schem
 				Description: "The type of the resource stack.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"rollback": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Whether rollback is enabled.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"template_content": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The template content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"template_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -110,36 +130,58 @@ func (r *resourceStackResource) Schema(_ context.Context, request resource.Schem
 				Description: "The template UUID.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"parameters": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The input parameters.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"version": schema.StringAttribute{
 				Computed:    true,
 				Description: "The version of the resource stack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The status of the resource stack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"reason": schema.StringAttribute{
 				Computed:    true,
 				Description: "The reason for the current status.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"outputs": schema.StringAttribute{
 				Computed:    true,
 				Description: "The outputs of the resource stack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"param_content": schema.StringAttribute{
 				Computed:    true,
 				Description: "The rendered parameter content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"enable_rollback": schema.BoolAttribute{
 				Computed:    true,
 				Description: "Whether rollback is enabled on the stack.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -173,7 +215,10 @@ func (r *resourceStackResource) Create(ctx context.Context, request resource.Cre
 
 	resourceStack, err := r.client.CreateResourceStack(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create resource stack", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Resource Stack",
+			"Could not create resource stack, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -204,9 +249,12 @@ func (r *resourceStackResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	resourceStacks, err := r.client.QueryResourceStack(&queryParam)
+	resourceStack, err := findResourceByQuery(r.client.QueryResourceStack, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query resource stacks. It may have been deleted.: "+err.Error())
 		state = resourceStackModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -214,29 +262,17 @@ func (r *resourceStackResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	found := false
-	for _, resourceStack := range resourceStacks {
-		if resourceStack.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(resourceStack.UUID)
-			state.Name = types.StringValue(resourceStack.Name)
-			state.Description = stringValueOrNull(resourceStack.Description)
-			state.Version = stringValueOrNull(resourceStack.Version)
-			state.Type = stringValueOrNull(resourceStack.Type)
-			state.TemplateContent = stringValueOrNull(resourceStack.TemplateContent)
-			state.ParamContent = stringValueOrNull(resourceStack.ParamContent)
-			state.Status = stringValueOrNull(resourceStack.Status)
-			state.Reason = stringValueOrNull(resourceStack.Reason)
-			state.Outputs = stringValueOrNull(resourceStack.Outputs)
-			state.EnableRollback = types.BoolValue(resourceStack.EnableRollback)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Resource stack not found. It might have been deleted outside of Terraform.")
-		state = resourceStackModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(resourceStack.UUID)
+	state.Name = types.StringValue(resourceStack.Name)
+	state.Description = stringValueOrNull(resourceStack.Description)
+	state.Version = stringValueOrNull(resourceStack.Version)
+	state.Type = stringValueOrNull(resourceStack.Type)
+	state.TemplateContent = stringValueOrNull(resourceStack.TemplateContent)
+	state.ParamContent = stringValueOrNull(resourceStack.ParamContent)
+	state.Status = stringValueOrNull(resourceStack.Status)
+	state.Reason = stringValueOrNull(resourceStack.Reason)
+	state.Outputs = stringValueOrNull(resourceStack.Outputs)
+	state.EnableRollback = types.BoolValue(resourceStack.EnableRollback)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -269,7 +305,10 @@ func (r *resourceStackResource) Update(ctx context.Context, request resource.Upd
 
 	resourceStack, err := r.client.UpdateResourceStack(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update resource stack", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Resource Stack",
+			"Could not update resource stack, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -307,7 +346,10 @@ func (r *resourceStackResource) Delete(ctx context.Context, request resource.Del
 
 	err := r.client.DeleteResourceStack(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete resource stack", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Resource Stack",
+			"Could not delete resource stack, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

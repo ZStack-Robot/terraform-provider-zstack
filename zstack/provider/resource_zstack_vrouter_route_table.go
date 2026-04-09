@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -73,6 +76,9 @@ func (r *vrouterRouteTableResource) Schema(_ context.Context, request resource.S
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VRouter route table.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -107,8 +113,8 @@ func (r *vrouterRouteTableResource) Create(ctx context.Context, request resource
 	vrouterRouteTable, err := r.client.CreateVRouterRouteTable(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create VRouter route table",
-			"Error "+err.Error(),
+			"Error creating VRouter Route Table",
+			"Could not create vrouter route table, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -132,10 +138,12 @@ func (r *vrouterRouteTableResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vrouterRouteTables, err := r.client.QueryVRouterRouteTable(&queryParam)
-
+	vrouterRouteTable, err := findResourceByQuery(r.client.QueryVRouterRouteTable, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VRouter route tables. It may have been deleted.: "+err.Error())
 		state = vrouterRouteTableResourceModel{
 			Uuid: types.StringValue(""),
@@ -145,23 +153,9 @@ func (r *vrouterRouteTableResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	found := false
-
-	for _, vrouterRouteTable := range vrouterRouteTables {
-		if vrouterRouteTable.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vrouterRouteTable.UUID)
-			state.Name = types.StringValue(vrouterRouteTable.Name)
-			state.Description = types.StringValue(vrouterRouteTable.Description)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "VRouter route table not found. It might have been deleted outside of Terraform.")
-		state = vrouterRouteTableResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(vrouterRouteTable.UUID)
+	state.Name = types.StringValue(vrouterRouteTable.Name)
+	state.Description = types.StringValue(vrouterRouteTable.Description)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -198,8 +192,8 @@ func (r *vrouterRouteTableResource) Update(ctx context.Context, request resource
 	vrouterRouteTable, err := r.client.UpdateVRouterRouteTable(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update VRouter route table",
-			"Error "+err.Error(),
+			"Error updating VRouter Route Table",
+			"Could not update vrouter route table, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -231,7 +225,10 @@ func (r *vrouterRouteTableResource) Delete(ctx context.Context, request resource
 	err := r.client.DeleteVRouterRouteTable(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete VRouter route table", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VRouter Route Table",
+			"Could not delete vrouter route table, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

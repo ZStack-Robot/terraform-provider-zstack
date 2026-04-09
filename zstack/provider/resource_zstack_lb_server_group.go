@@ -4,13 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -75,6 +79,9 @@ func (r *lbServerGroupResource) Schema(_ context.Context, request resource.Schem
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Load Balancer Server Group.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -92,6 +99,9 @@ func (r *lbServerGroupResource) Schema(_ context.Context, request resource.Schem
 				Optional:    true,
 				Computed:    true,
 				Description: "The IP version (4 for IPv4, 6 for IPv6).",
+				Validators: []validator.Int64{
+					int64validator.OneOf(4, 6),
+				},
 			},
 		},
 	}
@@ -122,8 +132,8 @@ func (r *lbServerGroupResource) Create(ctx context.Context, request resource.Cre
 	lbServerGroup, err := r.client.CreateLoadBalancerServerGroup(plan.LoadBalancerUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create Load Balancer Server Group",
-			"Error "+err.Error(),
+			"Error creating Load Balancer Server Group",
+			"Could not create load balancer server group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -149,10 +159,12 @@ func (r *lbServerGroupResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	lbServerGroups, err := r.client.QueryLoadBalancerServerGroup(&queryParam)
-
+	lbServerGroup, err := findResourceByQuery(r.client.QueryLoadBalancerServerGroup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query Load Balancer Server Groups. It may have been deleted.: "+err.Error())
 		state = lbServerGroupModel{
 			Uuid: types.StringValue(""),
@@ -162,25 +174,11 @@ func (r *lbServerGroupResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	found := false
-
-	for _, lbServerGroup := range lbServerGroups {
-		if lbServerGroup.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(lbServerGroup.UUID)
-			state.Name = types.StringValue(lbServerGroup.Name)
-			state.Description = stringValueOrNull(lbServerGroup.Description)
-			state.LoadBalancerUuid = types.StringValue(lbServerGroup.LoadBalancerUuid)
-			state.IpVersion = types.Int64Value(int64(lbServerGroup.IpVersion))
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "Load Balancer Server Group not found. It might have been deleted outside of Terraform.")
-		state = lbServerGroupModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(lbServerGroup.UUID)
+	state.Name = types.StringValue(lbServerGroup.Name)
+	state.Description = stringValueOrNull(lbServerGroup.Description)
+	state.LoadBalancerUuid = types.StringValue(lbServerGroup.LoadBalancerUuid)
+	state.IpVersion = types.Int64Value(int64(lbServerGroup.IpVersion))
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -211,8 +209,8 @@ func (r *lbServerGroupResource) Update(ctx context.Context, request resource.Upd
 	lbServerGroup, err := r.client.UpdateLoadBalancerServerGroup(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update Load Balancer Server Group",
-			"Error "+err.Error(),
+			"Error updating Load Balancer Server Group",
+			"Could not update load balancer server group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -246,7 +244,7 @@ func (r *lbServerGroupResource) Delete(ctx context.Context, request resource.Del
 	err := r.client.DeleteLoadBalancerServerGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete Load Balancer Server Group", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Load Balancer Server Group", "Could not delete load balancer server group, unexpected error: "+err.Error())
 		return
 	}
 }

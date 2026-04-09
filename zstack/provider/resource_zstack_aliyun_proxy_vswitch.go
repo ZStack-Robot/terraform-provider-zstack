@@ -3,6 +3,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -133,7 +134,7 @@ func (r *aliyunProxyVSwitchResource) Create(ctx context.Context, req resource.Cr
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Aliyun Proxy VSwitch",
-			"Could not create Aliyun Proxy VSwitch, unexpected error: "+err.Error(),
+			"Could not create aliyun proxy vswitch, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -161,11 +162,15 @@ func (r *aliyunProxyVSwitchResource) Read(ctx context.Context, req resource.Read
 	}
 
 	// Query the resource
-	view, err := r.client.GetAliyunProxyVSwitch(state.UUID.ValueString())
+	view, err := findResourceByGet(r.client.GetAliyunProxyVSwitch, state.UUID.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Error reading Aliyun Proxy VSwitch",
-			"Could not read Aliyun Proxy VSwitch, unexpected error: "+err.Error(),
+			"Could not read aliyun proxy vswitch, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -224,7 +229,7 @@ func (r *aliyunProxyVSwitchResource) Update(ctx context.Context, req resource.Up
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Aliyun Proxy VSwitch",
-			"Could not update Aliyun Proxy VSwitch, unexpected error: "+err.Error(),
+			"Could not update aliyun proxy vswitch, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -258,7 +263,7 @@ func (r *aliyunProxyVSwitchResource) Delete(ctx context.Context, req resource.De
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Aliyun Proxy VSwitch",
-			"Could not delete Aliyun Proxy VSwitch, unexpected error: "+err.Error(),
+			"Could not delete aliyun proxy vswitch, unexpected error: "+err.Error(),
 		)
 		return
 	}

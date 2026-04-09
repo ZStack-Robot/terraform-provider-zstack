@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -81,6 +84,9 @@ func (r *alarmResource) Schema(_ context.Context, request resource.SchemaRequest
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the alarm.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -90,6 +96,9 @@ func (r *alarmResource) Schema(_ context.Context, request resource.SchemaRequest
 			"comparison_operator": schema.StringAttribute{
 				Required:    true,
 				Description: "The comparison operator (e.g., GreaterThanOrEqualTo, LessThan).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("GreaterThanOrEqualTo", "GreaterThan", "LessThanOrEqualTo", "LessThan"),
+				},
 			},
 			"namespace": schema.StringAttribute{
 				Required:    true,
@@ -169,8 +178,8 @@ func (r *alarmResource) Create(ctx context.Context, request resource.CreateReque
 	result, err := r.client.CreateAlarm(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create alarm",
-			"Error "+err.Error(),
+			"Error creating Alarm",
+			"Could not create alarm, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -202,44 +211,30 @@ func (r *alarmResource) Read(ctx context.Context, request resource.ReadRequest, 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	alarms, err := r.client.QueryAlarm(&queryParam)
-
+	alarm, err := findResourceByQuery(r.client.QueryAlarm, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query alarms. It may have been deleted.: "+err.Error())
-		state = alarmModel{
-			Uuid: types.StringValue(""),
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
 		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Alarm",
+			"Could not read alarm UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-
-	for _, alarm := range alarms {
-		if alarm.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(alarm.UUID)
-			state.Name = types.StringValue(alarm.Name)
-			state.Description = stringValueOrNull(alarm.Description)
-			state.ComparisonOperator = types.StringValue(alarm.ComparisonOperator)
-			state.Namespace = types.StringValue(alarm.Namespace)
-			state.MetricName = types.StringValue(alarm.MetricName)
-			state.Threshold = types.Float64Value(alarm.Threshold)
-			state.Period = types.Int64Value(int64(alarm.Period))
-			state.RepeatInterval = types.Int64Value(int64(alarm.RepeatInterval))
-			state.Status = types.StringValue(alarm.Status)
-			state.State = types.StringValue(alarm.State)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "Alarm not found. It might have been deleted outside of Terraform.")
-		state = alarmModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(alarm.UUID)
+	state.Name = types.StringValue(alarm.Name)
+	state.Description = stringValueOrNull(alarm.Description)
+	state.ComparisonOperator = types.StringValue(alarm.ComparisonOperator)
+	state.Namespace = types.StringValue(alarm.Namespace)
+	state.MetricName = types.StringValue(alarm.MetricName)
+	state.Threshold = types.Float64Value(alarm.Threshold)
+	state.Period = types.Int64Value(int64(alarm.Period))
+	state.RepeatInterval = types.Int64Value(int64(alarm.RepeatInterval))
+	state.Status = types.StringValue(alarm.Status)
+	state.State = types.StringValue(alarm.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -290,8 +285,8 @@ func (r *alarmResource) Update(ctx context.Context, request resource.UpdateReque
 	result, err := r.client.UpdateAlarm(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update alarm",
-			"Error "+err.Error(),
+			"Error updating Alarm",
+			"Could not update alarm, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -331,7 +326,7 @@ func (r *alarmResource) Delete(ctx context.Context, request resource.DeleteReque
 	err := r.client.DeleteAlarm(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete alarm", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Alarm", "Could not delete alarm, unexpected error: "+err.Error())
 		return
 	}
 }

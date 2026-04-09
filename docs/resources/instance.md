@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instance Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     This resource allows you to manage virtual machine (VM) instances in ZStack. A VM instance represents a virtualized compute resource that can be created, updated, and deleted. You can define the VM's properties, such as its name, image, network configuration, disks, and GPU devices.
 ---

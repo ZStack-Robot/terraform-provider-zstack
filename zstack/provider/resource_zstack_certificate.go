@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -67,10 +70,16 @@ func (r *certificateResource) Schema(_ context.Context, request resource.SchemaR
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the Certificate.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Certificate.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"certificate": schema.StringAttribute{
 				Required:    true,
@@ -83,6 +92,9 @@ func (r *certificateResource) Schema(_ context.Context, request resource.SchemaR
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the Certificate.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -113,8 +125,8 @@ func (r *certificateResource) Create(ctx context.Context, request resource.Creat
 	certificate, err := r.client.CreateCertificate(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create Certificate",
-			"Error "+err.Error(),
+			"Error creating Certificate",
+			"Could not create certificate, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -139,37 +151,23 @@ func (r *certificateResource) Read(ctx context.Context, request resource.ReadReq
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	certificates, err := r.client.QueryCertificate(&queryParam)
-
+	certificate, err := findResourceByQuery(r.client.QueryCertificate, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query Certificates. It may have been deleted.: "+err.Error())
-		state = certificateModel{
-			Uuid: types.StringValue(""),
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
 		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Certificate",
+			"Could not read certificate UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-
-	for _, certificate := range certificates {
-		if certificate.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(certificate.UUID)
-			state.Name = types.StringValue(certificate.Name)
-			state.Certificate = types.StringValue(certificate.Certificate)
-			state.Description = stringValueOrNull(certificate.Description)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "Certificate not found. It might have been deleted outside of Terraform.")
-		state = certificateModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(certificate.UUID)
+	state.Name = types.StringValue(certificate.Name)
+	state.Certificate = types.StringValue(certificate.Certificate)
+	state.Description = stringValueOrNull(certificate.Description)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -200,8 +198,8 @@ func (r *certificateResource) Update(ctx context.Context, request resource.Updat
 	certificate, err := r.client.UpdateCertificate(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update Certificate",
-			"Error "+err.Error(),
+			"Error updating Certificate",
+			"Could not update certificate, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -234,7 +232,7 @@ func (r *certificateResource) Delete(ctx context.Context, request resource.Delet
 	err := r.client.DeleteCertificate(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete Certificate", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Certificate", "Could not delete certificate, unexpected error: "+err.Error())
 		return
 	}
 }

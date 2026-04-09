@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -67,23 +72,42 @@ func (r *eipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VIP network service.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"vip_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the  VIP IP.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"vm_nic_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the virtual machine NIC.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -115,8 +139,8 @@ func (r *eipResource) Create(ctx context.Context, request resource.CreateRequest
 	eip, err := r.client.CreateEip(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to L3 network",
-			"Error "+err.Error(),
+			"Error creating EIP",
+			"Could not create EIP, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -143,40 +167,24 @@ func (r *eipResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	eips, err := r.client.QueryEip(&queryParam)
-
+	eip, err := findResourceByQuery(r.client.QueryEip, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query EIPs. It may have been deleted.: "+err.Error())
-		state = eipModel{
-			Uuid: types.StringValue(""),
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
 		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading EIP",
+			"Could not read EIP UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-
-	for _, eip := range eips {
-		if eip.UUID == state.Uuid.ValueString() {
-			// Update state with the matched subnet details
-			state.Uuid = types.StringValue(eip.UUID)
-			state.Name = types.StringValue(eip.Name)
-			state.Description = types.StringValue(eip.Description)
-			state.VipUuid = types.StringValue(eip.VipUuid)
-			state.VmNicUuid = types.StringValue(eip.VmNicUuid)
-			found = true
-			break
-		}
-	}
-	if !found {
-		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "EIP not found. It might have been deleted outside of Terraform.")
-		state = eipModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(eip.UUID)
+	state.Name = types.StringValue(eip.Name)
+	state.Description = types.StringValue(eip.Description)
+	state.VipUuid = types.StringValue(eip.VipUuid)
+	state.VmNicUuid = types.StringValue(eip.VmNicUuid)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -187,7 +195,10 @@ func (r *eipResource) Read(ctx context.Context, request resource.ReadRequest, re
 }
 
 func (r *eipResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"EIP resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *eipResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -206,7 +217,10 @@ func (r *eipResource) Delete(ctx context.Context, request resource.DeleteRequest
 	err := r.client.DeleteEip(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete reserved ip range", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting EIP",
+			"Could not delete EIP, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

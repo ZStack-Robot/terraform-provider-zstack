@@ -4,11 +4,19 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -72,52 +80,90 @@ func (r *l3networkResource) Schema(_ context.Context, request resource.SchemaReq
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the L3 network.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"l2_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the L2 network that this L3 network is built on.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of the L3 network (e.g., L3BasicNetwork).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"category": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The category of the L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"system": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Whether this is a system L3 network.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"dns_domain": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The DNS domain for the L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"ip_version": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The IP version for the L3 network (4 for IPv4, 6 for IPv6).",
+				Validators: []validator.Int64{
+					int64validator.OneOf(4, 6),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the zone that contains this L3 network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -163,8 +209,8 @@ func (r *l3networkResource) Create(ctx context.Context, request resource.CreateR
 	result, err := r.client.CreateL3Network(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create L3 network",
-			"Error "+err.Error(),
+			"Error creating L3 Network",
+			"Could not create L3 network, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -199,10 +245,12 @@ func (r *l3networkResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryL3Network(&queryParam)
-
+	item, err := findResourceByQuery(r.client.QueryL3Network, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query L3 networks. It may have been deleted.: "+err.Error())
 		state = l3networkResourceModel{
 			Uuid: types.StringValue(""),
@@ -212,32 +260,18 @@ func (r *l3networkResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	found := false
-
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = types.StringValue(item.Description)
-			state.L2NetworkUuid = types.StringValue(item.L2NetworkUuid)
-			state.Type = types.StringValue(item.Type)
-			state.Category = types.StringValue(item.Category)
-			state.System = types.BoolValue(item.System)
-			state.DnsDomain = types.StringValue(item.DnsDomain)
-			state.State = types.StringValue(item.State)
-			state.ZoneUuid = types.StringValue(item.ZoneUuid)
-			if item.IpVersion > 0 {
-				state.IpVersion = types.Int64Value(int64(item.IpVersion))
-			}
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "L3 network not found. It might have been deleted outside of Terraform.")
-		state = l3networkResourceModel{
-			Uuid: types.StringValue(""),
-		}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = types.StringValue(item.Description)
+	state.L2NetworkUuid = types.StringValue(item.L2NetworkUuid)
+	state.Type = types.StringValue(item.Type)
+	state.Category = types.StringValue(item.Category)
+	state.System = types.BoolValue(item.System)
+	state.DnsDomain = types.StringValue(item.DnsDomain)
+	state.State = types.StringValue(item.State)
+	state.ZoneUuid = types.StringValue(item.ZoneUuid)
+	if item.IpVersion > 0 {
+		state.IpVersion = types.Int64Value(int64(item.IpVersion))
 	}
 
 	diags = response.State.Set(ctx, &state)
@@ -288,8 +322,8 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 	result, err := r.client.UpdateL3Network(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update L3 network",
-			"Error "+err.Error(),
+			"Error updating L3 Network",
+			"Could not update L3 network, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -332,7 +366,7 @@ func (r *l3networkResource) Delete(ctx context.Context, request resource.DeleteR
 	err := r.client.DeleteL3Network(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete L3 network", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting L3 Network", "Could not delete L3 network, unexpected error: "+err.Error())
 		return
 	}
 

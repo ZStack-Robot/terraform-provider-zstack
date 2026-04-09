@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instance_offer Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     This resource allows you to manage instance offerings in ZStack. An instance offering defines the configuration and resource settings for virtual machine instances, such as CPU and memory. You can define the offering's properties, such as its name, description, CPU and memory allocation.
 ---

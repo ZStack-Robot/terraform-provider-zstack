@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -76,6 +79,9 @@ func (r *portMirrorSessionResource) Schema(_ context.Context, request resource.S
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the port mirror session.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -158,7 +164,7 @@ func (r *portMirrorSessionResource) Create(ctx context.Context, request resource
 
 	portMirrorSession, err := r.client.CreatePortMirrorSession(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create port mirror session", "Error "+err.Error())
+		response.Diagnostics.AddError("Error creating Port Mirror Session", "Could not create port mirror session, unexpected error: "+err.Error())
 		return
 	}
 
@@ -187,9 +193,12 @@ func (r *portMirrorSessionResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	portMirrorSessions, err := r.client.QueryPortMirrorSession(&queryParam)
+	portMirrorSession, err := findResourceByQuery(r.client.QueryPortMirrorSession, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query port mirror sessions. It may have been deleted.: "+err.Error())
 		state = portMirrorSessionModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -197,27 +206,15 @@ func (r *portMirrorSessionResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	found := false
-	for _, portMirrorSession := range portMirrorSessions {
-		if portMirrorSession.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(portMirrorSession.UUID)
-			state.Name = types.StringValue(portMirrorSession.Name)
-			state.Description = stringValueOrNull(portMirrorSession.Description)
-			state.PortMirrorUuid = types.StringValue(portMirrorSession.PortMirrorUuid)
-			state.Type = types.StringValue(portMirrorSession.Type)
-			state.SrcEndPoint = types.StringValue(portMirrorSession.SrcEndPoint)
-			state.DstEndPoint = types.StringValue(portMirrorSession.DstEndPoint)
-			state.Status = stringValueOrNull(portMirrorSession.Status)
-			state.InternalId = types.Int64Value(portMirrorSession.InternalId)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Port mirror session not found. It might have been deleted outside of Terraform.")
-		state = portMirrorSessionModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(portMirrorSession.UUID)
+	state.Name = types.StringValue(portMirrorSession.Name)
+	state.Description = stringValueOrNull(portMirrorSession.Description)
+	state.PortMirrorUuid = types.StringValue(portMirrorSession.PortMirrorUuid)
+	state.Type = types.StringValue(portMirrorSession.Type)
+	state.SrcEndPoint = types.StringValue(portMirrorSession.SrcEndPoint)
+	state.DstEndPoint = types.StringValue(portMirrorSession.DstEndPoint)
+	state.Status = stringValueOrNull(portMirrorSession.Status)
+	state.InternalId = types.Int64Value(portMirrorSession.InternalId)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -227,6 +224,10 @@ func (r *portMirrorSessionResource) Read(ctx context.Context, request resource.R
 }
 
 func (r *portMirrorSessionResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Port Mirror Session resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *portMirrorSessionResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -244,7 +245,7 @@ func (r *portMirrorSessionResource) Delete(ctx context.Context, request resource
 
 	err := r.client.DeletePortMirrorSession(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete port mirror session", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Port Mirror Session", "Could not delete port mirror session UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

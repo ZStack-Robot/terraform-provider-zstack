@@ -4,16 +4,22 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var (
@@ -49,10 +55,19 @@ func (r *globalConfigResource) Schema(_ context.Context, _ resource.SchemaReques
 			"name": schema.StringAttribute{
 				Description: "The name of the global config (acts as part of the ID).",
 				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"category": schema.StringAttribute{
 				Description: "The category of the global config (acts as part of the ID).",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"value": schema.StringAttribute{
 				Description: "The value to set for this config.",
@@ -61,10 +76,16 @@ func (r *globalConfigResource) Schema(_ context.Context, _ resource.SchemaReques
 			"default_value": schema.StringAttribute{
 				Description: "The default value of the config.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Description: "The description of the config.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -105,8 +126,8 @@ func (r *globalConfigResource) Create(ctx context.Context, req resource.CreateRe
 	result, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating global config",
-			"Could not set global config value, unexpected error: "+err.Error(),
+			"Error creating Global Config",
+			"Could not create global config, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -137,39 +158,33 @@ func (r *globalConfigResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	configs, err := r.client.QueryGlobalConfig(&queryParam)
-
+	config, err := findResourceByQuery(func(queryParam *param.QueryParam) ([]view.GlobalConfigInventoryView, error) {
+		*queryParam = param.NewQueryParam()
+		queryParam.AddQ("category=" + state.Category.ValueString())
+		queryParam.AddQ("name=" + state.Name.ValueString())
+		return r.client.QueryGlobalConfig(queryParam)
+	}, state.Name.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "Global config not found", map[string]interface{}{
+				"category": state.Category.ValueString(),
+				"name":     state.Name.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading global config",
-			"Could not read global config: "+err.Error(),
+			"Error reading Global Config",
+			"Could not read global config, unexpected error: "+err.Error(),
 		)
 		return
 	}
 
-	found := false
-	for _, config := range configs {
-		if config.Category == state.Category.ValueString() && config.Name == state.Name.ValueString() {
-			state.Name = types.StringValue(config.Name)
-			state.Category = types.StringValue(config.Category)
-			state.Value = types.StringValue(config.Value)
-			state.DefaultValue = stringValueOrNull(config.DefaultValue)
-			state.Description = stringValueOrNull(config.Description)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Global config not found", map[string]interface{}{
-			"category": state.Category.ValueString(),
-			"name":     state.Name.ValueString(),
-		})
-		state.Name = types.StringValue("")
-		state.Category = types.StringValue("")
-		state.Value = types.StringValue("")
-	}
+	state.Name = types.StringValue(config.Name)
+	state.Category = types.StringValue(config.Category)
+	state.Value = types.StringValue(config.Value)
+	state.DefaultValue = stringValueOrNull(config.DefaultValue)
+	state.Description = stringValueOrNull(config.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -196,7 +211,7 @@ func (r *globalConfigResource) Update(ctx context.Context, req resource.UpdateRe
 	result, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating global config",
+			"Error updating Global Config",
 			"Could not update global config, unexpected error: "+err.Error(),
 		)
 		return
@@ -239,8 +254,8 @@ func (r *globalConfigResource) Delete(ctx context.Context, req resource.DeleteRe
 	_, err := r.client.UpdateGlobalConfig(state.Category.ValueString(), state.Name.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting global config",
-			"Could not reset global config to default value, unexpected error: "+err.Error(),
+			"Error deleting Global Config",
+			"Could not delete global config, unexpected error: "+err.Error(),
 		)
 		return
 	}

@@ -4,13 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -51,15 +55,24 @@ func (r *vpcSharedQosResource) Schema(_ context.Context, _ resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the VPC Shared QoS.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VPC Shared QoS.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the VPC Shared QoS.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vpc_uuid": schema.StringAttribute{
 				Required:    true,
@@ -79,6 +92,9 @@ func (r *vpcSharedQosResource) Schema(_ context.Context, _ resource.SchemaReques
 				Optional:    true,
 				Computed:    true,
 				Description: "The bandwidth limit in bits per second.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -130,7 +146,7 @@ func (r *vpcSharedQosResource) Create(ctx context.Context, req resource.CreateRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating VPC Shared QoS",
-			"Could not create VPC Shared QoS, unexpected error: "+err.Error(),
+			"Could not create vpc shared qos, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -162,33 +178,23 @@ func (r *vpcSharedQosResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	results, err := r.client.QueryVpcSharedQos(&queryParam)
+	result, err := findResourceByQuery(r.client.QueryVpcSharedQos, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VPC Shared QoS: "+err.Error())
 		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	found := false
-	for _, result := range results {
-		if result.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(result.UUID)
-			state.Name = types.StringValue(result.Name)
-			state.Description = stringValueOrNull(result.Description)
-			state.VpcUuid = types.StringValue(result.VpcUuid)
-			state.L3NetworkUuid = types.StringValue(result.L3NetworkUuid)
-			state.Bandwidth = types.Int64Value(result.Bandwidth)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "VPC Shared QoS not found, removing from state")
-		resp.State.RemoveResource(ctx)
-		return
-	}
+	state.Uuid = types.StringValue(result.UUID)
+	state.Name = types.StringValue(result.Name)
+	state.Description = stringValueOrNull(result.Description)
+	state.VpcUuid = types.StringValue(result.VpcUuid)
+	state.L3NetworkUuid = types.StringValue(result.L3NetworkUuid)
+	state.Bandwidth = types.Int64Value(result.Bandwidth)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -220,7 +226,7 @@ func (r *vpcSharedQosResource) Update(ctx context.Context, req resource.UpdateRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating VPC Shared QoS",
-			"Could not update VPC Shared QoS, unexpected error: "+err.Error(),
+			"Could not update vpc shared qos, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -234,8 +240,8 @@ func (r *vpcSharedQosResource) Update(ctx context.Context, req resource.UpdateRe
 		})
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Error updating VPC Shared QoS bandwidth",
-				"Could not update VPC Shared QoS bandwidth, unexpected error: "+err.Error(),
+				"Error changing VPC Shared QoS bandwidth",
+				"Could not change vpc shared qos bandwidth, unexpected error: "+err.Error(),
 			)
 			return
 		}
@@ -272,7 +278,7 @@ func (r *vpcSharedQosResource) Delete(ctx context.Context, req resource.DeleteRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting VPC Shared QoS",
-			"Could not delete VPC Shared QoS, unexpected error: "+err.Error(),
+			"Could not delete vpc shared qos, unexpected error: "+err.Error(),
 		)
 		return
 	}

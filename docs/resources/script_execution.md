@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_script_execution Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Executes a VM instance script in ZStack.
 ---

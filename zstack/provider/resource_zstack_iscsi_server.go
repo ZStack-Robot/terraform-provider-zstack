@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -145,8 +146,8 @@ func (r *iscsiServerResource) Create(ctx context.Context, request resource.Creat
 	server, err := r.client.AddIscsiServer(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create iSCSI server",
-			"Error "+err.Error(),
+			"Error creating iSCSI Server",
+			"Could not create iSCSI server, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -170,9 +171,12 @@ func (r *iscsiServerResource) Read(ctx context.Context, request resource.ReadReq
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	serverList, err := r.client.QueryIscsiServer(&queryParam)
+	server, err := findResourceByQuery(r.client.QueryIscsiServer, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query iSCSI server. It may have been deleted.: "+err.Error())
 		state = iscsiServerModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -180,24 +184,12 @@ func (r *iscsiServerResource) Read(ctx context.Context, request resource.ReadReq
 		return
 	}
 
-	found := false
-	for _, server := range serverList {
-		if server.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(server.UUID)
-			state.Name = types.StringValue(server.Name)
-			state.Ip = types.StringValue(server.Ip)
-			state.Port = types.Int64Value(int64(server.Port))
-			state.ChapUserName = stringValueOrNull(server.ChapUserName)
-			state.State = stringValueOrNull(server.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "iSCSI server not found. It might have been deleted outside of Terraform.")
-		state = iscsiServerModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(server.UUID)
+	state.Name = types.StringValue(server.Name)
+	state.Ip = types.StringValue(server.Ip)
+	state.Port = types.Int64Value(int64(server.Port))
+	state.ChapUserName = stringValueOrNull(server.ChapUserName)
+	state.State = stringValueOrNull(server.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -233,8 +225,8 @@ func (r *iscsiServerResource) Update(ctx context.Context, request resource.Updat
 	server, err := r.client.UpdateIscsiServer(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update iSCSI server",
-			"Error "+err.Error(),
+			"Error updating iSCSI Server",
+			"Could not update iSCSI server, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -265,7 +257,7 @@ func (r *iscsiServerResource) Delete(ctx context.Context, request resource.Delet
 
 	err := r.client.DeleteIscsiServer(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete iSCSI server", err.Error())
+		response.Diagnostics.AddError("Error deleting iSCSI Server", "Could not delete iSCSI server, unexpected error: "+err.Error())
 		return
 	}
 }

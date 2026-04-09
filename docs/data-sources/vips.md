@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_vips Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     Fetches a list of vips and their associated attributes from the ZStack environment.
 ---

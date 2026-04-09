@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -63,6 +66,9 @@ func (r *aliyunProxyVpcResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "The name of the Aliyun Proxy VPC.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
@@ -142,7 +148,7 @@ func (r *aliyunProxyVpcResource) Create(ctx context.Context, req resource.Create
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Aliyun Proxy VPC",
-			"Could not create Aliyun Proxy VPC: "+err.Error(),
+			"Could not create aliyun proxy vpc, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -163,11 +169,15 @@ func (r *aliyunProxyVpcResource) Read(ctx context.Context, req resource.ReadRequ
 
 	tflog.Info(ctx, fmt.Sprintf("Reading Aliyun Proxy VPC: %s", state.Uuid.ValueString()))
 
-	result, err := r.client.GetAliyunProxyVpc(state.Uuid.ValueString())
+	result, err := findResourceByGet(r.client.GetAliyunProxyVpc, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Error reading Aliyun Proxy VPC",
-			"Could not read Aliyun Proxy VPC: "+err.Error(),
+			"Could not read aliyun proxy vpc, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -206,7 +216,7 @@ func (r *aliyunProxyVpcResource) Update(ctx context.Context, req resource.Update
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Aliyun Proxy VPC",
-			"Could not update Aliyun Proxy VPC: "+err.Error(),
+			"Could not update aliyun proxy vpc, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -231,7 +241,7 @@ func (r *aliyunProxyVpcResource) Delete(ctx context.Context, req resource.Delete
 	if err := r.client.DeleteAliyunProxyVpc(uuid, param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Aliyun Proxy VPC",
-			"Could not delete Aliyun Proxy VPC: "+err.Error(),
+			"Could not delete aliyun proxy vpc, unexpected error: "+err.Error(),
 		)
 		return
 	}

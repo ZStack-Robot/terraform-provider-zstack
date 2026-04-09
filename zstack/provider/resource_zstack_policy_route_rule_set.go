@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -50,15 +53,24 @@ func (r *policyRouteRuleSetResource) Schema(_ context.Context, _ resource.Schema
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the Policy Route Rule Set.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Policy Route Rule Set.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the Policy Route Rule Set.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vrouter_uuid": schema.StringAttribute{
 				Required:    true,
@@ -71,6 +83,9 @@ func (r *policyRouteRuleSetResource) Schema(_ context.Context, _ resource.Schema
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of the Policy Route Rule Set.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -120,7 +135,7 @@ func (r *policyRouteRuleSetResource) Create(ctx context.Context, req resource.Cr
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Policy Route Rule Set",
-			"Could not create Policy Route Rule Set, unexpected error: "+err.Error(),
+			"Could not create policy route rule set, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -150,32 +165,23 @@ func (r *policyRouteRuleSetResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	results, err := r.client.QueryPolicyRouteRuleSet(&queryParam)
+	ruleSet, err := findResourceByQuery(r.client.QueryPolicyRouteRuleSet, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "Policy Route Rule Set not found, removing from state")
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query Policy Route Rule Set: "+err.Error())
 		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	found := false
-	for _, result := range results {
-		if result.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(result.UUID)
-			state.Name = types.StringValue(result.Name)
-			state.Description = stringValueOrNull(result.Description)
-			// VrouterUuid is not in the result, keep from state
-			state.Type = stringValueOrNull(result.Type)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Policy Route Rule Set not found, removing from state")
-		resp.State.RemoveResource(ctx)
-		return
-	}
+	state.Uuid = types.StringValue(ruleSet.UUID)
+	state.Name = types.StringValue(ruleSet.Name)
+	state.Description = stringValueOrNull(ruleSet.Description)
+	// VrouterUuid is not in the result, keep from state
+	state.Type = stringValueOrNull(ruleSet.Type)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -204,7 +210,7 @@ func (r *policyRouteRuleSetResource) Update(ctx context.Context, req resource.Up
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Policy Route Rule Set",
-			"Could not update Policy Route Rule Set, unexpected error: "+err.Error(),
+			"Could not update policy route rule set UUID "+plan.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -239,7 +245,7 @@ func (r *policyRouteRuleSetResource) Delete(ctx context.Context, req resource.De
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Policy Route Rule Set",
-			"Could not delete Policy Route Rule Set, unexpected error: "+err.Error(),
+			"Could not delete policy route rule set UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

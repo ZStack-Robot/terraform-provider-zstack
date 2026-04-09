@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_disk_offer Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Storage"
 description: |-
     This resource allows you to manage disk offerings in ZStack. An disk offering defines the configuration and resource settings for virtual machine  disks. You can define the offering's properties, such as its name, description, disk_size.
 ---

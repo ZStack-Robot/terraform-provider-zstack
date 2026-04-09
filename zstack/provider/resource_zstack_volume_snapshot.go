@@ -4,13 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -82,15 +87,24 @@ func (r *volumeSnapshotResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the snapshot.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the snapshot.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the snapshot.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"volume_uuid": schema.StringAttribute{
 				Required:    true,
@@ -102,46 +116,79 @@ func (r *volumeSnapshotResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"tree_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the snapshot tree.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"parent_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the parent snapshot, if any.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"primary_storage_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the primary storage holding the snapshot.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"volume_type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the source volume.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"format": schema.StringAttribute{
 				Computed:    true,
 				Description: "The snapshot format.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"latest": schema.BoolAttribute{
 				Computed:    true,
 				Description: "Whether this is the latest snapshot in its tree.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"size": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The size of the snapshot in bytes.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The administrative state of the snapshot.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The operational status of the snapshot.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"distance": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The distance from the root snapshot.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"group_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The snapshot group UUID, if any.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"revert": schema.BoolAttribute{
 				Optional:    true,
@@ -168,7 +215,10 @@ func (r *volumeSnapshotResource) Create(ctx context.Context, req resource.Create
 		},
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create volume snapshot", err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Volume Snapshot",
+			"Could not create volume snapshot, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -189,9 +239,16 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 
 	currentRevert := state.Revert
 
-	snapshot, err := r.client.GetVolumeSnapshot(state.Uuid.ValueString())
+	snapshot, err := findResourceByGet(r.client.GetVolumeSnapshot, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read volume snapshot", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Volume Snapshot",
+			"Could not read volume snapshot UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
@@ -222,7 +279,10 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 			},
 		})
 		if err != nil {
-			resp.Diagnostics.AddError("Could not update volume snapshot", err.Error())
+			resp.Diagnostics.AddError(
+				"Error updating Volume Snapshot",
+				"Could not update volume snapshot, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -230,14 +290,20 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 	if !plan.Revert.IsNull() && plan.Revert.ValueBool() {
 		tflog.Info(ctx, "Reverting volume from snapshot", map[string]any{"snapshot_uuid": state.Uuid.ValueString()})
 		if _, err := r.client.RevertVolumeFromSnapshot(state.Uuid.ValueString(), param.RevertVolumeFromSnapshotParam{}); err != nil {
-			resp.Diagnostics.AddError("Could not revert volume from snapshot", err.Error())
+			resp.Diagnostics.AddError(
+				"Error reverting Volume Snapshot",
+				"Could not revert volume from volume snapshot UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			)
 			return
 		}
 	}
 
 	snapshot, err := r.client.GetVolumeSnapshot(state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read volume snapshot after update", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Volume Snapshot",
+			"Could not read volume snapshot after update: "+err.Error(),
+		)
 		return
 	}
 
@@ -262,7 +328,10 @@ func (r *volumeSnapshotResource) Delete(ctx context.Context, req resource.Delete
 	}
 
 	if err := r.client.DeleteVolumeSnapshot(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete volume snapshot", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Volume Snapshot",
+			"Could not delete volume snapshot, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

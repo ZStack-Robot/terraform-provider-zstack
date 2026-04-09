@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_guest_tools_attachment Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Attaches guest tools ISO to a ZStack VM instance.
 ---

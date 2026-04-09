@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -64,19 +69,35 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the policy",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the policy",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the policy",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"account_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the account the policy belongs to",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -104,7 +125,7 @@ func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest,
 	result, err := r.client.CreatePolicy(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating policy",
+			"Error creating Policy",
 			"Could not create policy, unexpected error: "+err.Error(),
 		)
 		return
@@ -129,27 +150,18 @@ func (r *policyResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	policies, err := r.client.QueryPolicy(&queryParam)
+	policy, err := findResourceByQuery(r.client.QueryPolicy, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading policy",
+			"Error reading Policy",
 			"Could not read policy UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(policies) == 0 {
-		tflog.Warn(ctx, "policy not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		resp.State.RemoveResource(ctx)
-		return
-	}
-
-	policy := policies[0]
 
 	state.Name = types.StringValue(policy.Name)
 	state.AccountUuid = types.StringValue(policy.AccountUuid)
@@ -177,7 +189,7 @@ func (r *policyResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	err := r.client.DeletePolicy(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting policy",
+			"Error deleting Policy",
 			"Could not delete policy, unexpected error: "+err.Error(),
 		)
 		return

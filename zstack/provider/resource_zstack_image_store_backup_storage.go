@@ -6,9 +6,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -73,15 +78,24 @@ func (r *imageStoreBackupStorageResource) Schema(_ context.Context, _ resource.S
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the image store backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the image store backup storage",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the image store backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"hostname": schema.StringAttribute{
 				Required:    true,
@@ -101,30 +115,51 @@ func (r *imageStoreBackupStorageResource) Schema(_ context.Context, _ resource.S
 				Optional:    true,
 				Computed:    true,
 				Description: "The SSH port of the image store backup storage",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"url": schema.StringAttribute{
 				Required:    true,
 				Description: "The URL of the image store backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The status of the backup storage",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"total_capacity": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The total capacity of the backup storage in bytes",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"available_capacity": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The available capacity of the backup storage in bytes",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -157,7 +192,7 @@ func (r *imageStoreBackupStorageResource) Create(ctx context.Context, request re
 	result, err := r.client.AddImageStoreBackupStorage(createParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error creating image store backup storage",
+			"Error creating Image Store Backup Storage",
 			"Could not create image store backup storage, unexpected error: "+err.Error(),
 		)
 		return
@@ -196,8 +231,12 @@ func (r *imageStoreBackupStorageResource) Read(ctx context.Context, request reso
 
 	backupStorages, err := r.client.QueryImageStoreBackupStorage(&queryParam)
 	if err != nil {
+		if isZStackNotFoundError(err) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		response.Diagnostics.AddError(
-			"Error reading image store backup storage",
+			"Error reading Image Store Backup Storage",
 			"Could not read image store backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
@@ -207,9 +246,7 @@ func (r *imageStoreBackupStorageResource) Read(ctx context.Context, request reso
 		tflog.Warn(ctx, "image store backup storage not found, removing from state", map[string]interface{}{
 			"uuid": state.Uuid.ValueString(),
 		})
-		state.Uuid = types.StringValue("")
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.State.RemoveResource(ctx)
 		return
 	}
 
@@ -274,7 +311,7 @@ func (r *imageStoreBackupStorageResource) Update(ctx context.Context, request re
 	_, err := r.client.UpdateImageStoreBackupStorage(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error updating image store backup storage",
+			"Error updating Image Store Backup Storage",
 			"Could not update image store backup storage, unexpected error: "+err.Error(),
 		)
 		return
@@ -287,16 +324,16 @@ func (r *imageStoreBackupStorageResource) Update(ctx context.Context, request re
 	backupStorages, err := r.client.QueryImageStoreBackupStorage(&queryParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error reading image store backup storage after update",
-			"Could not read image store backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading Image Store Backup Storage",
+			"Could not read image store backup storage UUID "+state.Uuid.ValueString()+" after update: "+err.Error(),
 		)
 		return
 	}
 
 	if len(backupStorages) == 0 {
 		response.Diagnostics.AddError(
-			"Error reading image store backup storage after update",
-			"Image store backup storage not found after update",
+			"Error reading Image Store Backup Storage",
+			"Could not read image store backup storage after update: not found",
 		)
 		return
 	}
@@ -334,7 +371,7 @@ func (r *imageStoreBackupStorageResource) Delete(ctx context.Context, request re
 	err := r.client.DeleteBackupStorage(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error deleting image store backup storage",
+			"Error deleting Image Store Backup Storage",
 			"Could not delete image store backup storage, unexpected error: "+err.Error(),
 		)
 		return

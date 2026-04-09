@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -63,15 +68,28 @@ func (r *monitorTemplateResource) Schema(_ context.Context, _ resource.SchemaReq
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the monitor template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the monitor template.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the monitor template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -100,7 +118,7 @@ func (r *monitorTemplateResource) Create(ctx context.Context, req resource.Creat
 
 	item, err := r.client.CreateMonitorTemplate(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to create monitor template", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error creating Monitor Template", "Could not create monitor template, unexpected error: "+err.Error())
 		return
 	}
 
@@ -120,9 +138,12 @@ func (r *monitorTemplateResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryMonitorTemplate(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryMonitorTemplate, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query monitor templates. It may have been deleted.: "+err.Error())
 		state = monitorTemplateModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -130,21 +151,9 @@ func (r *monitorTemplateResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Monitor template not found. It might have been deleted outside of Terraform.")
-		state = monitorTemplateModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -172,7 +181,7 @@ func (r *monitorTemplateResource) Update(ctx context.Context, req resource.Updat
 
 	item, err := r.client.UpdateMonitorTemplate(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update monitor template", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error updating Monitor Template", "Could not update monitor template UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -198,7 +207,7 @@ func (r *monitorTemplateResource) Delete(ctx context.Context, req resource.Delet
 	}
 
 	if err := r.client.DeleteMonitorTemplate(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete monitor template", err.Error())
+		resp.Diagnostics.AddError("Error deleting Monitor Template", "Could not delete monitor template UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

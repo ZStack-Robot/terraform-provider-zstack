@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -132,7 +133,10 @@ func (r *flowCollectorResource) Create(ctx context.Context, request resource.Cre
 
 	flowCollector, err := r.client.CreateFlowCollector(plan.FlowMeterUuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create flow collector", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Flow Collector",
+			"Could not create flow collector, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -158,9 +162,12 @@ func (r *flowCollectorResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	flowCollectors, err := r.client.QueryFlowCollector(&queryParam)
+	flowCollector, err := findResourceByQuery(r.client.QueryFlowCollector, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query flow collectors. It may have been deleted.: "+err.Error())
 		state = flowCollectorModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -168,24 +175,12 @@ func (r *flowCollectorResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	found := false
-	for _, flowCollector := range flowCollectors {
-		if flowCollector.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(flowCollector.UUID)
-			state.Name = stringValueOrNull(flowCollector.Name)
-			state.Description = stringValueOrNull(flowCollector.Description)
-			state.FlowMeterUuid = types.StringValue(flowCollector.FlowMeterUuid)
-			state.Server = stringValueOrNull(flowCollector.Server)
-			state.Port = types.Int64Value(flowCollector.Port)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Flow collector not found. It might have been deleted outside of Terraform.")
-		state = flowCollectorModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(flowCollector.UUID)
+	state.Name = stringValueOrNull(flowCollector.Name)
+	state.Description = stringValueOrNull(flowCollector.Description)
+	state.FlowMeterUuid = types.StringValue(flowCollector.FlowMeterUuid)
+	state.Server = stringValueOrNull(flowCollector.Server)
+	state.Port = types.Int64Value(flowCollector.Port)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -218,7 +213,10 @@ func (r *flowCollectorResource) Update(ctx context.Context, request resource.Upd
 
 	flowCollector, err := r.client.UpdateFlowCollector(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update flow collector", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Flow Collector",
+			"Could not update flow collector, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -251,7 +249,10 @@ func (r *flowCollectorResource) Delete(ctx context.Context, request resource.Del
 
 	err := r.client.DeleteFlowCollector(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete flow collector", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Flow Collector",
+			"Could not delete flow collector, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -78,6 +81,9 @@ func (r *v2vConversionHostResource) Schema(_ context.Context, _ resource.SchemaR
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the V2V conversion host.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -148,8 +154,8 @@ func (r *v2vConversionHostResource) Create(ctx context.Context, request resource
 	item, err := r.client.AddV2VConversionHost(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create V2V conversion host",
-			"Error "+err.Error(),
+			"Error creating V2V Conversion Host",
+			"Could not create v2v conversion host, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -178,9 +184,12 @@ func (r *v2vConversionHostResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryV2VConversionHost(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryV2VConversionHost, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query V2V conversion hosts. It may have been deleted.: "+err.Error())
 		state = v2vConversionHostModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -188,29 +197,17 @@ func (r *v2vConversionHostResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Type = types.StringValue(item.Type)
-			state.HostUuid = types.StringValue(item.HostUuid)
-			state.StoragePath = types.StringValue(item.StoragePath)
-			state.State = stringValueOrNull(item.State)
-			state.TotalSize = types.Int64Value(item.TotalSize)
-			state.AvailableSize = types.Int64Value(item.AvailableSize)
-			state.HostStatus = stringValueOrNull(item.HostStatus)
-			state.HostState = stringValueOrNull(item.HostState)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "V2V conversion host not found. It might have been deleted outside of Terraform.")
-		state = v2vConversionHostModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Type = types.StringValue(item.Type)
+	state.HostUuid = types.StringValue(item.HostUuid)
+	state.StoragePath = types.StringValue(item.StoragePath)
+	state.State = stringValueOrNull(item.State)
+	state.TotalSize = types.Int64Value(item.TotalSize)
+	state.AvailableSize = types.Int64Value(item.AvailableSize)
+	state.HostStatus = stringValueOrNull(item.HostStatus)
+	state.HostState = stringValueOrNull(item.HostState)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -240,8 +237,8 @@ func (r *v2vConversionHostResource) Update(ctx context.Context, request resource
 	item, err := r.client.UpdateV2VConversionHost(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update V2V conversion host",
-			"Error "+err.Error(),
+			"Error updating V2V Conversion Host",
+			"Could not update v2v conversion host, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -277,7 +274,10 @@ func (r *v2vConversionHostResource) Delete(ctx context.Context, request resource
 
 	err := r.client.DeleteV2VConversionHost(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete V2V conversion host", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting V2V Conversion Host",
+			"Could not delete v2v conversion host, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

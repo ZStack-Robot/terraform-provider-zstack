@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -66,15 +71,24 @@ func (r *webhookResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the webhook.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the webhook.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the webhook.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"url": schema.StringAttribute{
 				Required:    true,
@@ -88,6 +102,9 @@ func (r *webhookResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				Description: "Opaque content for webhook.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -119,7 +136,10 @@ func (r *webhookResource) Create(ctx context.Context, req resource.CreateRequest
 
 	item, err := r.client.CreateWebhook(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to create webhook", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Webhook",
+			"Could not create webhook, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -142,9 +162,12 @@ func (r *webhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryWebhook(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryWebhook, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query webhooks. It may have been deleted.: "+err.Error())
 		state = webhookModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -152,24 +175,12 @@ func (r *webhookResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Url = stringValueOrNull(item.Url)
-			state.Type = stringValueOrNull(item.Type)
-			state.Opaque = stringValueOrNull(item.Opaque)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Webhook not found. It might have been deleted outside of Terraform.")
-		state = webhookModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Url = stringValueOrNull(item.Url)
+	state.Type = stringValueOrNull(item.Type)
+	state.Opaque = stringValueOrNull(item.Opaque)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -200,7 +211,10 @@ func (r *webhookResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	item, err := r.client.UpdateWebhook(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update webhook", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating Webhook",
+			"Could not update webhook, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -229,7 +243,10 @@ func (r *webhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	if err := r.client.DeleteWebhook(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete webhook", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Webhook",
+			"Could not delete webhook, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

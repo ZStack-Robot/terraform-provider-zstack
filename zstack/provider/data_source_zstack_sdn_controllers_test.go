@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackSdnControllersDataSource(t *testing.T) {
@@ -20,7 +23,7 @@ func TestAccZStackSdnControllersDataSource(t *testing.T) {
 	pattern := string([]rune(name)[:3]) + "%"
 	status := envStr(sdn, "status")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -32,13 +35,13 @@ data "zstack_networking_sdn_controllers" "test" {
     values = [%q]
   }
 }`, pattern, status),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.status", status),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.ip", envStr(sdn, "ip")),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.uuid", envStr(sdn, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_networking_sdn_controllers.test", "sdn_controllers.0.vendor_type", envStr(sdn, "vendor_type")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(status)),
+					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("ip"), knownvalue.StringExact(envStr(sdn, "ip"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(sdn, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("vendor_type"), knownvalue.StringExact(envStr(sdn, "vendor_type"))),
+				},
 			},
 		},
 	})

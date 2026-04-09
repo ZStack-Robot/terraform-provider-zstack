@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_mnnodes Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Infrastructure"
 description: |-
     Fetches a list of Management nodes and their associated attributes from the ZStack environment.
 ---

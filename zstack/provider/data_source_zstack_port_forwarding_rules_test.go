@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestPortForwardingRuleDataSource_Schema(t *testing.T) {
@@ -42,7 +45,7 @@ func TestPortForwardingRuleDataSource_Metadata(t *testing.T) {
 func TestAccPortForwardingRuleDataSource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
@@ -50,9 +53,9 @@ func TestAccPortForwardingRuleDataSource(t *testing.T) {
 data "zstack_port_forwarding_rules" "test" {
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("data.zstack_port_forwarding_rules.test", "port_forwarding_rules.#"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_port_forwarding_rules.test", tfjsonpath.New("port_forwarding_rules"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

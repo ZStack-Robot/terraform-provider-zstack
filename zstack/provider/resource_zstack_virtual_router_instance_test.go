@@ -11,6 +11,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
@@ -99,13 +102,13 @@ resource "zstack_virtual_router_instance" "foo" {
   virtual_router_offering_uuid = "mock-offering-uuid"
 }
 `, hostParts[0], hostParts[1]),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("zstack_virtual_router_instance.foo", "name", "test-mock-vr"),
-					resource.TestCheckResourceAttr("zstack_virtual_router_instance.foo", "uuid", "mock-vr-uuid"),
-					resource.TestCheckResourceAttr("zstack_virtual_router_instance.foo", "state", "Running"),
-					resource.TestCheckResourceAttr("zstack_virtual_router_instance.foo", "description", "mock vr created via test"),
-					resource.TestCheckResourceAttr("zstack_virtual_router_instance.foo", "virtual_router_offering_uuid", "mock-offering-uuid"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("name"), knownvalue.StringExact("test-mock-vr")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("uuid"), knownvalue.StringExact("mock-vr-uuid")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("state"), knownvalue.StringExact("Running")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("description"), knownvalue.StringExact("mock vr created via test")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("virtual_router_offering_uuid"), knownvalue.StringExact("mock-offering-uuid")),
+				},
 			},
 		},
 	})

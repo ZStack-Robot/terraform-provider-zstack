@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instance_offers Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Fetches a list of instance offers and their associated attributes from the ZStack environment.
 ---

@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -68,28 +73,51 @@ func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"l3_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the L3 network associated with this VIP network service.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip_range_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The type of IP range. Possible values depend on the ZStack configuration (e.g., 'Normal' or 'Reserved').",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"vip": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "create vip ip address  for this VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -132,8 +160,8 @@ func (r *vipResource) Create(ctx context.Context, request resource.CreateRequest
 	vip, err := r.client.CreateVip(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to L3 network",
-			"Error "+err.Error(),
+			"Error creating VIP",
+			"Could not create vip, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -160,11 +188,12 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	q := param.NewQueryParam()
-	vips, err := r.client.QueryVip(&q)
-
-	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	vip, err := findResourceByQuery(r.client.QueryVip, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VIPs. It may have been deleted.: "+err.Error())
 		state = vipModel{
 			Uuid: types.StringValue(""),
@@ -174,27 +203,11 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	found := false
-
-	for _, vip := range vips {
-		if vip.UUID == state.Uuid.ValueString() {
-			// Update state with the matched subnet details
-			state.Uuid = types.StringValue(vip.UUID)
-			state.Name = types.StringValue(vip.Name)
-			state.Description = types.StringValue(vip.Description)
-			state.L3NetworkUuid = types.StringValue(vip.L3NetworkUuid)
-			state.VIP = types.StringValue(vip.Ip)
-			found = true
-			break
-		}
-	}
-	if !found {
-		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "VIP not found. It might have been deleted outside of Terraform.")
-		state = vipModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(vip.UUID)
+	state.Name = types.StringValue(vip.Name)
+	state.Description = types.StringValue(vip.Description)
+	state.L3NetworkUuid = types.StringValue(vip.L3NetworkUuid)
+	state.VIP = types.StringValue(vip.Ip)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -205,7 +218,10 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 }
 
 func (r *vipResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"VIP resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *vipResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -224,7 +240,10 @@ func (r *vipResource) Delete(ctx context.Context, request resource.DeleteRequest
 	err := r.client.DeleteVip(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete reserved ip range", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VIP",
+			"Could not delete vip, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

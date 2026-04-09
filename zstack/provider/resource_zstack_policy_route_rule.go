@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -56,6 +59,9 @@ func (r *policyRouteRuleResource) Schema(_ context.Context, _ resource.SchemaReq
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the Policy Route Rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"rule_set_uuid": schema.StringAttribute{
 				Required:    true,
@@ -82,30 +88,56 @@ func (r *policyRouteRuleResource) Schema(_ context.Context, _ resource.SchemaReq
 				Optional:    true,
 				Computed:    true,
 				Description: "The destination IP address or CIDR.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"source_ip": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The source IP address or CIDR.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"dest_port": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The destination port or port range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"source_port": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The source port or port range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"protocol": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The protocol (TCP, UDP, ICMP, etc.).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("TCP", "UDP", "ICMP"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -166,7 +198,7 @@ func (r *policyRouteRuleResource) Create(ctx context.Context, req resource.Creat
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Policy Route Rule",
-			"Could not create Policy Route Rule, unexpected error: "+err.Error(),
+			"Could not create policy route rule, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -202,37 +234,28 @@ func (r *policyRouteRuleResource) Read(ctx context.Context, req resource.ReadReq
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	results, err := r.client.QueryPolicyRouteRule(&queryParam)
+	rule, err := findResourceByQuery(r.client.QueryPolicyRouteRule, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "Policy Route Rule not found, removing from state")
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query Policy Route Rule: "+err.Error())
 		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	found := false
-	for _, result := range results {
-		if result.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(result.UUID)
-			state.RuleSetUuid = types.StringValue(result.RuleSetUuid)
-			state.TableUuid = types.StringValue(result.TableUuid)
-			state.RuleNumber = types.Int64Value(int64(result.RuleNumber))
-			state.DestIp = stringValueOrNull(result.DestIp)
-			state.SourceIp = stringValueOrNull(result.SourceIp)
-			state.DestPort = stringValueOrNull(result.DestPort)
-			state.SourcePort = stringValueOrNull(result.SourcePort)
-			state.Protocol = stringValueOrNull(result.Protocol)
-			state.State = stringValueOrNull(result.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Policy Route Rule not found, removing from state")
-		resp.State.RemoveResource(ctx)
-		return
-	}
+	state.Uuid = types.StringValue(rule.UUID)
+	state.RuleSetUuid = types.StringValue(rule.RuleSetUuid)
+	state.TableUuid = types.StringValue(rule.TableUuid)
+	state.RuleNumber = types.Int64Value(int64(rule.RuleNumber))
+	state.DestIp = stringValueOrNull(rule.DestIp)
+	state.SourceIp = stringValueOrNull(rule.SourceIp)
+	state.DestPort = stringValueOrNull(rule.DestPort)
+	state.SourcePort = stringValueOrNull(rule.SourcePort)
+	state.Protocol = stringValueOrNull(rule.Protocol)
+	state.State = stringValueOrNull(rule.State)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -262,7 +285,7 @@ func (r *policyRouteRuleResource) Delete(ctx context.Context, req resource.Delet
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Policy Route Rule",
-			"Could not delete Policy Route Rule, unexpected error: "+err.Error(),
+			"Could not delete policy route rule UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

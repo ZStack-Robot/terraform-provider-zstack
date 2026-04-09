@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_disk_offers Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Storage"
 description: |-
     Fetches a list of disk offers and their associated attributes from the ZStack environment.
 ---

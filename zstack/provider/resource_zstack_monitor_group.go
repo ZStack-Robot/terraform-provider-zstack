@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -64,19 +69,35 @@ func (r *monitorGroupResource) Schema(_ context.Context, _ resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the monitor group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the monitor group.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the monitor group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the monitor group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -105,7 +126,7 @@ func (r *monitorGroupResource) Create(ctx context.Context, req resource.CreateRe
 
 	item, err := r.client.CreateMonitorGroup(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to create monitor group", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error creating Monitor Group", "Could not create monitor group, unexpected error: "+err.Error())
 		return
 	}
 
@@ -126,9 +147,12 @@ func (r *monitorGroupResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryMonitorGroup(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryMonitorGroup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query monitor groups. It may have been deleted.: "+err.Error())
 		state = monitorGroupModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -136,22 +160,10 @@ func (r *monitorGroupResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.State = stringValueOrNull(item.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Monitor group not found. It might have been deleted outside of Terraform.")
-		state = monitorGroupModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.State = stringValueOrNull(item.State)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -179,7 +191,7 @@ func (r *monitorGroupResource) Update(ctx context.Context, req resource.UpdateRe
 
 	item, err := r.client.UpdateMonitorGroup(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update monitor group", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error updating Monitor Group", "Could not update monitor group UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -206,7 +218,7 @@ func (r *monitorGroupResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 
 	if err := r.client.DeleteMonitorGroup(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete monitor group", err.Error())
+		resp.Diagnostics.AddError("Error deleting Monitor Group", "Could not delete monitor group UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

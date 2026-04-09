@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_images Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Image"
 description: |-
     Fetches a list of images and their associated attributes from the ZStack environment.
 ---

@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -63,15 +68,28 @@ func (r *priceTableResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the price table.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the price table.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the price table.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -102,8 +120,8 @@ func (r *priceTableResource) Create(ctx context.Context, request resource.Create
 	priceTable, err := r.client.CreatePriceTable(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create price table",
-			"Error "+err.Error(),
+			"Error creating Price Table",
+			"Could not create price table, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -127,10 +145,13 @@ func (r *priceTableResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	priceTables, err := r.client.QueryPriceTable(&queryParam)
+	priceTable, err := findResourceByQuery(r.client.QueryPriceTable, state.Uuid.ValueString())
 
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query price tables. It may have been deleted.: "+err.Error())
 		state = priceTableModel{
 			Uuid: types.StringValue(""),
@@ -140,23 +161,9 @@ func (r *priceTableResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	found := false
-	for _, priceTable := range priceTables {
-		if priceTable.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(priceTable.UUID)
-			state.Name = types.StringValue(priceTable.Name)
-			state.Description = stringValueOrNull(priceTable.Description)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Price table not found. It might have been deleted outside of Terraform.")
-		state = priceTableModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(priceTable.UUID)
+	state.Name = types.StringValue(priceTable.Name)
+	state.Description = stringValueOrNull(priceTable.Description)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -188,8 +195,8 @@ func (r *priceTableResource) Update(ctx context.Context, request resource.Update
 	priceTable, err := r.client.UpdatePriceTable(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update price table",
-			"Error "+err.Error(),
+			"Error updating Price Table",
+			"Could not update price table UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -220,7 +227,7 @@ func (r *priceTableResource) Delete(ctx context.Context, request resource.Delete
 
 	err := r.client.DeletePriceTable(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to delete price table", "Error "+err.Error())
+		response.Diagnostics.AddError("Error deleting Price Table", "Could not delete price table UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

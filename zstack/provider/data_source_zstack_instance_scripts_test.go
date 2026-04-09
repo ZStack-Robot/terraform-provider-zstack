@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackInstanceScriptsDataSource(t *testing.T) {
@@ -16,19 +19,19 @@ func TestAccZStackInstanceScriptsDataSource(t *testing.T) {
 	}
 	s := env.InstanceScripts[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_scripts" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", fmt.Sprintf("%d", len(env.InstanceScripts))),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", envStr(s, "name")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", envStr(s, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", envStr(s, "script_timeout")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", envStr(s, "script_type")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts"), knownvalue.ListSizeExact(len(env.InstanceScripts))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(s, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(s, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(s, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("script_timeout"), knownvalue.StringExact(envStr(s, "script_timeout"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("script_type"), knownvalue.StringExact(envStr(s, "script_type"))),
+				},
 			},
 		},
 	})
@@ -42,19 +45,19 @@ func TestAccZStackInstanceScriptsDataSourceFilterByName(t *testing.T) {
 	s := env.InstanceScripts[0]
 	name := envStr(s, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_scripts" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.platform", envStr(s, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_timeout", envStr(s, "script_timeout")),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.script_type", envStr(s, "script_type")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(s, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(s, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("script_timeout"), knownvalue.StringExact(envStr(s, "script_timeout"))),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("script_type"), knownvalue.StringExact(envStr(s, "script_type"))),
+				},
 			},
 		},
 	})
@@ -69,15 +72,15 @@ func TestAccZStackInstanceScriptsDataSourceFilterByNamePattern(t *testing.T) {
 	name := envStr(s, "name")
 	pattern := string([]rune(name)[:3]) + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_scripts" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_scripts.test", "scripts.0.uuid", envStr(s, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_scripts.test", tfjsonpath.New("scripts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(s, "uuid"))),
+				},
 			},
 		},
 	})

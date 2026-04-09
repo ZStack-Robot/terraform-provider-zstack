@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -76,15 +79,24 @@ func (r *autoScalingGroupResource) Schema(_ context.Context, _ resource.SchemaRe
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the auto scaling group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the auto scaling group.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the auto scaling group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"scaling_resource_type": schema.StringAttribute{
 				Required:    true,
@@ -96,6 +108,9 @@ func (r *autoScalingGroupResource) Schema(_ context.Context, _ resource.SchemaRe
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the auto scaling group (Enabled, Disabled).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"default_cooldown": schema.Int64Attribute{
 				Required:    true,
@@ -112,6 +127,9 @@ func (r *autoScalingGroupResource) Schema(_ context.Context, _ resource.SchemaRe
 			"removal_policy": schema.StringAttribute{
 				Required:    true,
 				Description: "The policy for removing instances when scaling in (e.g., OldestInstance, NewestInstance, OldestScalingConfiguration).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("OldestInstance", "NewestInstance", "OldestScalingConfiguration"),
+				},
 			},
 		},
 	}
@@ -146,7 +164,7 @@ func (r *autoScalingGroupResource) Create(ctx context.Context, req resource.Crea
 
 	group, err := r.client.CreateAutoScalingGroup(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create auto scaling group", err.Error())
+		resp.Diagnostics.AddError("Error creating Auto Scaling Group", "Could not create auto scaling group, unexpected error: "+err.Error())
 		return
 	}
 
@@ -165,9 +183,13 @@ func (r *autoScalingGroupResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	group, err := r.client.GetAutoScalingGroup(state.Uuid.ValueString())
+	group, err := findResourceByGet(r.client.GetAutoScalingGroup, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read auto scaling group", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading Auto Scaling Group", "Could not read auto scaling group, unexpected error: "+err.Error())
 		return
 	}
 
@@ -204,14 +226,14 @@ func (r *autoScalingGroupResource) Update(ctx context.Context, req resource.Upda
 	}
 
 	if _, err := r.client.UpdateAutoScalingGroup(uuid, updateParam); err != nil {
-		resp.Diagnostics.AddError("Could not update auto scaling group", err.Error())
+		resp.Diagnostics.AddError("Error updating Auto Scaling Group", "Could not update auto scaling group, unexpected error: "+err.Error())
 		return
 	}
 
 	// Read back the updated resource
 	group, err := r.client.GetAutoScalingGroup(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated auto scaling group", err.Error())
+		resp.Diagnostics.AddError("Error reading Auto Scaling Group", "Could not read updated auto scaling group: "+err.Error())
 		return
 	}
 
@@ -236,7 +258,7 @@ func (r *autoScalingGroupResource) Delete(ctx context.Context, req resource.Dele
 	}
 
 	if err := r.client.DeleteAutoScalingGroup(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete auto scaling group", err.Error())
+		resp.Diagnostics.AddError("Error deleting Auto Scaling Group", "Could not delete auto scaling group, unexpected error: "+err.Error())
 		return
 	}
 }

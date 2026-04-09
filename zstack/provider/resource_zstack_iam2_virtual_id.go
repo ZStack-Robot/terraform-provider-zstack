@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -66,10 +71,16 @@ func (r *iam2VirtualIDResource) Schema(_ context.Context, _ resource.SchemaReque
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the IAM2 virtual ID",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the IAM2 virtual ID",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"password": schema.StringAttribute{
 				Required:    true,
@@ -80,14 +91,23 @@ func (r *iam2VirtualIDResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the IAM2 virtual ID",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the IAM2 virtual ID",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the IAM2 virtual ID",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -112,7 +132,7 @@ func (r *iam2VirtualIDResource) Create(ctx context.Context, request resource.Cre
 	result, err := r.client.CreateIAM2VirtualID(createParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error creating IAM2 virtual ID",
+			"Error creating IAM2 Virtual ID",
 			"Could not create IAM2 virtual ID, unexpected error: "+err.Error(),
 		)
 		return
@@ -139,29 +159,21 @@ func (r *iam2VirtualIDResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	virtualIDs, err := r.client.QueryIAM2VirtualID(&queryParam)
+	virtualID, err := findResourceByQuery(r.client.QueryIAM2VirtualID, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "IAM2 virtual ID not found, removing from state", map[string]interface{}{
+				"uuid": state.Uuid.ValueString(),
+			})
+			response.State.RemoveResource(ctx)
+			return
+		}
 		response.Diagnostics.AddError(
-			"Error reading IAM2 virtual ID",
+			"Error reading IAM2 Virtual ID",
 			"Could not read IAM2 virtual ID UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(virtualIDs) == 0 {
-		tflog.Warn(ctx, "IAM2 virtual ID not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		state.Uuid = types.StringValue("")
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
-		return
-	}
-
-	virtualID := virtualIDs[0]
 
 	state.Name = types.StringValue(virtualID.Name)
 	state.Description = stringValueOrNull(virtualID.Description)
@@ -202,7 +214,7 @@ func (r *iam2VirtualIDResource) Update(ctx context.Context, request resource.Upd
 	result, err := r.client.UpdateIAM2VirtualID(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error updating IAM2 virtual ID",
+			"Error updating IAM2 Virtual ID",
 			"Could not update IAM2 virtual ID, unexpected error: "+err.Error(),
 		)
 		return
@@ -232,7 +244,7 @@ func (r *iam2VirtualIDResource) Delete(ctx context.Context, request resource.Del
 	err := r.client.DeleteIAM2VirtualID(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Error deleting IAM2 virtual ID",
+			"Error deleting IAM2 Virtual ID",
 			"Could not delete IAM2 virtual ID, unexpected error: "+err.Error(),
 		)
 		return

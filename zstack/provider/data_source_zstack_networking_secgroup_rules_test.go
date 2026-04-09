@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackNetworkingSecGroupRulesDataSource(t *testing.T) {
@@ -21,7 +24,7 @@ func TestAccZStackNetworkingSecGroupRulesDataSource(t *testing.T) {
 	action := envStr(rule, "action")
 	protocol := envStr(rule, "protocol")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -36,15 +39,15 @@ data "zstack_networking_secgroup_rules" "test" {
 		values = [%q]
 	}
 }`, action, protocol),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.action", action),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.protocol", protocol),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.uuid", envStr(rule, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.type", envStr(rule, "type")),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.state", envStr(rule, "state")),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.dst_port_range", envStr(rule, "dst_port_range")),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroup_rules.test", "rules.0.src_ip_range", envStr(rule, "src_ip_range")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("action"), knownvalue.StringExact(action)),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("protocol"), knownvalue.StringExact(protocol)),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(rule, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(rule, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(rule, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("dst_port_range"), knownvalue.StringExact(envStr(rule, "dst_port_range"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroup_rules.test", tfjsonpath.New("rules").AtSliceIndex(0).AtMapKey("src_ip_range"), knownvalue.StringExact(envStr(rule, "src_ip_range"))),
+				},
 			},
 		},
 	})

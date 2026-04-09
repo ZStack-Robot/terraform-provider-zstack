@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_offer Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     This resource allows you to manage virtual router offerings in ZStack. A virtual router offering defines the configuration and resource settings for virtual router instances, such as CPU, memory, and management network. You can define the offering's properties, such as its name, description, CPU and memory allocation, and the associated management network.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_vpc Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     This resource allows you to manage Virtual Private Cloud (VPC) networks in ZStack. A VPC network provides a logically isolated section of the cloud where you can launch resources such as virtual routers, subnets, and DNS services. You can define the VPC's properties, such as its name, description, associated L2 network, and subnet CIDR.
 ---

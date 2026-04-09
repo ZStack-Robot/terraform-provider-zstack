@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -91,6 +94,9 @@ func (r *primaryStorageResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the primary storage.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -107,6 +113,9 @@ func (r *primaryStorageResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"type": schema.StringAttribute{
 				Required:    true,
 				Description: "The type of primary storage (LocalStorage, NFS, Ceph, SharedBlock).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("LocalStorage", "NFS", "Ceph", "SharedBlock"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -277,7 +286,7 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 	}
 
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create primary storage", err.Error())
+		resp.Diagnostics.AddError("Error creating Primary Storage", "Could not create primary storage, unexpected error: "+err.Error())
 		return
 	}
 
@@ -293,8 +302,8 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 	desiredClusters := listToStringSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
 		if _, err := r.client.AttachPrimaryStorageToCluster(clusterUuid, ps.UUID, param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}}); err != nil {
-			resp.Diagnostics.AddError("Could not attach primary storage to cluster",
-				fmt.Sprintf("Failed to attach to cluster %s: %s", clusterUuid, err.Error()))
+			resp.Diagnostics.AddError("Error attaching Primary Storage to Cluster",
+				fmt.Sprintf("Could not attach primary storage to cluster UUID %s: %s", clusterUuid, err.Error()))
 			return
 		}
 	}
@@ -302,7 +311,7 @@ func (r *primaryStorageResource) Create(ctx context.Context, req resource.Create
 	// Read back the final state
 	psRead, err := r.client.GetPrimaryStorage(ps.UUID)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read created primary storage", err.Error())
+		resp.Diagnostics.AddError("Error reading Primary Storage", "Could not read primary storage after create UUID "+ps.UUID+": "+err.Error())
 		return
 	}
 
@@ -321,9 +330,13 @@ func (r *primaryStorageResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	ps, err := r.client.GetPrimaryStorage(state.Uuid.ValueString())
+	ps, err := findResourceByGet(r.client.GetPrimaryStorage, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read primary storage", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading Primary Storage", "Could not read primary storage UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -361,7 +374,7 @@ func (r *primaryStorageResource) Update(ctx context.Context, req resource.Update
 	}
 
 	if _, err := r.client.UpdatePrimaryStorage(uuid, updateParam); err != nil {
-		resp.Diagnostics.AddError("Could not update primary storage", err.Error())
+		resp.Diagnostics.AddError("Error updating Primary Storage", "Could not update primary storage UUID "+uuid+": "+err.Error())
 		return
 	}
 
@@ -382,8 +395,8 @@ func (r *primaryStorageResource) Update(ctx context.Context, req resource.Update
 	for _, clusterUuid := range desiredClusters {
 		if !currentSet[clusterUuid] {
 			if _, err := r.client.AttachPrimaryStorageToCluster(clusterUuid, uuid, param.AttachPrimaryStorageToClusterParam{BaseParam: param.BaseParam{}}); err != nil {
-				resp.Diagnostics.AddError("Could not attach primary storage to cluster",
-					fmt.Sprintf("Failed to attach to cluster %s: %s", clusterUuid, err.Error()))
+				resp.Diagnostics.AddError("Error attaching Primary Storage to Cluster",
+					fmt.Sprintf("Could not attach primary storage to cluster UUID %s: %s", clusterUuid, err.Error()))
 				return
 			}
 		}
@@ -393,8 +406,8 @@ func (r *primaryStorageResource) Update(ctx context.Context, req resource.Update
 	for _, clusterUuid := range currentClusters {
 		if !desiredSet[clusterUuid] {
 			if err := r.client.DetachPrimaryStorageFromCluster(clusterUuid, uuid, param.DeleteModePermissive); err != nil {
-				resp.Diagnostics.AddError("Could not detach primary storage from cluster",
-					fmt.Sprintf("Failed to detach from cluster %s: %s", clusterUuid, err.Error()))
+				resp.Diagnostics.AddError("Error detaching Primary Storage from Cluster",
+					fmt.Sprintf("Could not detach primary storage from cluster UUID %s: %s", clusterUuid, err.Error()))
 				return
 			}
 		}
@@ -403,7 +416,7 @@ func (r *primaryStorageResource) Update(ctx context.Context, req resource.Update
 	// Read back the updated resource
 	ps, err := r.client.GetPrimaryStorage(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated primary storage", err.Error())
+		resp.Diagnostics.AddError("Error reading Primary Storage", "Could not read primary storage after update UUID "+uuid+": "+err.Error())
 		return
 	}
 
@@ -433,15 +446,15 @@ func (r *primaryStorageResource) Delete(ctx context.Context, req resource.Delete
 	attachedClusters := listToStringSlice(state.AttachedClusterUuids)
 	for _, clusterUuid := range attachedClusters {
 		if err := r.client.DetachPrimaryStorageFromCluster(clusterUuid, uuid, param.DeleteModePermissive); err != nil {
-			resp.Diagnostics.AddError("Could not detach primary storage from cluster",
-				fmt.Sprintf("Failed to detach from cluster %s: %s", clusterUuid, err.Error()))
+			resp.Diagnostics.AddError("Error detaching Primary Storage from Cluster",
+				fmt.Sprintf("Could not detach primary storage from cluster UUID %s: %s", clusterUuid, err.Error()))
 			return
 		}
 	}
 
 	// Then delete the primary storage
 	if err := r.client.DeletePrimaryStorage(uuid, param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete primary storage", err.Error())
+		resp.Diagnostics.AddError("Error deleting Primary Storage", "Could not delete primary storage UUID "+uuid+": "+err.Error())
 		return
 	}
 }
@@ -450,7 +463,6 @@ func (r *primaryStorageResource) Delete(ctx context.Context, req resource.Delete
 func (r *primaryStorageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
-
 
 func primaryStorageModelFromView(ps *view.PrimaryStorageInventoryView, prior *primaryStorageResourceModel) primaryStorageResourceModel {
 	model := primaryStorageResourceModel{

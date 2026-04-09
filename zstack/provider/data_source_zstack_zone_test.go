@@ -7,7 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
+
+var _ = fmt.Sprintf
 
 func TestAccZStackZonesDataSource(t *testing.T) {
 	env := loadEnvData(t)
@@ -16,18 +21,18 @@ func TestAccZStackZonesDataSource(t *testing.T) {
 	}
 	z := env.Zones[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_zones" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.#", fmt.Sprintf("%d", len(env.Zones))),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.name", envStr(z, "name")),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.uuid", envStr(z, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.type", envStr(z, "type")),
-					resource.TestCheckResourceAttr("data.zstack_zones.test", "zones.0.state", envStr(z, "state")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones"), knownvalue.ListSizeExact(len(env.Zones))),
+					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(z, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(z, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(z, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(z, "state"))),
+				},
 			},
 		},
 	})

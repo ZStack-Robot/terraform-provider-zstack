@@ -9,6 +9,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestVirtualRouterOfferingResource_Schema(t *testing.T) {
@@ -76,8 +79,9 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 
 	zoneUUID := envStr(env.Zones[0], "uuid")
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterOfferingDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -90,10 +94,16 @@ resource "zstack_virtual_router_offer" "test" {
   image_uuid              = %q
 }
 `, zoneUUID, mgmtNetUUID, imageUUID),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_virtual_router_offer.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_virtual_router_offer.test", "name", "acc-test-vr-offering"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vr-offering")),
+				},
+			},
+			{
+				ResourceName:            "zstack_virtual_router_offer.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"management_network_uuid", "zone_uuid", "image_uuid", "public_network_uuid", "is_default"},
 			},
 		},
 	})

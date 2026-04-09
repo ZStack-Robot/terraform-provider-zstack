@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -73,6 +76,9 @@ func (r *vmCdRomResource) Schema(_ context.Context, request resource.SchemaReque
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VM CD-ROM.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"vm_instance_uuid": schema.StringAttribute{
 				Required:    true,
@@ -145,21 +151,16 @@ func (r *vmCdRomResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	cdroms, err := r.client.QueryVmCdRom(&queryParam)
+	cdrom, err := findResourceByQuery(r.client.QueryVmCdRom, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		response.Diagnostics.AddError("Error reading VM CD-ROM", err.Error())
 		return
 	}
 
-	if len(cdroms) == 0 {
-		response.State.RemoveResource(ctx)
-		return
-	}
-
-	cdrom := cdroms[0]
 	state.Name = types.StringValue(cdrom.Name)
 	state.VmInstanceUuid = types.StringValue(cdrom.VmInstanceUuid)
 	state.IsoUuid = stringValueOrNull(cdrom.IsoUuid)

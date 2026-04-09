@@ -15,7 +15,7 @@ import (
 func TestAccZStackVirtualRouterImagesDataSource(t *testing.T) {
 	_ = loadEnvData(t) // ensure env.json exists
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -28,7 +28,7 @@ func TestAccZStackVirtualRouterImagesDataSource(t *testing.T) {
 func TestAccZStackVirtualRouterImagesDataSourceFilterByName(t *testing.T) {
 	_ = loadEnvData(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -41,7 +41,7 @@ func TestAccZStackVirtualRouterImagesDataSourceFilterByName(t *testing.T) {
 func TestAccZStackVirtualRouterImagesDataSourceFilterByNamePattern(t *testing.T) {
 	_ = loadEnvData(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{

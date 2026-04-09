@@ -4,11 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -65,20 +72,36 @@ func (r *accessControlListResource) Schema(_ context.Context, request resource.S
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the Access Control List.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Access Control List.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the Access Control List.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"ip_version": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The IP version (4 for IPv4, 6 for IPv6).",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+					int64planmodifier.RequiresReplace(),
+				},
+				Validators: []validator.Int64{
+					int64validator.OneOf(4, 6),
+				},
 			},
 		},
 	}
@@ -109,8 +132,8 @@ func (r *accessControlListResource) Create(ctx context.Context, request resource
 	acl, err := r.client.CreateAccessControlList(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create Access Control List",
-			"Error "+err.Error(),
+			"Error creating Access Control List",
+			"Could not create access control list, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -135,37 +158,23 @@ func (r *accessControlListResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	acls, err := r.client.QueryAccessControlList(&queryParam)
-
+	acl, err := findResourceByQuery(r.client.QueryAccessControlList, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query Access Control Lists. It may have been deleted.: "+err.Error())
-		state = accessControlListModel{
-			Uuid: types.StringValue(""),
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
 		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Access Control List",
+			"Could not read access control list UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-
-	for _, acl := range acls {
-		if acl.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(acl.UUID)
-			state.Name = types.StringValue(acl.Name)
-			state.Description = stringValueOrNull(acl.Description)
-			state.IpVersion = types.Int64Value(int64(acl.IpVersion))
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "Access Control List not found. It might have been deleted outside of Terraform.")
-		state = accessControlListModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(acl.UUID)
+	state.Name = types.StringValue(acl.Name)
+	state.Description = stringValueOrNull(acl.Description)
+	state.IpVersion = types.Int64Value(int64(acl.IpVersion))
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -196,8 +205,8 @@ func (r *accessControlListResource) Update(ctx context.Context, request resource
 	acl, err := r.client.UpdateAccessControlList(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update Access Control List",
-			"Error "+err.Error(),
+			"Error updating Access Control List",
+			"Could not update access control list, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -230,7 +239,7 @@ func (r *accessControlListResource) Delete(ctx context.Context, request resource
 	err := r.client.DeleteAccessControlList(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete Access Control List", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Access Control List", "Could not delete access control list, unexpected error: "+err.Error())
 		return
 	}
 }

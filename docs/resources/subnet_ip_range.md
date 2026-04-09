@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_subnet_ip_range Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     This resource allows you to manage subnets in ZStack. A subnet is a logical subdivision of an IP network, defined by a range of IP addresses. You can define the subnet's properties, such as its name, IP range, netmask, gateway, and the L3 network it belongs to.
 ---

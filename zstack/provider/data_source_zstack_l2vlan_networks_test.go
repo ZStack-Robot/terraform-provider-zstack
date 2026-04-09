@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestL2VlanNetworkDataSource_Schema(t *testing.T) {
@@ -42,7 +45,7 @@ func TestL2VlanNetworkDataSource_Metadata(t *testing.T) {
 func TestAccL2VlanNetworkDataSource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
@@ -50,9 +53,9 @@ func TestAccL2VlanNetworkDataSource(t *testing.T) {
 data "zstack_l2vlan_networks" "test" {
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("data.zstack_l2vlan_networks.test", "l2vlan_networks.#"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l2vlan_networks.test", tfjsonpath.New("l2vlan_networks"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

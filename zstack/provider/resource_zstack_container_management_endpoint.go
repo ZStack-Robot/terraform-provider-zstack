@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -78,6 +81,9 @@ func (r *containerManagementEndpointResource) Schema(_ context.Context, _ resour
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the container management endpoint.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -150,8 +156,8 @@ func (r *containerManagementEndpointResource) Create(ctx context.Context, reques
 	endpoint, err := r.client.AddContainerManagementEndpoint(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create container management endpoint",
-			"Error "+err.Error(),
+			"Error creating Container Management Endpoint",
+			"Could not create container management endpoint, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -176,35 +182,26 @@ func (r *containerManagementEndpointResource) Read(ctx context.Context, request 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	endpointList, err := r.client.QueryContainerManagementEndpoint(&queryParam)
+	endpoint, err := findResourceByQuery(r.client.QueryContainerManagementEndpoint, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query container management endpoint. It may have been deleted.: "+err.Error())
-		state = containerManagementEndpointModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Container Management Endpoint",
+			"Could not read container management endpoint UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, endpoint := range endpointList {
-		if endpoint.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(endpoint.UUID)
-			state.Name = types.StringValue(endpoint.Name)
-			state.Description = stringValueOrNull(endpoint.Description)
-			state.ManagementIp = types.StringValue(endpoint.ManagementIp)
-			state.ManagementPort = types.Int64Value(int64(endpoint.ManagementPort))
-			state.Vendor = types.StringValue(endpoint.Vendor)
-			state.AccessKeyId = types.StringValue(endpoint.AccessKeyId)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Container management endpoint not found. It might have been deleted outside of Terraform.")
-		state = containerManagementEndpointModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(endpoint.UUID)
+	state.Name = types.StringValue(endpoint.Name)
+	state.Description = stringValueOrNull(endpoint.Description)
+	state.ManagementIp = types.StringValue(endpoint.ManagementIp)
+	state.ManagementPort = types.Int64Value(int64(endpoint.ManagementPort))
+	state.Vendor = types.StringValue(endpoint.Vendor)
+	state.AccessKeyId = types.StringValue(endpoint.AccessKeyId)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -234,8 +231,8 @@ func (r *containerManagementEndpointResource) Update(ctx context.Context, reques
 	endpoint, err := r.client.UpdateContainerManagementEndpoint(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update container management endpoint",
-			"Error "+err.Error(),
+			"Error updating Container Management Endpoint",
+			"Could not update container management endpoint, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -267,7 +264,10 @@ func (r *containerManagementEndpointResource) Delete(ctx context.Context, reques
 
 	err := r.client.DeleteContainerManagementEndpoint(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete container management endpoint", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Container Management Endpoint",
+			"Could not delete container management endpoint, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

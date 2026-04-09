@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_l2networks Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     Fetches a list of L2 networks and their associated attributes from the ZStack environment.
 ---

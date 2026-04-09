@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -156,8 +157,8 @@ func (r *pciDeviceOfferingResource) Create(ctx context.Context, request resource
 	offering, err := r.client.CreatePciDeviceOffering(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create PCI device offering",
-			"Error "+err.Error(),
+			"Error creating PCI Device Offering",
+			"Could not create PCI device offering, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -184,9 +185,12 @@ func (r *pciDeviceOfferingResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	offerings, err := r.client.QueryPciDeviceOffering(&queryParam)
+	offering, err := findResourceByQuery(r.client.QueryPciDeviceOffering, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query PCI device offerings. It may have been deleted.: "+err.Error())
 		state = pciDeviceOfferingModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -194,33 +198,25 @@ func (r *pciDeviceOfferingResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	found := false
-	for _, offering := range offerings {
-		if offering.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(offering.UUID)
-			state.Name = stringValueOrNull(offering.Name)
-			state.Description = stringValueOrNull(offering.Description)
-			state.VendorId = stringValueOrNull(offering.VendorId)
-			state.DeviceId = stringValueOrNull(offering.DeviceId)
-			state.SubvendorId = stringValueOrNull(offering.SubvendorId)
-			state.SubdeviceId = stringValueOrNull(offering.SubdeviceId)
-			state.RamSize = stringValueOrNull(offering.RamSize)
-			state.Type = stringValueOrNull(offering.Type)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "PCI device offering not found. It might have been deleted outside of Terraform.")
-		state = pciDeviceOfferingModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(offering.UUID)
+	state.Name = stringValueOrNull(offering.Name)
+	state.Description = stringValueOrNull(offering.Description)
+	state.VendorId = stringValueOrNull(offering.VendorId)
+	state.DeviceId = stringValueOrNull(offering.DeviceId)
+	state.SubvendorId = stringValueOrNull(offering.SubvendorId)
+	state.SubdeviceId = stringValueOrNull(offering.SubdeviceId)
+	state.RamSize = stringValueOrNull(offering.RamSize)
+	state.Type = stringValueOrNull(offering.Type)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 }
 
 func (r *pciDeviceOfferingResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"PCI Device Offering resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *pciDeviceOfferingResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -238,7 +234,7 @@ func (r *pciDeviceOfferingResource) Delete(ctx context.Context, request resource
 
 	err := r.client.DeletePciDeviceOffering(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete PCI device offering", err.Error())
+		response.Diagnostics.AddError("Error deleting PCI Device Offering", "Could not delete PCI device offering UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

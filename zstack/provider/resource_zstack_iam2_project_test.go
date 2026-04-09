@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestIAM2ProjectResource_Schema(t *testing.T) {
@@ -60,8 +63,9 @@ func TestIAM2ProjectResource_Metadata(t *testing.T) {
 func TestAccIAM2ProjectResource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -70,10 +74,39 @@ resource "zstack_iam2_project" "test" {
   description = "acceptance test IAM2 project"
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_iam2_project.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_iam2_project.test", "name", "acc-test-iam2-project"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-project")),
+				},
+			},
+			{
+				ResourceName:      "zstack_iam2_project.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func TestAccIAM2ProjectResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_iam2_project" "test_disappears" {
+  name        = "acc-test-project-disappears"
+  description = "Disappears test project"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_project.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckIAM2ProjectDisappears("zstack_iam2_project.test_disappears"),
+				},
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

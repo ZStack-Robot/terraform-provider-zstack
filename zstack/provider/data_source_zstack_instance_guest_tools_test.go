@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackInstanceGuestToolsDataSource(t *testing.T) {
@@ -17,14 +20,14 @@ func TestAccZStackInstanceGuestToolsDataSource(t *testing.T) {
 	vm := env.VmInstances[0]
 	vmUUID := envStr(vm, "uuid")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_guest_tools" "test" { instance_uuid = %q }`, vmUUID),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.zstack_guest_tools.test", "status"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_guest_tools.test", tfjsonpath.New("status"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

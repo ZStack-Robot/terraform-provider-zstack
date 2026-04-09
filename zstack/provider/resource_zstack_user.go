@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -65,10 +70,16 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the user",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the user",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"password": schema.StringAttribute{
 				Required:    true,
@@ -79,10 +90,16 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the user",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"account_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the account the user belongs to",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -108,7 +125,7 @@ func (r *userResource) Create(ctx context.Context, req resource.CreateRequest, r
 	result, err := r.client.CreateUser(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating user",
+			"Error creating User",
 			"Could not create user, unexpected error: "+err.Error(),
 		)
 		return
@@ -134,27 +151,21 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	users, err := r.client.QueryUser(&queryParam)
+	user, err := findResourceByQuery(r.client.QueryUser, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "user not found, removing from state", map[string]any{
+				"uuid": state.Uuid.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading user",
+			"Error reading User",
 			"Could not read user UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(users) == 0 {
-		tflog.Warn(ctx, "user not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		resp.State.RemoveResource(ctx)
-		return
-	}
-
-	user := users[0]
 
 	state.Name = types.StringValue(user.Name)
 	state.Description = stringValueOrNull(user.Description)
@@ -197,7 +208,7 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	result, err := r.client.UpdateUser(updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating user",
+			"Error updating User",
 			"Could not update user, unexpected error: "+err.Error(),
 		)
 		return
@@ -226,7 +237,7 @@ func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	err := r.client.DeleteUser(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting user",
+			"Error deleting User",
 			"Could not delete user, unexpected error: "+err.Error(),
 		)
 		return

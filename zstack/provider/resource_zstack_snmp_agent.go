@@ -4,11 +4,14 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -72,10 +75,16 @@ func (r *snmpAgentResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the SNMP agent.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Computed:    true,
 				Description: "The name of the SNMP agent.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"version": schema.StringAttribute{
 				Required:    true,
@@ -114,10 +123,16 @@ func (r *snmpAgentResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "SNMP agent status.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"security_level": schema.StringAttribute{
 				Computed:    true,
 				Description: "SNMP security level.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -153,8 +168,8 @@ func (r *snmpAgentResource) Create(ctx context.Context, request resource.CreateR
 	snmpAgent, err := r.client.CreateSnmpAgent(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create SNMP agent",
-			"Error "+err.Error(),
+			"Error creating SNMP Agent",
+			"Could not create snmp agent, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -187,10 +202,13 @@ func (r *snmpAgentResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	snmpAgents, err := r.client.QuerySnmpAgent(&queryParam)
+	snmpAgent, err := findResourceByQuery(r.client.QuerySnmpAgent, state.Uuid.ValueString())
 
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query SNMP agents. It may have been deleted.: "+err.Error())
 		state = snmpAgentModel{
 			Uuid: types.StringValue(""),
@@ -200,32 +218,18 @@ func (r *snmpAgentResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	found := false
-	for _, snmpAgent := range snmpAgents {
-		if snmpAgent.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(snmpAgent.UUID)
-			state.Name = types.StringValue(snmpAgent.Name)
-			state.Version = types.StringValue(snmpAgent.Version)
-			state.ReadCommunity = stringValueOrNull(snmpAgent.ReadCommunity)
-			state.UserName = stringValueOrNull(snmpAgent.UserName)
-			state.AuthAlgorithm = stringValueOrNull(snmpAgent.AuthAlgorithm)
-			state.AuthPassword = stringValueOrNull(snmpAgent.AuthPassword)
-			state.PrivacyAlgorithm = stringValueOrNull(snmpAgent.PrivacyAlgorithm)
-			state.PrivacyPassword = stringValueOrNull(snmpAgent.PrivacyPassword)
-			state.Port = types.Int64Value(int64(snmpAgent.Port))
-			state.Status = stringValueOrNull(snmpAgent.Status)
-			state.SecurityLevel = stringValueOrNull(snmpAgent.SecurityLevel)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "SNMP agent not found. It might have been deleted outside of Terraform.")
-		state = snmpAgentModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(snmpAgent.UUID)
+	state.Name = types.StringValue(snmpAgent.Name)
+	state.Version = types.StringValue(snmpAgent.Version)
+	state.ReadCommunity = stringValueOrNull(snmpAgent.ReadCommunity)
+	state.UserName = stringValueOrNull(snmpAgent.UserName)
+	state.AuthAlgorithm = stringValueOrNull(snmpAgent.AuthAlgorithm)
+	state.AuthPassword = stringValueOrNull(snmpAgent.AuthPassword)
+	state.PrivacyAlgorithm = stringValueOrNull(snmpAgent.PrivacyAlgorithm)
+	state.PrivacyPassword = stringValueOrNull(snmpAgent.PrivacyPassword)
+	state.Port = types.Int64Value(int64(snmpAgent.Port))
+	state.Status = stringValueOrNull(snmpAgent.Status)
+	state.SecurityLevel = stringValueOrNull(snmpAgent.SecurityLevel)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -264,8 +268,8 @@ func (r *snmpAgentResource) Update(ctx context.Context, request resource.UpdateR
 	snmpAgent, err := r.client.UpdateSnmpAgent(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update SNMP agent",
-			"Error "+err.Error(),
+			"Error updating SNMP Agent",
+			"Could not update snmp agent, unexpected error: "+err.Error(),
 		)
 		return
 	}

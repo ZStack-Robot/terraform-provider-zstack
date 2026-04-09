@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -81,6 +84,9 @@ func (r *baremetalChassisResource) Schema(_ context.Context, _ resource.SchemaRe
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the baremetal chassis.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -159,8 +165,8 @@ func (r *baremetalChassisResource) Create(ctx context.Context, request resource.
 	chassis, err := r.client.CreateBaremetalChassis(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create baremetal chassis",
-			"Error "+err.Error(),
+			"Error creating Baremetal Chassis",
+			"Could not create baremetal chassis, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -188,38 +194,29 @@ func (r *baremetalChassisResource) Read(ctx context.Context, request resource.Re
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	chassisList, err := r.client.QueryBaremetalChassis(&queryParam)
+	chassis, err := findResourceByQuery(r.client.QueryBaremetalChassis, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query baremetal chassis. It may have been deleted.: "+err.Error())
-		state = baremetalChassisModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Baremetal Chassis",
+			"Could not read baremetal chassis UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, chassis := range chassisList {
-		if chassis.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(chassis.UUID)
-			state.Name = types.StringValue(chassis.Name)
-			state.Description = stringValueOrNull(chassis.Description)
-			state.ClusterUuid = types.StringValue(chassis.ClusterUuid)
-			state.IpmiAddress = types.StringValue(chassis.IpmiAddress)
-			state.IpmiPort = types.Int64Value(int64(chassis.IpmiPort))
-			state.IpmiUsername = types.StringValue(chassis.IpmiUsername)
-			state.ZoneUuid = stringValueOrNull(chassis.ZoneUuid)
-			state.State = stringValueOrNull(chassis.State)
-			state.Status = stringValueOrNull(chassis.Status)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Baremetal chassis not found. It might have been deleted outside of Terraform.")
-		state = baremetalChassisModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(chassis.UUID)
+	state.Name = types.StringValue(chassis.Name)
+	state.Description = stringValueOrNull(chassis.Description)
+	state.ClusterUuid = types.StringValue(chassis.ClusterUuid)
+	state.IpmiAddress = types.StringValue(chassis.IpmiAddress)
+	state.IpmiPort = types.Int64Value(int64(chassis.IpmiPort))
+	state.IpmiUsername = types.StringValue(chassis.IpmiUsername)
+	state.ZoneUuid = stringValueOrNull(chassis.ZoneUuid)
+	state.State = stringValueOrNull(chassis.State)
+	state.Status = stringValueOrNull(chassis.Status)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -255,8 +252,8 @@ func (r *baremetalChassisResource) Update(ctx context.Context, request resource.
 	chassis, err := r.client.UpdateBaremetalChassis(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update baremetal chassis",
-			"Error "+err.Error(),
+			"Error updating Baremetal Chassis",
+			"Could not update baremetal chassis, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -291,7 +288,7 @@ func (r *baremetalChassisResource) Delete(ctx context.Context, request resource.
 
 	err := r.client.DeleteBaremetalChassis(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete baremetal chassis", err.Error())
+		response.Diagnostics.AddError("Error deleting Baremetal Chassis", "Could not delete baremetal chassis, unexpected error: "+err.Error())
 		return
 	}
 }
