@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -134,8 +135,8 @@ func (r *nvmeServerResource) Create(ctx context.Context, request resource.Create
 	server, err := r.client.AddNvmeServer(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create NVMe server",
-			"Error "+err.Error(),
+			"Error creating NVMe Server",
+			"Could not create NVMe server, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -159,9 +160,12 @@ func (r *nvmeServerResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	serverList, err := r.client.QueryNvmeServer(&queryParam)
+	server, err := findResourceByQuery(r.client.QueryNvmeServer, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query NVMe server. It may have been deleted.: "+err.Error())
 		state = nvmeServerModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -169,30 +173,22 @@ func (r *nvmeServerResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	found := false
-	for _, server := range serverList {
-		if server.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(server.UUID)
-			state.Name = stringValueOrNull(server.Name)
-			state.Ip = types.StringValue(server.Ip)
-			state.Port = types.Int64Value(int64(server.Port))
-			state.Transport = types.StringValue(server.Transport)
-			state.State = stringValueOrNull(server.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "NVMe server not found. It might have been deleted outside of Terraform.")
-		state = nvmeServerModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(server.UUID)
+	state.Name = stringValueOrNull(server.Name)
+	state.Ip = types.StringValue(server.Ip)
+	state.Port = types.Int64Value(int64(server.Port))
+	state.Transport = types.StringValue(server.Transport)
+	state.State = stringValueOrNull(server.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 }
 
 func (r *nvmeServerResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"NVMe Server resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *nvmeServerResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -210,7 +206,7 @@ func (r *nvmeServerResource) Delete(ctx context.Context, request resource.Delete
 
 	err := r.client.DeleteNvmeServer(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete NVMe server", err.Error())
+		response.Diagnostics.AddError("Error deleting NVMe Server", "Could not delete NVMe server UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

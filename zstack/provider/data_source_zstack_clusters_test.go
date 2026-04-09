@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackClusterDataSource(t *testing.T) {
@@ -16,20 +19,20 @@ func TestAccZStackClusterDataSource(t *testing.T) {
 	}
 	c := env.Clusters[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_clusters" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", fmt.Sprintf("%d", len(env.Clusters))),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", envStr(c, "name")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters"), knownvalue.ListSizeExact(len(env.Clusters))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("hypervisor_type"), knownvalue.StringExact(envStr(c, "hypervisor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(c, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(c, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(c, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(c, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(c, "uuid"))),
+				},
 			},
 		},
 	})
@@ -43,20 +46,20 @@ func TestAccZStackClusterDataSourceFilterByName(t *testing.T) {
 	c := env.Clusters[0]
 	name := envStr(c, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_clusters" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(c, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("hypervisor_type"), knownvalue.StringExact(envStr(c, "hypervisor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(c, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(c, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(c, "zone_uuid"))),
+				},
 			},
 		},
 	})
@@ -71,19 +74,19 @@ func TestAccZStackClusterDataSourceFilterByNamePattern(t *testing.T) {
 	name := envStr(c, "name")
 	pattern := name[:3] + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_clusters" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.uuid", envStr(c, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.hypervisor_type", envStr(c, "hypervisor_type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.state", envStr(c, "state")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.type", envStr(c, "type")),
-					resource.TestCheckResourceAttr("data.zstack_clusters.test", "clusters.0.zone_uuid", envStr(c, "zone_uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(c, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("hypervisor_type"), knownvalue.StringExact(envStr(c, "hypervisor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(c, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(c, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_clusters.test", tfjsonpath.New("clusters").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(c, "zone_uuid"))),
+				},
 			},
 		},
 	})

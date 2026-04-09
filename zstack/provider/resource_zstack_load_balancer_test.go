@@ -9,6 +9,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestLoadBalancerResource_Schema(t *testing.T) {
@@ -65,8 +68,9 @@ func TestAccLoadBalancerResource(t *testing.T) {
 		t.Skip("no l3_networks in env.json, skipping load balancer acceptance test")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLoadBalancerDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -78,11 +82,16 @@ resource "zstack_load_balancer" "test" {
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_load_balancer.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_load_balancer.test", "name", "acc-test-lb"),
-					tfresource.TestCheckResourceAttrSet("zstack_load_balancer.test", "vip_uuid"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-lb")),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("vip_uuid"), knownvalue.NotNull()),
+				},
+			},
+			{
+				ResourceName:      "zstack_load_balancer.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

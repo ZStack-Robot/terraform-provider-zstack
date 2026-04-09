@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_clusters Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Infrastructure"
 description: |-
     Fetches a list of clusters and their associated attributes.
 ---

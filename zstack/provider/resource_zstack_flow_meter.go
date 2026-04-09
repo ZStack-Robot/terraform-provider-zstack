@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -73,16 +74,25 @@ func (r *flowMeterResource) Schema(_ context.Context, request resource.SchemaReq
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the flow meter.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The name of the flow meter.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the flow meter.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
@@ -95,15 +105,24 @@ func (r *flowMeterResource) Schema(_ context.Context, request resource.SchemaReq
 				Optional:    true,
 				Computed:    true,
 				Description: "The version of the flow meter.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"sample": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The sample interval.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"expire_interval": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The expire interval.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"server": schema.StringAttribute{
 				Optional:    true,
@@ -111,6 +130,7 @@ func (r *flowMeterResource) Schema(_ context.Context, request resource.SchemaReq
 				Description: "The server of the flow meter.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"port": schema.Int64Attribute{
@@ -119,6 +139,7 @@ func (r *flowMeterResource) Schema(_ context.Context, request resource.SchemaReq
 				Description: "The port of the flow meter.",
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
+					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 			"generate_interval": schema.Int64Attribute{
@@ -127,6 +148,7 @@ func (r *flowMeterResource) Schema(_ context.Context, request resource.SchemaReq
 				Description: "The generate interval.",
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
+					int64planmodifier.UseStateForUnknown(),
 				},
 			},
 		},
@@ -169,7 +191,10 @@ func (r *flowMeterResource) Create(ctx context.Context, request resource.CreateR
 
 	flowMeter, err := r.client.CreateFlowMeter(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create flow meter", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Flow Meter",
+			"Could not create flow meter, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -196,9 +221,12 @@ func (r *flowMeterResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	flowMeters, err := r.client.QueryFlowMeter(&queryParam)
+	flowMeter, err := findResourceByQuery(r.client.QueryFlowMeter, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query flow meters. It may have been deleted.: "+err.Error())
 		state = flowMeterModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -206,25 +234,13 @@ func (r *flowMeterResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	found := false
-	for _, flowMeter := range flowMeters {
-		if flowMeter.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(flowMeter.UUID)
-			state.Name = stringValueOrNull(flowMeter.Name)
-			state.Description = stringValueOrNull(flowMeter.Description)
-			state.Type = types.StringValue(flowMeter.Type)
-			state.Version = stringValueOrNull(flowMeter.Version)
-			state.Sample = types.Int64Value(flowMeter.Sample)
-			state.ExpireInterval = types.Int64Value(flowMeter.ExpireInterval)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Flow meter not found. It might have been deleted outside of Terraform.")
-		state = flowMeterModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(flowMeter.UUID)
+	state.Name = stringValueOrNull(flowMeter.Name)
+	state.Description = stringValueOrNull(flowMeter.Description)
+	state.Type = types.StringValue(flowMeter.Type)
+	state.Version = stringValueOrNull(flowMeter.Version)
+	state.Sample = types.Int64Value(flowMeter.Sample)
+	state.ExpireInterval = types.Int64Value(flowMeter.ExpireInterval)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -262,7 +278,10 @@ func (r *flowMeterResource) Update(ctx context.Context, request resource.UpdateR
 
 	flowMeter, err := r.client.UpdateFlowMeter(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update flow meter", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Flow Meter",
+			"Could not update flow meter, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -296,7 +315,10 @@ func (r *flowMeterResource) Delete(ctx context.Context, request resource.DeleteR
 
 	err := r.client.DeleteFlowMeter(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete flow meter", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Flow Meter",
+			"Could not delete flow meter, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

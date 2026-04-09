@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_tag_attachment Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Configuration"
 description: |-
     ZStack Tag Attach to  Resource
 ---

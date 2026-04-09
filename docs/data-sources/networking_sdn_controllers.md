@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_networking_sdn_controllers Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     Fetches a list of SDN Controllers and their attributes from the ZStack environment.
 ---

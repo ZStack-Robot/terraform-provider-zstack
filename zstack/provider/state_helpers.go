@@ -3,12 +3,51 @@
 package provider
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	zstackerrors "github.com/zstackio/zstack-sdk-go-v2/pkg/errors"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
+
+// ErrResourceNotFound is returned by finder functions when the requested
+// resource does not exist. Callers should check this with errors.Is and
+// call resp.State.RemoveResource when true.
+var ErrResourceNotFound = errors.New("resource not found")
+
+// findResourceByGet wraps a Get-style SDK method (returns *T, error) into a
+// standard finder. It converts ZStack not-found errors into ErrResourceNotFound.
+func findResourceByGet[T any](getFunc func(uuid string) (*T, error), uuid string) (*T, error) {
+	result, err := getFunc(uuid)
+	if err != nil {
+		if isZStackNotFoundError(err) {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// findResourceByQuery wraps a Query-style SDK method (returns []T, error) into
+// a standard finder. It adds a uuid filter to the query and returns
+// ErrResourceNotFound when the result set is empty.
+func findResourceByQuery[T any](queryFunc func(params *param.QueryParam) ([]T, error), uuid string) (*T, error) {
+	q := param.NewQueryParam()
+	q.AddQ("uuid=" + uuid)
+	results, err := queryFunc(&q)
+	if err != nil {
+		if isZStackNotFoundError(err) {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, ErrResourceNotFound
+	}
+	return &results[0], nil
+}
 
 func copyStringValues(values []types.String) []types.String {
 	if len(values) == 0 {

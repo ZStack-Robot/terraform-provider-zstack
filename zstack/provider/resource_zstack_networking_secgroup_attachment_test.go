@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackSecurityGroupAttachment(t *testing.T) {
@@ -21,8 +24,9 @@ func TestAccZStackSecurityGroupAttachment(t *testing.T) {
 	sgUUID := envStr(env.SecurityGroups[0], "uuid")
 	nicUUID := envStr(env.VmNics[0], "uuid")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSecGroupAttachmentDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -31,11 +35,11 @@ resource "zstack_networking_secgroup_attachment" "test_attach" {
   nic_uuid      = %q
 }
 `, sgUUID, nicUUID),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("zstack_networking_secgroup_attachment.test_attach", "secgroup_uuid", sgUUID),
-					resource.TestCheckResourceAttr("zstack_networking_secgroup_attachment.test_attach", "nic_uuid", nicUUID),
-					resource.TestCheckResourceAttrSet("zstack_networking_secgroup_attachment.test_attach", "id"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_networking_secgroup_attachment.test_attach", tfjsonpath.New("secgroup_uuid"), knownvalue.StringExact(sgUUID)),
+					statecheck.ExpectKnownValue("zstack_networking_secgroup_attachment.test_attach", tfjsonpath.New("nic_uuid"), knownvalue.StringExact(nicUUID)),
+					statecheck.ExpectKnownValue("zstack_networking_secgroup_attachment.test_attach", tfjsonpath.New("id"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

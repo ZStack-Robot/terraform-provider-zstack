@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_networking_secgroup_rules Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     Query ZStack Security Group Rules by exact name, name pattern, and optional filters.
 ---

@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestLoadBalancerDataSource_Schema(t *testing.T) {
@@ -42,7 +45,7 @@ func TestAccLoadBalancerDataSource(t *testing.T) {
 		t.Skip("no l3_networks in env.json, skipping load balancer data source acceptance test")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
@@ -50,9 +53,9 @@ func TestAccLoadBalancerDataSource(t *testing.T) {
 data "zstack_load_balancers" "test" {
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("data.zstack_load_balancers.test", "load_balancers.#"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_load_balancers.test", tfjsonpath.New("load_balancers"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

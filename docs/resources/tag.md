@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_tag Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Configuration"
 description: |-
     This resource allows you to manage tags in ZStack. Tags can be used to categorize and manage resources within ZStack.
 ---

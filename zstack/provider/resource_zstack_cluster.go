@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -76,15 +79,24 @@ func (r *clusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the cluster.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the cluster.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the cluster.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Required:    true,
@@ -96,6 +108,9 @@ func (r *clusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"hypervisor_type": schema.StringAttribute{
 				Required:    true,
 				Description: "The type of hypervisor used by the cluster (e.g., KVM).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("KVM"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -104,16 +119,28 @@ func (r *clusterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 				Computed:    true,
 				Description: "The state of the cluster (Enabled, Disabled).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Enabled", "Disabled"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of the cluster.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"architecture": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The architecture of the cluster (e.g., x86_64, aarch64).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -153,7 +180,10 @@ func (r *clusterResource) Create(ctx context.Context, req resource.CreateRequest
 
 	cluster, err := r.client.CreateCluster(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create cluster", err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Cluster",
+			"Could not create cluster, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -167,7 +197,10 @@ func (r *clusterResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 		cluster, err = r.client.ChangeClusterState(cluster.UUID, stateParam)
 		if err != nil {
-			resp.Diagnostics.AddError("Could not change cluster state", err.Error())
+			resp.Diagnostics.AddError(
+				"Error changing Cluster state",
+				"Could not change cluster state to Disabled: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -187,9 +220,16 @@ func (r *clusterResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	cluster, err := r.client.GetCluster(state.Uuid.ValueString())
+	cluster, err := findResourceByGet(r.client.GetCluster, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read cluster", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Cluster",
+			"Could not read cluster, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -224,7 +264,10 @@ func (r *clusterResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	if _, err := r.client.UpdateCluster(uuid, updateParam); err != nil {
-		resp.Diagnostics.AddError("Could not update cluster", err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating Cluster",
+			"Could not update cluster, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -245,7 +288,10 @@ func (r *clusterResource) Update(ctx context.Context, req resource.UpdateRequest
 				},
 			}
 			if _, err := r.client.ChangeClusterState(uuid, stateParam); err != nil {
-				resp.Diagnostics.AddError("Could not change cluster state", err.Error())
+				resp.Diagnostics.AddError(
+					"Error changing Cluster state",
+					"Could not change cluster state: "+err.Error(),
+				)
 				return
 			}
 		}
@@ -254,7 +300,10 @@ func (r *clusterResource) Update(ctx context.Context, req resource.UpdateRequest
 	// Read back the updated resource
 	cluster, err := r.client.GetCluster(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated cluster", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Cluster",
+			"Could not read updated cluster: "+err.Error(),
+		)
 		return
 	}
 
@@ -279,7 +328,10 @@ func (r *clusterResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	if err := r.client.DeleteCluster(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete cluster", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Cluster",
+			"Could not delete cluster, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

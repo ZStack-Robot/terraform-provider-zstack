@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -79,6 +82,9 @@ func (r *emailMediaResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the email media.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -156,7 +162,10 @@ func (r *emailMediaResource) Create(ctx context.Context, req resource.CreateRequ
 
 	item, err := r.client.CreateEmailMedia(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to create email media", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Email Media",
+			"Could not create email media, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -178,33 +187,24 @@ func (r *emailMediaResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryEmailMedia(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryEmailMedia, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query email media. It may have been deleted.: "+err.Error())
-		state = emailMediaModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Email Media",
+			"Could not read email media UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Type = stringValueOrNull(item.Type)
-			state.State = stringValueOrNull(item.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Email media not found. It might have been deleted outside of Terraform.")
-		state = emailMediaModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Type = stringValueOrNull(item.Type)
+	state.State = stringValueOrNull(item.State)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -251,7 +251,10 @@ func (r *emailMediaResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	item, err := r.client.UpdateEmailMedia(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update email media", "Error "+err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating Email Media",
+			"Could not update email media, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -282,7 +285,10 @@ func (r *emailMediaResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	if err := r.client.DeleteMedia(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete email media", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Email Media",
+			"Could not delete email media, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -79,6 +82,9 @@ func (r *snsHttpEndpointResource) Schema(_ context.Context, request resource.Sch
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the SNS HTTP endpoint.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"url": schema.StringAttribute{
 				Required:    true,
@@ -147,8 +153,8 @@ func (r *snsHttpEndpointResource) Create(ctx context.Context, request resource.C
 	result, err := r.client.CreateSNSHttpEndpoint(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create SNS HTTP endpoint",
-			"Error "+err.Error(),
+			"Error creating SNS HTTP Endpoint",
+			"Could not create sns http endpoint, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -177,9 +183,12 @@ func (r *snsHttpEndpointResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QuerySNSHttpEndpoint(&queryParam)
+	item, err := findResourceByQuery(r.client.QuerySNSHttpEndpoint, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query SNS HTTP endpoints. It may have been deleted.: "+err.Error())
 		state = snsHttpEndpointModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -187,25 +196,14 @@ func (r *snsHttpEndpointResource) Read(ctx context.Context, request resource.Rea
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Url = types.StringValue(item.Url)
-			state.Username = stringValueOrNull(item.Username)
-			state.Description = stringValueOrNull(item.Description)
-			state.PlatformUuid = stringValueOrNull(item.PlatformUuid)
-			state.Type = types.StringValue(item.Type)
-			state.State = types.StringValue(item.State)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "SNS HTTP endpoint not found. It might have been deleted outside of Terraform.")
-		state = snsHttpEndpointModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Url = types.StringValue(item.Url)
+	state.Username = stringValueOrNull(item.Username)
+	state.Description = stringValueOrNull(item.Description)
+	state.PlatformUuid = stringValueOrNull(item.PlatformUuid)
+	state.Type = types.StringValue(item.Type)
+	state.State = types.StringValue(item.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -245,8 +243,8 @@ func (r *snsHttpEndpointResource) Update(ctx context.Context, request resource.U
 	result, err := r.client.UpdateSNSHttpEndpoint(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update SNS HTTP endpoint",
-			"Error "+err.Error(),
+			"Error updating SNS HTTP Endpoint",
+			"Could not update sns http endpoint, unexpected error: "+err.Error(),
 		)
 		return
 	}

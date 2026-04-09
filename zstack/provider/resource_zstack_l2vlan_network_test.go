@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestL2VlanNetworkResource_Schema(t *testing.T) {
@@ -66,8 +69,9 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 
 	zoneUuid := envStr(env.Zones[0], "uuid")
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckL2VlanNetworkDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -78,11 +82,16 @@ resource "zstack_l2vlan_network" "test" {
   physical_interface = "eth0"
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_l2vlan_network.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_l2vlan_network.test", "name", "acc-test-l2vlan"),
-					tfresource.TestCheckResourceAttr("zstack_l2vlan_network.test", "vlan", "3999"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-l2vlan")),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.StringExact("3999")),
+				},
+			},
+			{
+				ResourceName:      "zstack_l2vlan_network.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

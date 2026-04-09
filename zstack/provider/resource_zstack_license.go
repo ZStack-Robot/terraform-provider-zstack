@@ -117,6 +117,9 @@ func (r *licenseResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Required:    true,
 				Computed:    true,
 				Description: "The management node UUID used for license upload.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"user": schema.StringAttribute{
 				Computed:    true,

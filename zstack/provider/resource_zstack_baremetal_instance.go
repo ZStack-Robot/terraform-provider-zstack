@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -86,6 +89,9 @@ func (r *baremetalInstanceResource) Schema(_ context.Context, _ resource.SchemaR
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the baremetal instance.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -184,8 +190,8 @@ func (r *baremetalInstanceResource) Create(ctx context.Context, request resource
 	instance, err := r.client.CreateBaremetalInstance(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create baremetal instance",
-			"Error "+err.Error(),
+			"Error creating Baremetal Instance",
+			"Could not create baremetal instance, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -215,40 +221,31 @@ func (r *baremetalInstanceResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	instances, err := r.client.QueryBaremetalInstance(&queryParam)
+	instance, err := findResourceByQuery(r.client.QueryBaremetalInstance, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query baremetal instances. It may have been deleted.: "+err.Error())
-		state = baremetalInstanceModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Baremetal Instance",
+			"Could not read baremetal instance UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, instance := range instances {
-		if instance.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(instance.UUID)
-			state.Name = types.StringValue(instance.Name)
-			state.Description = stringValueOrNull(instance.Description)
-			state.ChassisUuid = types.StringValue(instance.ChassisUuid)
-			state.ImageUuid = types.StringValue(instance.ImageUuid)
-			state.TemplateUuid = stringValueOrNull(instance.TemplateUuid)
-			state.Platform = stringValueOrNull(instance.Platform)
-			state.ManagementIp = stringValueOrNull(instance.ManagementIp)
-			state.Username = stringValueOrNull(instance.Username)
-			state.Port = types.Int64Value(int64(instance.Port))
-			state.State = stringValueOrNull(instance.State)
-			state.Status = stringValueOrNull(instance.Status)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Baremetal instance not found. It might have been deleted outside of Terraform.")
-		state = baremetalInstanceModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(instance.UUID)
+	state.Name = types.StringValue(instance.Name)
+	state.Description = stringValueOrNull(instance.Description)
+	state.ChassisUuid = types.StringValue(instance.ChassisUuid)
+	state.ImageUuid = types.StringValue(instance.ImageUuid)
+	state.TemplateUuid = stringValueOrNull(instance.TemplateUuid)
+	state.Platform = stringValueOrNull(instance.Platform)
+	state.ManagementIp = stringValueOrNull(instance.ManagementIp)
+	state.Username = stringValueOrNull(instance.Username)
+	state.Port = types.Int64Value(int64(instance.Port))
+	state.State = stringValueOrNull(instance.State)
+	state.Status = stringValueOrNull(instance.Status)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -279,8 +276,8 @@ func (r *baremetalInstanceResource) Update(ctx context.Context, request resource
 	instance, err := r.client.UpdateBaremetalInstance(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update baremetal instance",
-			"Error "+err.Error(),
+			"Error updating Baremetal Instance",
+			"Could not update baremetal instance, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -317,7 +314,7 @@ func (r *baremetalInstanceResource) Delete(ctx context.Context, request resource
 
 	err := r.client.DestroyBaremetalInstance(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete baremetal instance", err.Error())
+		response.Diagnostics.AddError("Error deleting Baremetal Instance", "Could not delete baremetal instance, unexpected error: "+err.Error())
 		return
 	}
 }

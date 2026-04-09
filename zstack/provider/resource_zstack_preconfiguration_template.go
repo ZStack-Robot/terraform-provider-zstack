@@ -4,11 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -69,39 +75,70 @@ func (r *preconfigurationTemplateResource) Schema(_ context.Context, _ resource.
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the preconfiguration template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the preconfiguration template.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the preconfiguration template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"distribution": schema.StringAttribute{
 				Required:    true,
 				Description: "Distribution of the preconfiguration template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
 				Description: "Type of the preconfiguration template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"content": schema.StringAttribute{
 				Required:    true,
 				Description: "Template content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"md5sum": schema.StringAttribute{
 				Computed:    true,
 				Description: "MD5 checksum of the template content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_predefined": schema.BoolAttribute{
 				Computed:    true,
 				Description: "Whether this template is predefined by the system.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "Current state of the preconfiguration template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -134,8 +171,8 @@ func (r *preconfigurationTemplateResource) Create(ctx context.Context, request r
 	preconfigurationTemplate, err := r.client.AddPreconfigurationTemplate(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create preconfiguration template",
-			"Error "+err.Error(),
+			"Error creating Preconfiguration Template",
+			"Could not create preconfiguration template, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -165,10 +202,13 @@ func (r *preconfigurationTemplateResource) Read(ctx context.Context, request res
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	preconfigurationTemplates, err := r.client.QueryPreconfigurationTemplate(&queryParam)
+	preconfigurationTemplate, err := findResourceByQuery(r.client.QueryPreconfigurationTemplate, state.Uuid.ValueString())
 
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query preconfiguration templates. It may have been deleted.: "+err.Error())
 		state = preconfigurationTemplateModel{
 			Uuid: types.StringValue(""),
@@ -178,29 +218,15 @@ func (r *preconfigurationTemplateResource) Read(ctx context.Context, request res
 		return
 	}
 
-	found := false
-	for _, preconfigurationTemplate := range preconfigurationTemplates {
-		if preconfigurationTemplate.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(preconfigurationTemplate.UUID)
-			state.Name = types.StringValue(preconfigurationTemplate.Name)
-			state.Description = stringValueOrNull(preconfigurationTemplate.Description)
-			state.Distribution = types.StringValue(preconfigurationTemplate.Distribution)
-			state.Type = types.StringValue(preconfigurationTemplate.Type)
-			state.Content = types.StringValue(preconfigurationTemplate.Content)
-			state.Md5sum = stringValueOrNull(preconfigurationTemplate.Md5sum)
-			state.IsPredefined = types.BoolValue(preconfigurationTemplate.IsPredefined)
-			state.State = stringValueOrNull(preconfigurationTemplate.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Preconfiguration template not found. It might have been deleted outside of Terraform.")
-		state = preconfigurationTemplateModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(preconfigurationTemplate.UUID)
+	state.Name = types.StringValue(preconfigurationTemplate.Name)
+	state.Description = stringValueOrNull(preconfigurationTemplate.Description)
+	state.Distribution = types.StringValue(preconfigurationTemplate.Distribution)
+	state.Type = types.StringValue(preconfigurationTemplate.Type)
+	state.Content = types.StringValue(preconfigurationTemplate.Content)
+	state.Md5sum = stringValueOrNull(preconfigurationTemplate.Md5sum)
+	state.IsPredefined = types.BoolValue(preconfigurationTemplate.IsPredefined)
+	state.State = stringValueOrNull(preconfigurationTemplate.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -235,8 +261,8 @@ func (r *preconfigurationTemplateResource) Update(ctx context.Context, request r
 	preconfigurationTemplate, err := r.client.UpdatePreconfigurationTemplate(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update preconfiguration template",
-			"Error "+err.Error(),
+			"Error updating Preconfiguration Template",
+			"Could not update preconfiguration template UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -273,7 +299,7 @@ func (r *preconfigurationTemplateResource) Delete(ctx context.Context, request r
 
 	err := r.client.DeletePreconfigurationTemplate(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to delete preconfiguration template", "Error "+err.Error())
+		response.Diagnostics.AddError("Error deleting Preconfiguration Template", "Could not delete preconfiguration template UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

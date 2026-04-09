@@ -9,6 +9,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestVipResource_Schema(t *testing.T) {
@@ -66,8 +69,9 @@ func TestAccVipResource(t *testing.T) {
 		t.Skip("no Public L3 network found in env data")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVipDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -76,11 +80,16 @@ resource "zstack_vip" "test" {
   l3_network_uuid = %q
 }
 `, l3UUID),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_vip.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_vip.test", "name", "acc-test-vip"),
-					tfresource.TestCheckResourceAttr("zstack_vip.test", "l3_network_uuid", l3UUID),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vip")),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
+				},
+			},
+			{
+				ResourceName:      "zstack_vip.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -11,6 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -70,6 +74,9 @@ func (r *scriptResource) Schema(_ context.Context, request resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the script.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -82,6 +89,9 @@ func (r *scriptResource) Schema(_ context.Context, request resource.SchemaReques
 			"encoding_type": schema.StringAttribute{
 				Required:    true,
 				Description: "The encoding type of the script content. Supports: Base64, PlainText.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("Base64", "PlainText"),
 				},
@@ -94,6 +104,9 @@ func (r *scriptResource) Schema(_ context.Context, request resource.SchemaReques
 				Optional:    true,
 				Computed:    true,
 				Description: "representing rendering parameters for the script.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"platform": schema.StringAttribute{
 				Optional:    true,
@@ -110,6 +123,9 @@ func (r *scriptResource) Schema(_ context.Context, request resource.SchemaReques
 				Optional:    true,
 				Computed:    true,
 				Description: "The timeout for script execution in seconds.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -124,19 +140,19 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	}
 
 	if plan.Name.IsNull() || plan.Name.IsUnknown() {
-		response.Diagnostics.AddError("Missing Required Field", "The 'name' field must be provided.")
+		response.Diagnostics.AddError("Error creating Script", "Could not create script, the 'name' field must be provided.")
 		return
 	}
 	if plan.ScriptContent.IsNull() || plan.ScriptContent.IsUnknown() {
-		response.Diagnostics.AddError("Missing Required Field", "The 'script_content' field must be provided.")
+		response.Diagnostics.AddError("Error creating Script", "Could not create script, the 'script_content' field must be provided.")
 		return
 	}
 	if plan.Platform.IsNull() || plan.Platform.IsUnknown() {
-		response.Diagnostics.AddError("Missing Required Field", "The 'platform' field must be provided.")
+		response.Diagnostics.AddError("Error creating Script", "Could not create script, the 'platform' field must be provided.")
 		return
 	}
 	if plan.ScriptType.IsNull() || plan.ScriptType.IsUnknown() {
-		response.Diagnostics.AddError("Missing Required Field", "The 'script_type' field must be provided.")
+		response.Diagnostics.AddError("Error creating Script", "Could not create script, the 'script_type' field must be provided.")
 		return
 	}
 
@@ -164,8 +180,8 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	ok, pattern := isScriptContentSafe(plan.ScriptContent.ValueString())
 	if !ok {
 		response.Diagnostics.AddError(
-			"Dangerous script content detected",
-			fmt.Sprintf("The script content contains dangerous commands and is not allowed. %s", pattern),
+			"Error creating Script",
+			fmt.Sprintf("Could not create script, the script content contains dangerous commands and is not allowed: %s", pattern),
 		)
 		return
 	}
@@ -196,8 +212,8 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	script, err := r.client.CreateGuestVmScript(Param)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to create VM instance script",
-			"Error: "+err.Error(),
+			"Error creating Script",
+			"Could not create script, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -229,13 +245,22 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 	}
 
 	if r.client == nil {
-		response.Diagnostics.AddError("Client Not Configured", "The provider client is not properly configured.")
+		response.Diagnostics.AddError("Error reading Script", "Could not read script, provider client is not properly configured.")
 		return
 	}
 
-	scripts, err := r.client.GetGuestVmScript(state.Uuid.ValueString())
+	scripts, err := findResourceByGet(r.client.GetGuestVmScript, state.Uuid.ValueString())
 
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "Unable to retrieve VM instance script. It may have been deleted.", map[string]interface{}{
+				"uuid":  state.Uuid.ValueString(),
+				"error": err.Error(),
+			})
+			response.Diagnostics.Append(diags...)
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to retrieve VM instance script. It may have been deleted.", map[string]interface{}{
 			"uuid":  state.Uuid.ValueString(),
 			"error": err.Error(),
@@ -277,7 +302,7 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	}
 
 	if r.client == nil {
-		response.Diagnostics.AddError("Client Not Configured", "The provider client is not properly configured.")
+		response.Diagnostics.AddError("Error updating Script", "Could not update script, provider client is not properly configured.")
 		return
 	}
 
@@ -301,8 +326,8 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 		ok, pattern := isScriptContentSafe(plan.ScriptContent.ValueString())
 		if !ok {
 			response.Diagnostics.AddError(
-				"Dangerous script content detected",
-				fmt.Sprintf("The script content contains dangerous commands and is not allowed. %s", pattern),
+				"Error updating Script",
+				fmt.Sprintf("Could not update script, the script content contains dangerous commands and is not allowed: %s", pattern),
 			)
 			return
 		}
@@ -325,8 +350,8 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	if scriptContent != "" || encodingType != "" {
 		if scriptContent == "" || encodingType == "" {
 			response.Diagnostics.AddError(
-				"Update Script Error",
-				"Both scriptContent and encodingType must be provided together during update, or both must be omitted.",
+				"Error updating Script",
+				"Could not update script, both scriptContent and encodingType must be provided together during update, or both must be omitted.",
 			)
 			return
 		}
@@ -349,8 +374,8 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	_, err := r.client.UpdateGuestVmScript(state.Uuid.ValueString(), Param)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to update VM instance script",
-			"Error: "+err.Error(),
+			"Error updating Script",
+			"Could not update script, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -382,8 +407,8 @@ func (r *scriptResource) Delete(ctx context.Context, request resource.DeleteRequ
 	err := r.client.DeleteGuestVmScript(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to delete VM instance script",
-			"Error: "+err.Error(),
+			"Error deleting Script",
+			"Could not delete script, unexpected error: "+err.Error(),
 		)
 		return
 	}

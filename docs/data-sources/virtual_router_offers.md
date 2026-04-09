@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_offers Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     Fetches a list of virtual router offers and their associated attributes from the ZStack environment.
 ---

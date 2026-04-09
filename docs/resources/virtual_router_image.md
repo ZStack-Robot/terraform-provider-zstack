@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_image Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     This resource allows you to manage virtual router images in ZStack. A virtual router image is a template used to create virtual router instances, which are essential for network services such as routing, NAT, and VPN. You can define the image's properties, such as its name, description, URL, platform, and backup storage locations.
 ---

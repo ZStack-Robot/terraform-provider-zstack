@@ -4,12 +4,15 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -59,6 +62,9 @@ func (r *aliyunNasAccessGroupResource) Schema(ctx context.Context, req resource.
 				MarkdownDescription: "Name of the access group",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
 				},
 			},
 			"description": schema.StringAttribute{
@@ -150,8 +156,12 @@ func (r *aliyunNasAccessGroupResource) Read(ctx context.Context, req resource.Re
 		return
 	}
 
-	item, err := r.client.GetAliyunNasAccessGroup(state.Uuid.ValueString())
+	item, err := findResourceByGet(r.client.GetAliyunNasAccessGroup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Error reading Aliyun NAS access group",
 			err.Error(),

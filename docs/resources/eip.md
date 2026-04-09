@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_eip Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     This resource allows you to manage Elastic IP (EIP) services in ZStack. An EIP is a virtual IP address that can be associated with a virtual machine NIC. It provides external network access for the virtual machine.
 ---

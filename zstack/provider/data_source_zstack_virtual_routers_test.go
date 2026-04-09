@@ -7,7 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
+
+var _ = fmt.Sprintf
 
 func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
 	env := loadEnvData(t)
@@ -16,41 +21,41 @@ func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
 	}
 	vr := env.VirtualRouters[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_virtual_routers" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.#", fmt.Sprintf("%d", len(env.VirtualRouters))),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router"), knownvalue.ListSizeExact(len(env.VirtualRouters))),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.name", envStr(vr, "name")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.uuid", envStr(vr, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.hypervisor_type", envStr(vr, "hypervisor_type")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.appliance_vm_type", envStr(vr, "appliance_vm_type")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.state", envStr(vr, "state")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.status", envStr(vr, "status")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.agent_port", envStr(vr, "agent_port")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.type", envStr(vr, "type")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.ha_status", envStr(vr, "ha_status")),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(vr, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(vr, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("hypervisor_type"), knownvalue.StringExact(envStr(vr, "hypervisor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("appliance_vm_type"), knownvalue.StringExact(envStr(vr, "appliance_vm_type"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vr, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(vr, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("agent_port"), knownvalue.StringExact(envStr(vr, "agent_port"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(vr, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("ha_status"), knownvalue.StringExact(envStr(vr, "ha_status"))),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.zone_uuid", envStr(vr, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cluster_uuid", envStr(vr, "cluster_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.management_network_uuid", envStr(vr, "management_network_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.image_uuid", envStr(vr, "image_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.host_uuid", envStr(vr, "host_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.instance_offering_uuid", envStr(vr, "instance_offering_uuid")),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(vr, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("cluster_uuid"), knownvalue.StringExact(envStr(vr, "cluster_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("management_network_uuid"), knownvalue.StringExact(envStr(vr, "management_network_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("image_uuid"), knownvalue.StringExact(envStr(vr, "image_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("host_uuid"), knownvalue.StringExact(envStr(vr, "host_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("instance_offering_uuid"), knownvalue.StringExact(envStr(vr, "instance_offering_uuid"))),
 
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.platform", envStr(vr, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.architecture", envStr(vr, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.cpu_num", envStr(vr, "cpu_num")),
-					resource.TestCheckResourceAttr("data.zstack_virtual_routers.test", "virtual_router.0.memory_size", envStr(vr, "memory_size")),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(vr, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(vr, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("cpu_num"), knownvalue.StringExact(envStr(vr, "cpu_num"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("memory_size"), knownvalue.StringExact(envStr(vr, "memory_size"))),
 
-					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.ip"),
-					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.mac"),
-					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.netmask"),
-					resource.TestCheckResourceAttrSet("data.zstack_virtual_routers.test", "virtual_router.0.vm_nics.0.gateway"),
-				),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("ip"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("mac"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("netmask"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("gateway"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

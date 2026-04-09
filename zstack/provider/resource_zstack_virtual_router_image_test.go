@@ -9,6 +9,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestVirtualRouterImageResource_Schema(t *testing.T) {
@@ -65,8 +68,9 @@ func TestAccVirtualRouterImageResource(t *testing.T) {
 	}
 	bsUUID := envStr(env.BackupStorages[0], "uuid")
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterImageDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -78,10 +82,16 @@ resource "zstack_virtual_router_image" "test" {
   backup_storage_uuids = [%q]
 }
 `, bsUUID),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_virtual_router_image.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_virtual_router_image.test", "name", "acc-test-vr-image"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_virtual_router_image.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_virtual_router_image.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vr-image")),
+				},
+			},
+			{
+				ResourceName:            "zstack_virtual_router_image.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"backup_storage_uuids", "architecture", "guest_os_type", "virtio", "boot_mode", "media_type"},
 			},
 		},
 	})

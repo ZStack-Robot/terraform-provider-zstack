@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -84,6 +87,9 @@ func (r *cephPrimaryStorageResource) Schema(ctx context.Context, req resource.Sc
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Ceph primary storage.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -190,8 +196,8 @@ func (r *cephPrimaryStorageResource) Create(ctx context.Context, req resource.Cr
 	storage, err := r.client.AddCephPrimaryStorage(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating Ceph primary storage",
-			"Could not create Ceph primary storage, unexpected error: "+err.Error(),
+			"Error creating Ceph Primary Storage",
+			"Could not create ceph primary storage, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -227,32 +233,22 @@ func (r *cephPrimaryStorageResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
 	tflog.Debug(ctx, "Reading Ceph primary storage", map[string]interface{}{
 		"uuid": state.Uuid.ValueString(),
 	})
 
-	storages, err := r.client.QueryCephPrimaryStorage(&queryParam)
+	storage, err := findResourceByQuery(r.client.QueryCephPrimaryStorage, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading Ceph primary storage",
-			"Could not read Ceph primary storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading Ceph Primary Storage",
+			"Could not read ceph primary storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(storages) == 0 {
-		tflog.Warn(ctx, "Ceph primary storage not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		state.Uuid = types.StringValue("")
-		resp.State.Set(ctx, &state)
-		return
-	}
-
-	storage := storages[0]
 
 	state.Uuid = types.StringValue(storage.UUID)
 	state.Name = types.StringValue(storage.Name)
@@ -300,8 +296,8 @@ func (r *cephPrimaryStorageResource) Delete(ctx context.Context, req resource.De
 	err := r.client.DeletePrimaryStorage(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting Ceph primary storage",
-			"Could not delete Ceph primary storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error deleting Ceph Primary Storage",
+			"Could not delete ceph primary storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

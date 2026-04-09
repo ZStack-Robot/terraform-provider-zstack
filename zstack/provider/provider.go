@@ -396,7 +396,7 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
 				Description: "ZStack Cloud MN HOST ip address. May also be provided via ZSTACK_HOST environment variable.",
-				Required:    true,
+				Optional:    true,
 			},
 			"port": schema.Int64Attribute{
 				Description: "ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",

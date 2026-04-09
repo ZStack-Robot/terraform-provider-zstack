@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
@@ -12,6 +13,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -139,6 +146,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The unique identifier of the VM instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -147,6 +157,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"network_interfaces": schema.ListNestedAttribute{
 				Optional:    true,
 				Description: "Defines network interfaces attached to the VM. Each NIC corresponds to an L3 network, and optionally configures a static IP.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"l3_network_uuid": schema.StringAttribute{
@@ -161,6 +174,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 							Optional:    true,
 							Computed:    true,
 							Description: "Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 					},
 				},
@@ -175,28 +191,46 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 						"ip": schema.StringAttribute{
 							Computed:    true,
 							Description: "The IP address assigned to the network.",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 						"netmask": schema.StringAttribute{
 							Computed:    true,
 							Description: "The netmask of the network.",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 						"gateway": schema.StringAttribute{
 							Computed:    true,
 							Description: "The gateway of the network.",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 					},
 				},
 				Computed:    true,
 				Description: "The IP address assigned to the VM instance.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"instance_offering_uuid": schema.StringAttribute{
 				Optional: true,
 				Description: "The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances. " +
 					"  Mutually exclusive with `cpu_num` and `memory_size`.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"image_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the image used to create the VM instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"root_disk": schema.SingleNestedAttribute{
 				Attributes: map[string]schema.Attribute{
@@ -223,6 +257,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				},
 				Optional:    true,
 				Description: "The configuration for the root disk of the VM instance.",
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.RequiresReplace(),
+				},
 			},
 			"data_disks": schema.ListNestedAttribute{
 				NestedObject: schema.NestedAttributeObject{
@@ -239,6 +276,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 						"primary_storage_uuid": schema.StringAttribute{
 							Computed:    true,
 							Description: "The UUID of the primary storage for the data disk.",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
 						},
 
 						"ceph_pool_name": schema.StringAttribute{
@@ -253,6 +293,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				},
 				Optional:    true,
 				Description: "The configuration for additional data disks.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 			"gpu_device_specs": schema.SingleNestedAttribute{
 				Attributes: map[string]schema.Attribute{
@@ -274,6 +317,9 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				},
 				Optional:    true,
 				Description: "The GPU specifications for the VM instance.",
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.RequiresReplace(),
+				},
 			},
 			"gpu_devices": schema.ListNestedAttribute{
 				NestedObject: schema.NestedAttributeObject{
@@ -293,57 +339,96 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 				},
 				Optional:    true,
 				Description: "A list of GPU devices assigned to the VM instance.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the zone where the VM instance is deployed.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"cluster_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the cluster where the VM instance is deployed.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"host_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the host where the VM instance is running.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description of the VM instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"memory_size": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"cpu_num": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"strategy": schema.StringAttribute{
 				Optional:    true,
 				Description: "The deployment strategy for the VM instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"user_data": schema.StringAttribute{
 				Optional:    true,
 				Description: "User data injected into the VM instance at boot time.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"never_stop": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Whether the VM instance should never stop automatically.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"expunge": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Indicates if the instance should be expunged after deletion.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"marketplace": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Indicates whether the VM instance is a marketplace instance.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"hook_script": schema.StringAttribute{
 				Optional:    true,
 				Description: "The uuid of hook script. Create Instance with custom xml Hook.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -381,16 +466,16 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		}
 		if rootDiskPlan.OfferingUuid.IsNull() && rootDiskPlan.Size.IsNull() {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				"rootDiskPlan offering_uuid and size cannot be null at the same time",
+				"Error creating VM Instance",
+				"Could not create vm instance, rootDiskPlan offering_uuid and size cannot be null at the same time.",
 			)
 			return
 		}
 		err := isDiskParamValid(r, rootDiskPlan)
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				fmt.Sprintf("invalid rootDiskPlan param, err: %v", err),
+				"Error creating VM Instance",
+				fmt.Sprintf("Could not create vm instance, invalid rootDiskPlan param: %v", err),
 			)
 			return
 		}
@@ -421,8 +506,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 				}
 			} else {
 				resp.Diagnostics.AddError(
-					"Params Error",
-					"dataDisk offering_uuid and size cannot be null at the same time",
+					"Error creating VM Instance",
+					"Could not create vm instance, dataDisk offering_uuid and size cannot be null at the same time.",
 				)
 				return
 			}
@@ -433,8 +518,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			err := isDiskParamValid(r, dataDisksPlan[0])
 			if err != nil {
 				resp.Diagnostics.AddError(
-					"Params Error",
-					fmt.Sprintf("invalid dataDisk param, err: %v", err),
+					"Error creating VM Instance",
+					fmt.Sprintf("Could not create vm instance, invalid dataDisk param: %v", err),
 				)
 				return
 			}
@@ -448,8 +533,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	// SET NETWORK
 	if plan.NetworkInterfaces.IsNull() || len(plan.NetworkInterfaces.Elements()) == 0 {
 		resp.Diagnostics.AddError(
-			"Parameter Error",
-			"`network_interfaces` cannot be null or empty. At least one L3 network must be specified.",
+			"Error creating VM Instance",
+			"Could not create vm instance, `network_interfaces` cannot be null or empty. At least one L3 network must be specified.",
 		)
 		return
 	}
@@ -498,24 +583,24 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	image, err := r.client.GetImage(plan.ImageUuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Params Error",
-			fmt.Sprintf("failed to find image %s, err: %v", plan.ImageUuid.ValueString(), err),
+			"Error creating VM Instance",
+			fmt.Sprintf("Could not create vm instance, failed to find image %s: %v", plan.ImageUuid.ValueString(), err),
 		)
 		return
 	}
 
 	if image.Status != "Ready" {
 		resp.Diagnostics.AddError(
-			"Params Error",
-			fmt.Sprintf("image %s Status is %s, not Ready", plan.ImageUuid.ValueString(), image.State),
+			"Error creating VM Instance",
+			fmt.Sprintf("Could not create vm instance, image %s status is %s, not Ready.", plan.ImageUuid.ValueString(), image.State),
 		)
 		return
 	}
 
 	if image.State != "Enabled" {
 		resp.Diagnostics.AddError(
-			"Params Error",
-			fmt.Sprintf("image %s State is %s, not Enabled", plan.ImageUuid.ValueString(), image.State),
+			"Error creating VM Instance",
+			fmt.Sprintf("Could not create vm instance, image %s state is %s, not Enabled.", plan.ImageUuid.ValueString(), image.State),
 		)
 		return
 	}
@@ -561,8 +646,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 				systemTags = append(systemTags, fmt.Sprintf("pciDevice::%s", gpuDevice.Uuid.ValueString()))
 			} else {
 				resp.Diagnostics.AddError(
-					"Params Error",
-					fmt.Sprintf("gpu type %s is invalid", gpuDevice.Type.ValueString()),
+					"Error creating VM Instance",
+					fmt.Sprintf("Could not create vm instance, gpu type %s is invalid.", gpuDevice.Type.ValueString()),
 				)
 				return
 			}
@@ -586,8 +671,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			systemTags = append(systemTags, fmt.Sprintf("pciDeviceSpec::%s::%d", gpuSpecPlan.Uuid.ValueString(), number))
 		} else {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				fmt.Sprintf("gpu type %s is invalid", gpuSpecPlan.Type.ValueString()),
+				"Error creating VM Instance",
+				fmt.Sprintf("Could not create vm instance, gpu type %s is invalid.", gpuSpecPlan.Type.ValueString()),
 			)
 			return
 		}
@@ -598,8 +683,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		strategyValue := plan.Strategy.ValueString()
 		if strategyValue != "InstantStart" && strategyValue != "CreateStopped" {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				fmt.Sprintf("strategy %s is invalid, valid value is InstantStart or CreateStopped", plan.Strategy.ValueString()),
+				"Error creating VM Instance",
+				fmt.Sprintf("Could not create vm instance, strategy %s is invalid. Valid value is InstantStart or CreateStopped.", plan.Strategy.ValueString()),
 			)
 			return
 		}
@@ -612,8 +697,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		instanceOffering, err := r.client.GetInstanceOffering(plan.InstanceOfferingUuid.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				fmt.Sprintf("failed to get instance offering %s, err: %v", plan.InstanceOfferingUuid.ValueString(), err),
+				"Error creating VM Instance",
+				fmt.Sprintf("Could not create vm instance, failed to get instance offering %s: %v", plan.InstanceOfferingUuid.ValueString(), err),
 			)
 			return
 		}
@@ -622,8 +707,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	} else {
 		if plan.MemorySize.IsNull() || plan.CPUNum.IsNull() {
 			resp.Diagnostics.AddError(
-				"Params Error",
-				"memory_size and cpu_num must be provided if instance_offering_uuid is not set",
+				"Error creating VM Instance",
+				"Could not create vm instance, memory_size and cpu_num must be provided if instance_offering_uuid is not set.",
 			)
 			return
 		}
@@ -666,8 +751,8 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	instance, err := r.client.CreateVmInstance(createVmInstanceParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Create VmInstance Error",
-			fmt.Sprintf("failed to create vminstance, err: %v", err),
+			"Error creating VM Instance",
+			fmt.Sprintf("Could not create vm instance, unexpected error: %v", err),
 		)
 		return
 	}
@@ -776,12 +861,19 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 		return
 	}
 
-	vm, err := r.client.GetVmInstance(state.Uuid.ValueString())
+	vm, err := findResourceByGet(r.client.GetVmInstance, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "cannot read vm, maybe it has been deleted, set uuid to 'empty'. vm was no longer managed by terraform. error: "+err.Error())
-		state.Uuid = types.StringValue("")
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "vm not found, removing from state", map[string]interface{}{
+				"uuid": state.Uuid.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading VM Instance",
+			"Could not read VM instance UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
@@ -861,8 +953,8 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 	}
 
 	if state.Uuid.ValueString() == "" {
-		resp.Diagnostics.AddError("Parameter Error",
-			"uuid of vm is empty, cannot upgrade vm.")
+		resp.Diagnostics.AddError("Error updating VM Instance",
+			"Could not update vm instance, UUID is empty.")
 		return
 	}
 
@@ -896,8 +988,8 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		instance, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam)
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Update VmInstance Error",
-				"failed to update vm instance, err:"+err.Error())
+				"Error updating VM Instance",
+				"Could not update vm instance, unexpected error: "+err.Error())
 			return
 		}
 
@@ -966,7 +1058,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 	vm, err := r.client.GetVmInstance(state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not read vm instance", "Error: "+err.Error(),
+			"Error reading VM Instance", "Could not read vm instance UUID "+state.Uuid.ValueString()+" before delete: "+err.Error(),
 		)
 		return
 	}
@@ -985,7 +1077,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 	err = r.client.DestroyVmInstance(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not destroy vm instance", "Error: "+err.Error(),
+			"Error destroying VM Instance", "Could not destroy vm instance, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -995,7 +1087,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		err = r.client.DeleteDataVolume(uuid, param.DeleteModePermissive)
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Could not delete data volume", "Error: "+err.Error(),
+				"Error deleting Data Volume", "Could not delete data volume UUID "+uuid+": "+err.Error(),
 			)
 			return
 		}
@@ -1012,7 +1104,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		err = r.client.ExpungeVmInstance(state.Uuid.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Could not expunge vm instance", "Error: "+err.Error(),
+				"Error expunging VM Instance", "Could not expunge vm instance, unexpected error: "+err.Error(),
 			)
 			return
 		}
@@ -1022,7 +1114,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 			err = r.client.ExpungeDataVolume(uuid)
 			if err != nil {
 				resp.Diagnostics.AddError(
-					"Could not expunge data volume", "Error: "+err.Error(),
+					"Error expunging Data Volume", "Could not expunge data volume UUID "+uuid+": "+err.Error(),
 				)
 				return
 			}

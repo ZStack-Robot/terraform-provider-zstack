@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -70,15 +73,24 @@ func (r *iam2OrganizationResource) Schema(_ context.Context, _ resource.SchemaRe
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the IAM2 organization",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the IAM2 organization",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the IAM2 organization",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
@@ -97,14 +109,23 @@ func (r *iam2OrganizationResource) Schema(_ context.Context, _ resource.SchemaRe
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the IAM2 organization",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"src_type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The source type of the IAM2 organization",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"root_organization_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the root organization",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -131,7 +152,7 @@ func (r *iam2OrganizationResource) Create(ctx context.Context, req resource.Crea
 	result, err := r.client.CreateIAM2Organization(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating IAM2 organization",
+			"Error creating IAM2 Organization",
 			"Could not create IAM2 organization, unexpected error: "+err.Error(),
 		)
 		return
@@ -160,27 +181,21 @@ func (r *iam2OrganizationResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	organizations, err := r.client.QueryIAM2Organization(&queryParam)
+	org, err := findResourceByQuery(r.client.QueryIAM2Organization, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "IAM2 organization not found, removing from state", map[string]interface{}{
+				"uuid": state.Uuid.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading IAM2 organization",
+			"Error reading IAM2 Organization",
 			"Could not read IAM2 organization UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(organizations) == 0 {
-		tflog.Warn(ctx, "IAM2 organization not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		resp.State.RemoveResource(ctx)
-		return
-	}
-
-	org := organizations[0]
 
 	state.Name = types.StringValue(org.Name)
 	state.Description = stringValueOrNull(org.Description)
@@ -220,7 +235,7 @@ func (r *iam2OrganizationResource) Update(ctx context.Context, req resource.Upda
 	result, err := r.client.UpdateIAM2Organization(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating IAM2 organization",
+			"Error updating IAM2 Organization",
 			"Could not update IAM2 organization, unexpected error: "+err.Error(),
 		)
 		return
@@ -252,7 +267,7 @@ func (r *iam2OrganizationResource) Delete(ctx context.Context, req resource.Dele
 	err := r.client.DeleteIAM2Organization(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting IAM2 organization",
+			"Error deleting IAM2 Organization",
 			"Could not delete IAM2 organization, unexpected error: "+err.Error(),
 		)
 		return

@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -68,19 +73,31 @@ func (r *iam2ProjectResource) Schema(_ context.Context, req resource.SchemaReque
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The unique identifier (UUID) of the IAM2 project.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the IAM2 project.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description of the IAM2 project.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the IAM2 project (Enabled, Disabled).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -108,7 +125,8 @@ func (r *iam2ProjectResource) Create(ctx context.Context, req resource.CreateReq
 	project, err := r.client.CreateIAM2Project(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not create IAM2 project in ZStack", "Error: "+err.Error(),
+			"Error creating IAM2 Project",
+			"Could not create IAM2 project, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -131,10 +149,15 @@ func (r *iam2ProjectResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	project, err := r.client.GetIAM2Project(state.Uuid.ValueString())
+	project, err := findResourceByGet(r.client.GetIAM2Project, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading IAM2 project", "Could not read IAM2 project UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading IAM2 Project",
+			"Could not read IAM2 project UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -175,7 +198,8 @@ func (r *iam2ProjectResource) Update(ctx context.Context, req resource.UpdateReq
 	project, err := r.client.UpdateIAM2Project(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not update IAM2 project", "Error: "+err.Error(),
+			"Error updating IAM2 Project",
+			"Could not update IAM2 project, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -205,7 +229,10 @@ func (r *iam2ProjectResource) Delete(ctx context.Context, req resource.DeleteReq
 
 	err := r.client.DeleteIAM2Project(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to delete IAM2 project", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting IAM2 Project",
+			"Could not delete IAM2 project, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

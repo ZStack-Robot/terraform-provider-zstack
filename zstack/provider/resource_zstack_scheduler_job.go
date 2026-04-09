@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -76,6 +79,9 @@ func (r *schedulerJobResource) Schema(_ context.Context, request resource.Schema
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the scheduler job.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -160,21 +166,15 @@ func (r *schedulerJobResource) Read(ctx context.Context, request resource.ReadRe
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	jobs, err := r.client.QuerySchedulerJob(&queryParam)
+	job, err := findResourceByQuery(r.client.QuerySchedulerJob, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		response.Diagnostics.AddError("Error reading scheduler job", err.Error())
 		return
 	}
-
-	if len(jobs) == 0 {
-		response.State.RemoveResource(ctx)
-		return
-	}
-
-	job := jobs[0]
 	state.Name = types.StringValue(job.Name)
 	state.Description = stringValueOrNull(job.Description)
 	state.TargetResourceUuid = types.StringValue(job.TargetResourceUuid)

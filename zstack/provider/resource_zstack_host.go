@@ -4,15 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -89,6 +92,9 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the host.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -127,6 +133,9 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "The state of the host (Enabled, Disabled, PreMaintenance, Maintaining).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Enabled", "Disabled", "PreMaintenance", "Maintaining"),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
@@ -195,7 +204,10 @@ func (r *hostResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	host, err := r.client.AddKVMHost(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create host", err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Host",
+			"Could not create host, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -210,7 +222,10 @@ func (r *hostResource) Create(ctx context.Context, req resource.CreateRequest, r
 			},
 		})
 		if err != nil {
-			resp.Diagnostics.AddError("Could not change host state to Disabled", err.Error())
+			resp.Diagnostics.AddError(
+				"Error changing Host state",
+				"Could not change host state to Disabled: "+err.Error(),
+			)
 			return
 		}
 		state.State = types.StringValue("Disabled")
@@ -229,9 +244,16 @@ func (r *hostResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	host, err := r.client.GetHost(state.Uuid.ValueString())
+	host, err := findResourceByGet(r.client.GetHost, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read host", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Host",
+			"Could not read host, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -271,7 +293,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		}
 
 		if _, err := r.client.UpdateHost(uuid, updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update host", err.Error())
+			resp.Diagnostics.AddError(
+				"Error updating Host",
+				"Could not update host, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -296,7 +321,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		}
 
 		if _, err := r.client.UpdateKVMHost(uuid, updateKVMParam); err != nil {
-			resp.Diagnostics.AddError("Could not update KVM host", err.Error())
+			resp.Diagnostics.AddError(
+				"Error updating KVM Host",
+				"Could not update KVM host, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -314,7 +342,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		case "premaintenance", "maintaining":
 			stateEvent = "maintain"
 		default:
-			resp.Diagnostics.AddError("Invalid host state", fmt.Sprintf("Unsupported state: %s", plan.State.ValueString()))
+			resp.Diagnostics.AddError(
+				"Error updating Host",
+				fmt.Sprintf("Could not update host, unsupported state: %s", plan.State.ValueString()),
+			)
 			return
 		}
 
@@ -324,7 +355,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 				StateEvent: stateEvent,
 			},
 		}); err != nil {
-			resp.Diagnostics.AddError("Could not change host state", err.Error())
+			resp.Diagnostics.AddError(
+				"Error changing Host state",
+				"Could not change host state: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -332,7 +366,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// Read back the updated resource
 	host, err := r.client.GetHost(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated host", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Host",
+			"Could not read updated host: "+err.Error(),
+		)
 		return
 	}
 
@@ -357,7 +394,10 @@ func (r *hostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	if err := r.client.DeleteHost(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete host", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Host",
+			"Could not delete host, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

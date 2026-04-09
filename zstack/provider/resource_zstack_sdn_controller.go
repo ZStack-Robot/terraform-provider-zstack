@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -70,42 +75,73 @@ func (r *sdnControllerResource) Schema(_ context.Context, request resource.Schem
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the SDN controller.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vendor_type": schema.StringAttribute{
 				Required:    true,
 				Description: "The vendor type of the SDN controller (e.g., OVN, ODL).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("OVN", "ODL"),
+				},
 			},
 			"vendor_version": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The version of the SDN controller vendor software.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip": schema.StringAttribute{
 				Required:    true,
 				Description: "The IP address of the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"username": schema.StringAttribute{
 				Optional:    true,
 				Sensitive:   true,
 				Description: "The username for authentication with the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"password": schema.StringAttribute{
 				Optional:    true,
 				Sensitive:   true,
 				Description: "The password for authentication with the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The status of the SDN controller.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -140,8 +176,8 @@ func (r *sdnControllerResource) Create(ctx context.Context, request resource.Cre
 	result, err := r.client.AddSdnController(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create SDN controller",
-			"Error "+err.Error(),
+			"Error creating SDN Controller",
+			"Could not create sdn controller, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -177,10 +213,13 @@ func (r *sdnControllerResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QuerySdnController(&queryParam)
+	item, err := findResourceByQuery(r.client.QuerySdnController, state.Uuid.ValueString())
 
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query SDN controllers. It may have been deleted.: "+err.Error())
 		state = sdnControllerResourceModel{
 			Uuid: types.StringValue(""),
@@ -190,30 +229,14 @@ func (r *sdnControllerResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	found := false
-
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			// Update state with the matched SDN controller details
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = types.StringValue(item.Description)
-			state.VendorType = types.StringValue(item.VendorType)
-			state.VendorVersion = types.StringValue(item.VendorVersion)
-			state.Ip = types.StringValue(item.Ip)
-			state.Status = types.StringValue(item.Status)
-			// Don't overwrite username/password from API since they're sensitive/write-only
-			found = true
-			break
-		}
-	}
-	if !found {
-		// If the SDN controller is not found, mark it as unmanaged
-		tflog.Warn(ctx, "SDN controller not found. It might have been deleted outside of Terraform.")
-		state = sdnControllerResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = types.StringValue(item.Description)
+	state.VendorType = types.StringValue(item.VendorType)
+	state.VendorVersion = types.StringValue(item.VendorVersion)
+	state.Ip = types.StringValue(item.Ip)
+	state.Status = types.StringValue(item.Status)
+	// Don't overwrite username/password from API since they're sensitive/write-only
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -254,8 +277,8 @@ func (r *sdnControllerResource) Update(ctx context.Context, request resource.Upd
 	result, err := r.client.UpdateSdnController(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update SDN controller",
-			"Error "+err.Error(),
+			"Error updating SDN Controller",
+			"Could not update sdn controller, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -299,7 +322,10 @@ func (r *sdnControllerResource) Delete(ctx context.Context, request resource.Del
 	err := r.client.RemoveSdnController(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete SDN controller", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting SDN Controller",
+			"Could not delete sdn controller, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

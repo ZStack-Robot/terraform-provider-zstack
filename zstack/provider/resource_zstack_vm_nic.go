@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -88,6 +89,7 @@ func (r *vmNicResource) Schema(_ context.Context, request resource.SchemaRequest
 				Description: "The IP address of the VM NIC. If not specified, ZStack will assign one automatically.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"mac": schema.StringAttribute{
@@ -138,8 +140,8 @@ func (r *vmNicResource) Create(ctx context.Context, request resource.CreateReque
 	vmNic, err := r.client.CreateVmNic(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create VM NIC",
-			"Error "+err.Error(),
+			"Error creating VM NIC",
+			"Could not create vm nic, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -168,10 +170,12 @@ func (r *vmNicResource) Read(ctx context.Context, request resource.ReadRequest, 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vmNics, err := r.client.QueryVmNic(&queryParam)
-
+	vmNic, err := findResourceByQuery(r.client.QueryVmNic, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VM NICs. It may have been deleted.: "+err.Error())
 		state = vmNicResourceModel{
 			Uuid: types.StringValue(""),
@@ -181,28 +185,14 @@ func (r *vmNicResource) Read(ctx context.Context, request resource.ReadRequest, 
 		return
 	}
 
-	found := false
-
-	for _, vmNic := range vmNics {
-		if vmNic.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vmNic.UUID)
-			state.L3NetworkUuid = types.StringValue(vmNic.L3NetworkUuid)
-			state.Ip = types.StringValue(vmNic.Ip)
-			state.Mac = types.StringValue(vmNic.Mac)
-			state.VmInstanceUuid = stringValueOrNull(vmNic.VmInstanceUuid)
-			state.Netmask = types.StringValue(vmNic.Netmask)
-			state.Gateway = types.StringValue(vmNic.Gateway)
-			state.State = types.StringValue(vmNic.State)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "VM NIC not found. It might have been deleted outside of Terraform.")
-		state = vmNicResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(vmNic.UUID)
+	state.L3NetworkUuid = types.StringValue(vmNic.L3NetworkUuid)
+	state.Ip = types.StringValue(vmNic.Ip)
+	state.Mac = types.StringValue(vmNic.Mac)
+	state.VmInstanceUuid = stringValueOrNull(vmNic.VmInstanceUuid)
+	state.Netmask = types.StringValue(vmNic.Netmask)
+	state.Gateway = types.StringValue(vmNic.Gateway)
+	state.State = types.StringValue(vmNic.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -212,7 +202,10 @@ func (r *vmNicResource) Read(ctx context.Context, request resource.ReadRequest, 
 }
 
 func (r *vmNicResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"VM NIC resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *vmNicResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -231,7 +224,10 @@ func (r *vmNicResource) Delete(ctx context.Context, request resource.DeleteReque
 	err := r.client.DeleteVmNic(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete VM NIC", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VM NIC",
+			"Could not delete vm nic, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

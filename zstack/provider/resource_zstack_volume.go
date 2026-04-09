@@ -4,14 +4,19 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -82,15 +87,24 @@ func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the volume.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the volume.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the volume.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"disk_offering_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -98,12 +112,16 @@ func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The UUID of the disk offering used to create the volume.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"disk_size": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The size of the volume in bytes.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"primary_storage_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -111,6 +129,7 @@ func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The UUID of the primary storage where the volume is created.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"resource_uuid": schema.StringAttribute{
@@ -119,6 +138,7 @@ func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The custom UUID requested at creation time.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"tag_uuids": schema.ListAttribute{
@@ -128,36 +148,58 @@ func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Description: "The tag UUIDs attached during creation.",
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.RequiresReplace(),
+					listplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"vm_instance_uuid": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The UUID of the VM instance that the volume is attached to.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The volume type reported by ZStack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"format": schema.StringAttribute{
 				Computed:    true,
 				Description: "The volume format reported by ZStack.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The administrative state of the volume.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The operational status of the volume.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"actual_size": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The actual size of the volume in bytes.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"is_shareable": schema.BoolAttribute{
 				Computed:    true,
 				Description: "Whether the volume is shareable.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -174,8 +216,8 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	if plan.DiskOfferingUuid.IsNull() && (plan.DiskSize.IsNull() || plan.DiskSize.ValueInt64() <= 0) {
 		resp.Diagnostics.AddError(
-			"Missing Volume Size Configuration",
-			"Set either disk_offering_uuid or a positive disk_size when creating a volume.",
+			"Error creating Volume",
+			"Could not create volume because neither disk_offering_uuid nor a positive disk_size was configured.",
 		)
 		return
 	}
@@ -201,7 +243,10 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	volume, err := r.client.CreateDataVolume(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create volume", err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Volume",
+			"Could not create volume, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -217,14 +262,20 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		if _, err := r.client.AttachDataVolumeToVm(volume.UUID, plan.VmInstanceUuid.ValueString(), param.AttachDataVolumeToVmParam{
 			BaseParam: param.BaseParam{},
 		}); err != nil {
-			resp.Diagnostics.AddError("Volume created but attach failed", err.Error())
+			resp.Diagnostics.AddError(
+				"Error attaching Volume",
+				"Could not attach volume UUID "+volume.UUID+" to VM instance UUID "+plan.VmInstanceUuid.ValueString()+": "+err.Error(),
+			)
 			return
 		}
 	}
 
 	state, err := r.readVolume(volume.UUID, plan)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read created volume", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Volume",
+			"Could not read volume UUID "+volume.UUID+" after create: "+err.Error(),
+		)
 		return
 	}
 
@@ -241,11 +292,20 @@ func (r *volumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	refreshedState, err := r.readVolume(state.Uuid.ValueString(), state)
+	volume, err := findResourceByGet(r.client.GetVolume, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read volume", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Volume",
+			"Could not read volume UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
+
+	refreshedState := volumeModelFromView(volume, state)
 
 	diags = resp.State.Set(ctx, &refreshedState)
 	resp.Diagnostics.Append(diags...)
@@ -273,7 +333,10 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		}
 
 		if _, err := r.client.UpdateVolume(state.Uuid.ValueString(), updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update volume metadata", err.Error())
+			resp.Diagnostics.AddError(
+				"Error updating Volume",
+				"Could not update volume metadata, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -281,8 +344,8 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if !plan.DiskSize.IsNull() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64() {
 		if plan.DiskSize.ValueInt64() < state.DiskSize.ValueInt64() {
 			resp.Diagnostics.AddError(
-				"Shrinking a volume is not supported",
-				"disk_size can only stay the same or increase for an existing volume.",
+				"Error updating Volume",
+				"Could not update volume because disk_size can only stay the same or increase for an existing volume.",
 			)
 			return
 		}
@@ -292,19 +355,28 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 				Size: plan.DiskSize.ValueInt64(),
 			},
 		}); err != nil {
-			resp.Diagnostics.AddError("Could not resize volume", err.Error())
+			resp.Diagnostics.AddError(
+				"Error resizing Volume",
+				"Could not resize volume, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
 
 	if err := r.reconcileAttachment(state, plan); err != nil {
-		resp.Diagnostics.AddError("Could not update volume attachment", err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating Volume attachment",
+			"Could not update volume attachment, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
 	refreshedState, err := r.readVolume(state.Uuid.ValueString(), plan)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated volume", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Volume",
+			"Could not read volume UUID "+state.Uuid.ValueString()+" after update: "+err.Error(),
+		)
 		return
 	}
 
@@ -327,7 +399,10 @@ func (r *volumeResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	}
 
 	if err := r.client.DeleteDataVolume(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete volume", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Volume",
+			"Could not delete volume, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

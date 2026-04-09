@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccountResource_Schema(t *testing.T) {
@@ -67,8 +70,9 @@ func TestAccountResource_Metadata(t *testing.T) {
 func TestAccAccountResource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAccountDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -77,10 +81,40 @@ resource "zstack_account" "test" {
   password = "Test@12345"
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_account.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_account.test", "name", "acc-test-account"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-account")),
+				},
+			},
+			{
+				ResourceName:            "zstack_account.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password"},
+			},
+		},
+	})
+}
+
+func TestAccAccountResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAccountDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_account" "test_disappears" {
+  name     = "acc-test-acct-disappears"
+  password = "Test@12345"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_account.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckAccountDisappears("zstack_account.test_disappears"),
+				},
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

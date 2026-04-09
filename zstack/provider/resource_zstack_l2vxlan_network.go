@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -75,6 +78,9 @@ func (r *l2vxlanNetworkResource) Schema(_ context.Context, request resource.Sche
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the L2 VXLAN network.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -162,21 +168,16 @@ func (r *l2vxlanNetworkResource) Read(ctx context.Context, request resource.Read
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	networks, err := r.client.QueryL2VxlanNetwork(&queryParam)
+	network, err := findResourceByQuery(r.client.QueryL2VxlanNetwork, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		response.Diagnostics.AddError("Error reading L2 VXLAN network", err.Error())
 		return
 	}
 
-	if len(networks) == 0 {
-		response.State.RemoveResource(ctx)
-		return
-	}
-
-	network := networks[0]
 	state.Name = types.StringValue(network.Name)
 	state.Description = stringValueOrNull(network.Description)
 	state.Vni = types.Int64Value(int64(network.Vni))

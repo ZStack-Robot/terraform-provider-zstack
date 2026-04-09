@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instances Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Fetches a list of VM instances and their associated attributes from the ZStack environment.
 ---

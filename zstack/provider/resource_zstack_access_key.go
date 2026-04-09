@@ -4,11 +4,14 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -50,33 +53,55 @@ func (r *accessKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Description: "The UUID of the access key.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"account_uuid": schema.StringAttribute{
 				Description: "The UUID of the account.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"user_uuid": schema.StringAttribute{
 				Description: "The UUID of the user.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Description: "The description of the access key.",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"access_key_id": schema.StringAttribute{
 				Description: "The access key ID.",
 				Computed:    true,
 				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"access_key_secret": schema.StringAttribute{
 				Description: "The access key secret. Only available after creation.",
 				Computed:    true,
 				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Description: "The state of the access key.",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -119,7 +144,7 @@ func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateReque
 	result, err := r.client.CreateAccessKey(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating access key",
+			"Error creating Access Key",
 			"Could not create access key, unexpected error: "+err.Error(),
 		)
 		return
@@ -152,29 +177,19 @@ func (r *accessKeyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	accessKeys, err := r.client.QueryAccessKey(&queryParam)
+	accessKey, err := findResourceByQuery(r.client.QueryAccessKey, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading access key",
+			"Error reading Access Key",
 			"Could not read access key UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
 
-	if len(accessKeys) == 0 {
-		tflog.Warn(ctx, "Access key not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		state.Uuid = types.StringValue("")
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
-	accessKey := accessKeys[0]
 	state.Uuid = types.StringValue(accessKey.UUID)
 	state.AccountUuid = types.StringValue(accessKey.AccountUuid)
 	state.UserUuid = types.StringValue(accessKey.UserUuid)
@@ -221,7 +236,7 @@ func (r *accessKeyResource) Delete(ctx context.Context, req resource.DeleteReque
 	err := r.client.DeleteAccessKey(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting access key",
+			"Error deleting Access Key",
 			"Could not delete access key, unexpected error: "+err.Error(),
 		)
 		return

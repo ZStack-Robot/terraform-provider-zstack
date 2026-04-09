@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -74,6 +77,9 @@ func (r *snsTopicResource) Schema(_ context.Context, request resource.SchemaRequ
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the SNS topic.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -112,8 +118,8 @@ func (r *snsTopicResource) Create(ctx context.Context, request resource.CreateRe
 	result, err := r.client.CreateSNSTopic(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create SNS topic",
-			"Error "+err.Error(),
+			"Error creating SNS Topic",
+			"Could not create sns topic, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -138,10 +144,12 @@ func (r *snsTopicResource) Read(ctx context.Context, request resource.ReadReques
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	snsTopics, err := r.client.QuerySNSTopic(&queryParam)
-
+	snsTopic, err := findResourceByQuery(r.client.QuerySNSTopic, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query SNS topics. It may have been deleted.: "+err.Error())
 		state = snsTopicModel{
 			Uuid: types.StringValue(""),
@@ -151,24 +159,10 @@ func (r *snsTopicResource) Read(ctx context.Context, request resource.ReadReques
 		return
 	}
 
-	found := false
-
-	for _, snsTopic := range snsTopics {
-		if snsTopic.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(snsTopic.UUID)
-			state.Name = types.StringValue(snsTopic.Name)
-			state.Description = stringValueOrNull(snsTopic.Description)
-			state.State = types.StringValue(snsTopic.State)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "SNS topic not found. It might have been deleted outside of Terraform.")
-		state = snsTopicModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(snsTopic.UUID)
+	state.Name = types.StringValue(snsTopic.Name)
+	state.Description = stringValueOrNull(snsTopic.Description)
+	state.State = types.StringValue(snsTopic.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -205,8 +199,8 @@ func (r *snsTopicResource) Update(ctx context.Context, request resource.UpdateRe
 	result, err := r.client.UpdateSNSTopic(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update SNS topic",
-			"Error "+err.Error(),
+			"Error updating SNS Topic",
+			"Could not update sns topic, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -239,7 +233,10 @@ func (r *snsTopicResource) Delete(ctx context.Context, request resource.DeleteRe
 	err := r.client.DeleteSNSTopic(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete SNS topic", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting SNS Topic",
+			"Could not delete sns topic, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

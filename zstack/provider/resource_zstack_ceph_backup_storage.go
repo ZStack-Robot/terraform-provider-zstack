@@ -4,14 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -81,20 +85,35 @@ func (r *cephBackupStorageResource) Schema(ctx context.Context, req resource.Sch
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the Ceph backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the Ceph backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"mon_urls": schema.ListAttribute{
 				Required:    true,
 				ElementType: types.StringType,
 				Description: "List of Ceph monitor URLs.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 			"pool_name": schema.StringAttribute{
 				Optional:    true,
 				Description: "The Ceph pool name for backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"url": schema.StringAttribute{
 				Computed:    true,
@@ -169,8 +188,8 @@ func (r *cephBackupStorageResource) Create(ctx context.Context, req resource.Cre
 	storage, err := r.client.AddCephBackupStorage(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating Ceph backup storage",
-			"Could not create Ceph backup storage, unexpected error: "+err.Error(),
+			"Error creating Ceph Backup Storage",
+			"Could not create ceph backup storage, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -206,32 +225,22 @@ func (r *cephBackupStorageResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
 	tflog.Debug(ctx, "Reading Ceph backup storage", map[string]interface{}{
 		"uuid": state.Uuid.ValueString(),
 	})
 
-	storages, err := r.client.QueryCephBackupStorage(&queryParam)
+	storage, err := findResourceByQuery(r.client.QueryCephBackupStorage, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading Ceph backup storage",
-			"Could not read Ceph backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading Ceph Backup Storage",
+			"Could not read ceph backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(storages) == 0 {
-		tflog.Warn(ctx, "Ceph backup storage not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		state.Uuid = types.StringValue("")
-		resp.State.Set(ctx, &state)
-		return
-	}
-
-	storage := storages[0]
 
 	state.Uuid = types.StringValue(storage.UUID)
 	state.Name = types.StringValue(storage.Name)
@@ -278,8 +287,8 @@ func (r *cephBackupStorageResource) Delete(ctx context.Context, req resource.Del
 	err := r.client.DeleteBackupStorage(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting Ceph backup storage",
-			"Could not delete Ceph backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error deleting Ceph Backup Storage",
+			"Could not delete ceph backup storage UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

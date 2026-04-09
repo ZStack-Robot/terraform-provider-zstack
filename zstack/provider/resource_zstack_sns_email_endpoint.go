@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,6 +80,12 @@ func (r *snsEmailEndpointResource) Schema(_ context.Context, request resource.Sc
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the SNS email endpoint.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"email": schema.StringAttribute{
 				Required:    true,
@@ -89,6 +98,9 @@ func (r *snsEmailEndpointResource) Schema(_ context.Context, request resource.Sc
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the SNS email endpoint.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"platform_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -136,8 +148,8 @@ func (r *snsEmailEndpointResource) Create(ctx context.Context, request resource.
 	result, err := r.client.CreateSNSEmailEndpoint(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create SNS email endpoint",
-			"Error "+err.Error(),
+			"Error creating SNS Email Endpoint",
+			"Could not create sns email endpoint, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -165,9 +177,12 @@ func (r *snsEmailEndpointResource) Read(ctx context.Context, request resource.Re
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QuerySNSEmailEndpoint(&queryParam)
+	item, err := findResourceByQuery(r.client.QuerySNSEmailEndpoint, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query SNS email endpoints. It may have been deleted.: "+err.Error())
 		state = snsEmailEndpointModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -175,24 +190,13 @@ func (r *snsEmailEndpointResource) Read(ctx context.Context, request resource.Re
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Email = types.StringValue(item.Email)
-			state.Description = stringValueOrNull(item.Description)
-			state.PlatformUuid = stringValueOrNull(item.PlatformUuid)
-			state.Type = types.StringValue(item.Type)
-			state.State = types.StringValue(item.State)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "SNS email endpoint not found. It might have been deleted outside of Terraform.")
-		state = snsEmailEndpointModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Email = types.StringValue(item.Email)
+	state.Description = stringValueOrNull(item.Description)
+	state.PlatformUuid = stringValueOrNull(item.PlatformUuid)
+	state.Type = types.StringValue(item.Type)
+	state.State = types.StringValue(item.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -202,7 +206,10 @@ func (r *snsEmailEndpointResource) Read(ctx context.Context, request resource.Re
 }
 
 func (r *snsEmailEndpointResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"SNS Email Endpoint resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *snsEmailEndpointResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {

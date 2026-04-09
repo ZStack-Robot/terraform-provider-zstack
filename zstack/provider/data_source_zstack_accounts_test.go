@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackAccountsDataSource(t *testing.T) {
@@ -17,7 +20,7 @@ func TestAccZStackAccountsDataSource(t *testing.T) {
 	acct := env.Accounts[0]
 	name := envStr(acct, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -25,10 +28,10 @@ func TestAccZStackAccountsDataSource(t *testing.T) {
 data "zstack_accounts" "test" {
 	name = %q
 }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_accounts.test", "accounts.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_accounts.test", "accounts.0.uuid", envStr(acct, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_accounts.test", tfjsonpath.New("accounts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_accounts.test", tfjsonpath.New("accounts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(acct, "uuid"))),
+				},
 			},
 		},
 	})

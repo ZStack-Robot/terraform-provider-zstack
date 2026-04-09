@@ -4,13 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -70,15 +74,24 @@ func (r *stackTemplateResource) Schema(_ context.Context, request resource.Schem
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the stack template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the stack template.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the stack template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
@@ -86,24 +99,37 @@ func (r *stackTemplateResource) Schema(_ context.Context, request resource.Schem
 				Description: "The type of the stack template.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"template_content": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The template content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"version": schema.StringAttribute{
 				Computed:    true,
 				Description: "The version of the stack template.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.BoolAttribute{
 				Computed:    true,
 				Description: "The state of the stack template.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"md5sum": schema.StringAttribute{
 				Computed:    true,
 				Description: "The MD5 checksum of the template content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -134,7 +160,10 @@ func (r *stackTemplateResource) Create(ctx context.Context, request resource.Cre
 
 	stackTemplate, err := r.client.AddStackTemplate(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to add stack template", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Stack Template",
+			"Could not create stack template, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -162,9 +191,12 @@ func (r *stackTemplateResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	stackTemplates, err := r.client.QueryStackTemplate(&queryParam)
+	stackTemplate, err := findResourceByQuery(r.client.QueryStackTemplate, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query stack templates. It may have been deleted.: "+err.Error())
 		state = stackTemplateModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -172,26 +204,14 @@ func (r *stackTemplateResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	found := false
-	for _, stackTemplate := range stackTemplates {
-		if stackTemplate.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(stackTemplate.UUID)
-			state.Name = types.StringValue(stackTemplate.Name)
-			state.Description = stringValueOrNull(stackTemplate.Description)
-			state.Type = stringValueOrNull(stackTemplate.Type)
-			state.TemplateContent = stringValueOrNull(stackTemplate.Content)
-			state.Version = stringValueOrNull(stackTemplate.Version)
-			state.State = types.BoolValue(stackTemplate.State)
-			state.Md5sum = stringValueOrNull(stackTemplate.Md5sum)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Stack template not found. It might have been deleted outside of Terraform.")
-		state = stackTemplateModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(stackTemplate.UUID)
+	state.Name = types.StringValue(stackTemplate.Name)
+	state.Description = stringValueOrNull(stackTemplate.Description)
+	state.Type = stringValueOrNull(stackTemplate.Type)
+	state.TemplateContent = stringValueOrNull(stackTemplate.Content)
+	state.Version = stringValueOrNull(stackTemplate.Version)
+	state.State = types.BoolValue(stackTemplate.State)
+	state.Md5sum = stringValueOrNull(stackTemplate.Md5sum)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -223,7 +243,10 @@ func (r *stackTemplateResource) Update(ctx context.Context, request resource.Upd
 
 	stackTemplate, err := r.client.UpdateStackTemplate(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update stack template", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Stack Template",
+			"Could not update stack template, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -258,7 +281,10 @@ func (r *stackTemplateResource) Delete(ctx context.Context, request resource.Del
 
 	err := r.client.DeleteStackTemplate(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete stack template", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Stack Template",
+			"Could not delete stack template, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

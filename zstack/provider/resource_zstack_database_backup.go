@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,6 +80,9 @@ func (r *databaseBackupResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the database backup.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -136,8 +142,8 @@ func (r *databaseBackupResource) Create(ctx context.Context, request resource.Cr
 	result, err := r.client.CreateDatabaseBackup(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create database backup",
-			"Error "+err.Error(),
+			"Error creating Database Backup",
+			"Could not create database backup, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -165,44 +171,39 @@ func (r *databaseBackupResource) Read(ctx context.Context, request resource.Read
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	databaseBackups, err := r.client.QueryDatabaseBackup(&queryParam)
+	databaseBackup, err := findResourceByQuery(r.client.QueryDatabaseBackup, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query database backups. It may have been deleted.: "+err.Error())
-		state = databaseBackupModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Database Backup",
+			"Could not read database backup UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, databaseBackup := range databaseBackups {
-		if databaseBackup.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(databaseBackup.UUID)
-			state.Name = stringValueOrNull(databaseBackup.Name)
-			state.Description = stringValueOrNull(databaseBackup.Description)
-			if len(databaseBackup.BackupStorageRefs) > 0 {
-				state.BackupStorageUuid = types.StringValue(databaseBackup.BackupStorageRefs[0].BackupStorageUuid)
-			}
-			state.State = stringValueOrNull(databaseBackup.State)
-			state.Status = stringValueOrNull(databaseBackup.Status)
-			state.Size = types.Int64Value(databaseBackup.Size)
-			state.Metadata = stringValueOrNull(databaseBackup.Metadata)
-			found = true
-			break
-		}
+	state.Uuid = types.StringValue(databaseBackup.UUID)
+	state.Name = stringValueOrNull(databaseBackup.Name)
+	state.Description = stringValueOrNull(databaseBackup.Description)
+	if len(databaseBackup.BackupStorageRefs) > 0 {
+		state.BackupStorageUuid = types.StringValue(databaseBackup.BackupStorageRefs[0].BackupStorageUuid)
 	}
-
-	if !found {
-		tflog.Warn(ctx, "Database backup not found. It might have been deleted outside of Terraform.")
-		state = databaseBackupModel{Uuid: types.StringValue("")}
-	}
+	state.State = stringValueOrNull(databaseBackup.State)
+	state.Status = stringValueOrNull(databaseBackup.Status)
+	state.Size = types.Int64Value(databaseBackup.Size)
+	state.Metadata = stringValueOrNull(databaseBackup.Metadata)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 }
 
 func (r *databaseBackupResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Database Backup resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *databaseBackupResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -220,7 +221,10 @@ func (r *databaseBackupResource) Delete(ctx context.Context, request resource.De
 
 	err := r.client.DeleteDatabaseBackup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete database backup", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Database Backup",
+			"Could not delete database backup, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

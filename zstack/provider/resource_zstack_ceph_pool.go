@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -97,6 +100,9 @@ func (r *cephPoolResource) Schema(_ context.Context, request resource.SchemaRequ
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("Data", "Root"),
+				},
 			},
 			"is_create": schema.BoolAttribute{
 				Optional:    true,
@@ -143,8 +149,8 @@ func (r *cephPoolResource) Create(ctx context.Context, request resource.CreateRe
 	result, err := r.client.AddCephPrimaryStoragePool(plan.PrimaryStorageUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add Ceph primary storage pool",
-			"Error "+err.Error(),
+			"Error creating Ceph Pool",
+			"Could not create ceph pool, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -172,40 +178,26 @@ func (r *cephPoolResource) Read(ctx context.Context, request resource.ReadReques
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	cephPools, err := r.client.QueryCephPrimaryStoragePool(&queryParam)
-
+	cephPool, err := findResourceByQuery(r.client.QueryCephPrimaryStoragePool, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query Ceph primary storage pools. It may have been deleted.: "+err.Error())
-		state = cephPoolModel{
-			Uuid: types.StringValue(""),
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
 		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Ceph Pool",
+			"Could not read ceph pool UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-
-	for _, cephPool := range cephPools {
-		if cephPool.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(cephPool.UUID)
-			state.PoolName = types.StringValue(cephPool.PoolName)
-			state.AliasName = stringValueOrNull(cephPool.AliasName)
-			state.Description = stringValueOrNull(cephPool.Description)
-			state.Type = types.StringValue(cephPool.Type)
-			state.PrimaryStorageUuid = types.StringValue(cephPool.PrimaryStorageUuid)
-			state.IsCreate = types.BoolNull()
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "Ceph primary storage pool not found. It might have been deleted outside of Terraform.")
-		state = cephPoolModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(cephPool.UUID)
+	state.PoolName = types.StringValue(cephPool.PoolName)
+	state.AliasName = stringValueOrNull(cephPool.AliasName)
+	state.Description = stringValueOrNull(cephPool.Description)
+	state.Type = types.StringValue(cephPool.Type)
+	state.PrimaryStorageUuid = types.StringValue(cephPool.PrimaryStorageUuid)
+	state.IsCreate = types.BoolNull()
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -242,8 +234,8 @@ func (r *cephPoolResource) Update(ctx context.Context, request resource.UpdateRe
 	result, err := r.client.UpdateCephPrimaryStoragePool(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update Ceph primary storage pool",
-			"Error "+err.Error(),
+			"Error updating Ceph Pool",
+			"Could not update ceph pool, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -279,7 +271,7 @@ func (r *cephPoolResource) Delete(ctx context.Context, request resource.DeleteRe
 	err := r.client.DeleteCephPrimaryStoragePool(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete Ceph primary storage pool", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Ceph Pool", "Could not delete ceph pool, unexpected error: "+err.Error())
 		return
 	}
 }

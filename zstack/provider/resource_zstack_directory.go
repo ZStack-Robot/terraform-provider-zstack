@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,6 +80,9 @@ func (r *directoryResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the directory.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"parent_uuid": schema.StringAttribute{
 				Optional:    true,
@@ -132,8 +138,8 @@ func (r *directoryResource) Create(ctx context.Context, request resource.CreateR
 	directory, err := r.client.CreateDirectory(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create directory",
-			"Error "+err.Error(),
+			"Error creating Directory",
+			"Could not create directory, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -158,35 +164,26 @@ func (r *directoryResource) Read(ctx context.Context, request resource.ReadReque
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	directoryList, err := r.client.QueryDirectory(&queryParam)
+	directory, err := findResourceByQuery(r.client.QueryDirectory, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query directories. It may have been deleted.: "+err.Error())
-		state = directoryModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Directory",
+			"Could not read directory UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, directory := range directoryList {
-		if directory.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(directory.UUID)
-			state.Name = types.StringValue(directory.Name)
-			state.ParentUuid = stringValueOrNull(directory.ParentUuid)
-			state.ZoneUuid = types.StringValue(directory.ZoneUuid)
-			state.Type = types.StringValue(directory.Type)
-			state.GroupName = stringValueOrNull(directory.GroupName)
-			state.RootDirectoryUuid = stringValueOrNull(directory.RootDirectoryUuid)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Directory not found. It might have been deleted outside of Terraform.")
-		state = directoryModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(directory.UUID)
+	state.Name = types.StringValue(directory.Name)
+	state.ParentUuid = stringValueOrNull(directory.ParentUuid)
+	state.ZoneUuid = types.StringValue(directory.ZoneUuid)
+	state.Type = types.StringValue(directory.Type)
+	state.GroupName = stringValueOrNull(directory.GroupName)
+	state.RootDirectoryUuid = stringValueOrNull(directory.RootDirectoryUuid)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -215,8 +212,8 @@ func (r *directoryResource) Update(ctx context.Context, request resource.UpdateR
 	directory, err := r.client.UpdateDirectory(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update directory",
-			"Error "+err.Error(),
+			"Error updating Directory",
+			"Could not update directory, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -248,7 +245,10 @@ func (r *directoryResource) Delete(ctx context.Context, request resource.DeleteR
 
 	err := r.client.DeleteDirectory(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to delete directory", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Directory",
+			"Could not delete directory, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

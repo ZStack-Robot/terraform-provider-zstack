@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -67,16 +68,25 @@ func (r *portMirrorResource) Schema(_ context.Context, request resource.SchemaRe
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the port mirror.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The name of the port mirror.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the port mirror.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"mirror_network_uuid": schema.StringAttribute{
 				Required:    true,
@@ -88,6 +98,9 @@ func (r *portMirrorResource) Schema(_ context.Context, request resource.SchemaRe
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the port mirror.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -117,7 +130,7 @@ func (r *portMirrorResource) Create(ctx context.Context, request resource.Create
 
 	portMirror, err := r.client.CreatePortMirror(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create port mirror", "Error "+err.Error())
+		response.Diagnostics.AddError("Error creating Port Mirror", "Could not create port mirror, unexpected error: "+err.Error())
 		return
 	}
 
@@ -142,9 +155,12 @@ func (r *portMirrorResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	portMirrors, err := r.client.QueryPortMirror(&queryParam)
+	portMirror, err := findResourceByQuery(r.client.QueryPortMirror, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query port mirrors. It may have been deleted.: "+err.Error())
 		state = portMirrorModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -152,23 +168,11 @@ func (r *portMirrorResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	found := false
-	for _, portMirror := range portMirrors {
-		if portMirror.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(portMirror.UUID)
-			state.Name = stringValueOrNull(portMirror.Name)
-			state.Description = stringValueOrNull(portMirror.Description)
-			state.MirrorNetworkUuid = types.StringValue(portMirror.MirrorNetworkUuid)
-			state.State = stringValueOrNull(portMirror.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Port mirror not found. It might have been deleted outside of Terraform.")
-		state = portMirrorModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(portMirror.UUID)
+	state.Name = stringValueOrNull(portMirror.Name)
+	state.Description = stringValueOrNull(portMirror.Description)
+	state.MirrorNetworkUuid = types.StringValue(portMirror.MirrorNetworkUuid)
+	state.State = stringValueOrNull(portMirror.State)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -198,7 +202,7 @@ func (r *portMirrorResource) Update(ctx context.Context, request resource.Update
 
 	portMirror, err := r.client.UpdatePortMirror(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update port mirror", "Error "+err.Error())
+		response.Diagnostics.AddError("Error updating Port Mirror", "Could not update port mirror UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -230,7 +234,7 @@ func (r *portMirrorResource) Delete(ctx context.Context, request resource.Delete
 
 	err := r.client.DeletePortMirror(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete port mirror", ""+err.Error())
+		response.Diagnostics.AddError("Error deleting Port Mirror", "Could not delete port mirror UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

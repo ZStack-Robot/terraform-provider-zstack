@@ -10,7 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -70,40 +74,68 @@ func (r *scriptExecutionResource) Schema(_ context.Context, request resource.Sch
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the script execution record.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"script_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The content of the script.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"instance_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the VM instance to execute the script on.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"script_timeout": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The timeout for script execution in seconds.",
 				Default:     int64default.StaticInt64(300),
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 			"record_name": schema.StringAttribute{
 				Computed:    true,
 				Description: "The name of the execution record.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The status of the script execution (Running, Succeeded, Failed).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"executor": schema.StringAttribute{
 				Computed:    true,
 				Description: "The executor of the script.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"version": schema.Int32Attribute{
 				Computed:    true,
 				Description: "The version of the script.",
+				PlanModifiers: []planmodifier.Int32{
+					int32planmodifier.UseStateForUnknown(),
+				},
 			},
 			"execution_count": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The execution count of the script.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -146,8 +178,8 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 	scriptExecuteResult, err := r.client.ExecuteGuestVmScript(plan.ScriptUuid.ValueString(), executeParam)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to execute VM instance script",
-			"Error: "+err.Error(),
+			"Error creating Script Execution",
+			"Could not create script execution, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -166,8 +198,8 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 	for {
 		if time.Since(startTime) > maxWaitTime {
 			response.Diagnostics.AddError(
-				"Script execution timed out",
-				fmt.Sprintf("The script execution did not complete within %s seconds.", maxWaitTime),
+				"Error creating Script Execution",
+				fmt.Sprintf("Could not create script execution, it did not complete within %s.", maxWaitTime),
 			)
 			return
 		}
@@ -175,8 +207,8 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 		record, err = r.client.GetGuestVmScriptExecutedRecord(recordUuid)
 		if err != nil {
 			response.Diagnostics.AddError(
-				"Failed to retrieve script execution record",
-				"Error: "+err.Error(),
+				"Error creating Script Execution",
+				"Could not create script execution because the execution record could not be read: "+err.Error(),
 			)
 			return
 		}
@@ -234,7 +266,10 @@ func (r *scriptExecutionResource) Read(ctx context.Context, request resource.Rea
 	}
 
 	if r.client == nil {
-		response.Diagnostics.AddError("Client Not Configured", "The provider client is not properly configured.")
+		response.Diagnostics.AddError(
+			"Error reading Script Execution",
+			"Could not read script execution, provider client is not properly configured.",
+		)
 		return
 	}
 

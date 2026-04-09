@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackvmInstancesDataSource(t *testing.T) {
@@ -16,28 +19,28 @@ func TestAccZStackvmInstancesDataSource(t *testing.T) {
 	}
 	vm := env.VmInstances[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_instances" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.#", fmt.Sprintf("%d", len(env.VmInstances))),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.name", envStr(vm, "name")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.uuid", envStr(vm, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.architecture", envStr(vm, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cluster_uuid", envStr(vm, "cluster_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.cpu_num", envStr(vm, "cpu_num")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.hypervisor_type", envStr(vm, "hypervisor_type")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.image_uuid", envStr(vm, "image_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.memory_size", envStr(vm, "memory_size")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.platform", envStr(vm, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.state", envStr(vm, "state")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.type", envStr(vm, "type")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.zone_uuid", envStr(vm, "zone_uuid")),
-					resource.TestCheckResourceAttrSet("data.zstack_instances.test", "vminstances.0.all_volumes.0.volume_uuid"),
-					resource.TestCheckResourceAttrSet("data.zstack_instances.test", "vminstances.0.vm_nics.0.ip"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances"), knownvalue.ListSizeExact(len(env.VmInstances))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(vm, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(vm, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(vm, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("cluster_uuid"), knownvalue.StringExact(envStr(vm, "cluster_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("cpu_num"), knownvalue.StringExact(envStr(vm, "cpu_num"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("hypervisor_type"), knownvalue.StringExact(envStr(vm, "hypervisor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("image_uuid"), knownvalue.StringExact(envStr(vm, "image_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("memory_size"), knownvalue.StringExact(envStr(vm, "memory_size"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(vm, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vm, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(vm, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(vm, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("all_volumes").AtSliceIndex(0).AtMapKey("volume_uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("ip"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})
@@ -51,18 +54,18 @@ func TestAccZStackvmInstancesDataSourceFilterByNameRegex(t *testing.T) {
 	vm := env.VmInstances[0]
 	name := envStr(vm, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_instances" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.uuid", envStr(vm, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.state", envStr(vm, "state")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.type", envStr(vm, "type")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(vm, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vm, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(vm, "type"))),
+				},
 			},
 		},
 	})
@@ -79,16 +82,16 @@ func TestAccZStackvmInstancesDataSourceFilterByNamePattern(t *testing.T) {
 	runes := []rune(name)
 	pattern := string(runes[:3]) + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_instances" "test" { name = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.uuid", envStr(vm, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_instances.test", "vminstances.0.state", envStr(vm, "state")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(vm, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vm, "state"))),
+				},
 			},
 		},
 	})

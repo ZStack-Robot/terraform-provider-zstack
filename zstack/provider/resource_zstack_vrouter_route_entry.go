@@ -4,11 +4,13 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -85,11 +87,17 @@ func (r *vrouterRouteEntryResource) Schema(_ context.Context, request resource.S
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the VRouter route entry.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of the route entry.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"destination": schema.StringAttribute{
 				Required:    true,
@@ -102,11 +110,17 @@ func (r *vrouterRouteEntryResource) Schema(_ context.Context, request resource.S
 				Optional:    true,
 				Computed:    true,
 				Description: "The target of the route entry.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"distance": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The distance (priority) of the route entry.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -139,8 +153,8 @@ func (r *vrouterRouteEntryResource) Create(ctx context.Context, request resource
 	vrouterRouteEntry, err := r.client.AddVRouterRouteEntry(plan.RouteTableUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add VRouter route entry",
-			"Error "+err.Error(),
+			"Error creating VRouter Route Entry",
+			"Could not create vrouter route entry, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -168,10 +182,12 @@ func (r *vrouterRouteEntryResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vrouterRouteEntries, err := r.client.QueryVRouterRouteEntry(&queryParam)
-
+	vrouterRouteEntry, err := findResourceByQuery(r.client.QueryVRouterRouteEntry, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VRouter route entries. It may have been deleted.: "+err.Error())
 		state = vrouterRouteEntryResourceModel{
 			Uuid: types.StringValue(""),
@@ -181,27 +197,13 @@ func (r *vrouterRouteEntryResource) Read(ctx context.Context, request resource.R
 		return
 	}
 
-	found := false
-
-	for _, vrouterRouteEntry := range vrouterRouteEntries {
-		if vrouterRouteEntry.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vrouterRouteEntry.UUID)
-			state.RouteTableUuid = types.StringValue(vrouterRouteEntry.RouteTableUuid)
-			state.Description = types.StringValue(vrouterRouteEntry.Description)
-			state.Type = types.StringValue(vrouterRouteEntry.Type)
-			state.Destination = types.StringValue(vrouterRouteEntry.Destination)
-			state.Target = types.StringValue(vrouterRouteEntry.Target)
-			state.Distance = types.Int64Value(int64(vrouterRouteEntry.Distance))
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "VRouter route entry not found. It might have been deleted outside of Terraform.")
-		state = vrouterRouteEntryResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(vrouterRouteEntry.UUID)
+	state.RouteTableUuid = types.StringValue(vrouterRouteEntry.RouteTableUuid)
+	state.Description = types.StringValue(vrouterRouteEntry.Description)
+	state.Type = types.StringValue(vrouterRouteEntry.Type)
+	state.Destination = types.StringValue(vrouterRouteEntry.Destination)
+	state.Target = types.StringValue(vrouterRouteEntry.Target)
+	state.Distance = types.Int64Value(int64(vrouterRouteEntry.Distance))
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -211,7 +213,10 @@ func (r *vrouterRouteEntryResource) Read(ctx context.Context, request resource.R
 }
 
 func (r *vrouterRouteEntryResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"vRouter Route Entry resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *vrouterRouteEntryResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -230,7 +235,10 @@ func (r *vrouterRouteEntryResource) Delete(ctx context.Context, request resource
 	err := r.client.DeleteVRouterRouteEntry(state.RouteTableUuid.ValueString(), state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete VRouter route entry", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VRouter Route Entry",
+			"Could not delete vrouter route entry, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

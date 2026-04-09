@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -66,28 +71,47 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the role",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the role",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the role",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"identity": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The identity of the role",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the role",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the role",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -113,7 +137,7 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	result, err := r.client.CreateRole(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error creating role",
+			"Error creating Role",
 			"Could not create role, unexpected error: "+err.Error(),
 		)
 		return
@@ -140,27 +164,21 @@ func (r *roleResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ("uuid=" + state.Uuid.ValueString())
-
-	roles, err := r.client.QueryRole(&queryParam)
+	role, err := findResourceByQuery(r.client.QueryRole, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "role not found, removing from state", map[string]any{
+				"uuid": state.Uuid.ValueString(),
+			})
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading role",
+			"Error reading Role",
 			"Could not read role UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
-
-	if len(roles) == 0 {
-		tflog.Warn(ctx, "role not found, removing from state", map[string]interface{}{
-			"uuid": state.Uuid.ValueString(),
-		})
-		resp.State.RemoveResource(ctx)
-		return
-	}
-
-	role := roles[0]
 
 	state.Name = types.StringValue(role.Name)
 	state.Description = stringValueOrNull(role.Description)
@@ -198,7 +216,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	result, err := r.client.UpdateRole(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error updating role",
+			"Error updating Role",
 			"Could not update role, unexpected error: "+err.Error(),
 		)
 		return
@@ -228,7 +246,7 @@ func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	err := r.client.DeleteRole(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error deleting role",
+			"Error deleting Role",
 			"Could not delete role, unexpected error: "+err.Error(),
 		)
 		return

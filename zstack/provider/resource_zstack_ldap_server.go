@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -75,6 +78,9 @@ func (r *ldapServerResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the LDAP server.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -108,6 +114,9 @@ func (r *ldapServerResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"scope": schema.StringAttribute{
 				Required:    true,
 				Description: "LDAP search scope.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -142,7 +151,7 @@ func (r *ldapServerResource) Create(ctx context.Context, req resource.CreateRequ
 
 	item, err := r.client.AddLdapServer(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to add LDAP server", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error creating LDAP Server", "Could not create LDAP server, unexpected error: "+err.Error())
 		return
 	}
 
@@ -167,9 +176,12 @@ func (r *ldapServerResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryLdapServer(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryLdapServer, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query LDAP servers. It may have been deleted.: "+err.Error())
 		state = ldapServerModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -177,26 +189,14 @@ func (r *ldapServerResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Url = stringValueOrNull(item.Url)
-			state.Base = stringValueOrNull(item.Base)
-			state.Username = stringValueOrNull(item.Username)
-			state.Encryption = stringValueOrNull(item.Encryption)
-			state.Scope = stringValueOrNull(item.Scope)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "LDAP server not found. It might have been deleted outside of Terraform.")
-		state = ldapServerModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Url = stringValueOrNull(item.Url)
+	state.Base = stringValueOrNull(item.Base)
+	state.Username = stringValueOrNull(item.Username)
+	state.Encryption = stringValueOrNull(item.Encryption)
+	state.Scope = stringValueOrNull(item.Scope)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -229,7 +229,7 @@ func (r *ldapServerResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	item, err := r.client.UpdateLdapServer(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update LDAP server", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error updating LDAP Server", "Could not update LDAP server, unexpected error: "+err.Error())
 		return
 	}
 
@@ -260,7 +260,7 @@ func (r *ldapServerResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	if err := r.client.DeleteLdapServer(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete LDAP server", err.Error())
+		resp.Diagnostics.AddError("Error deleting LDAP Server", "Could not delete LDAP server, unexpected error: "+err.Error())
 		return
 	}
 }

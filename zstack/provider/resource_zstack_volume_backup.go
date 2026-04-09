@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -79,11 +82,20 @@ func (r *volumeBackupResource) Schema(_ context.Context, request resource.Schema
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the volume backup.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the volume backup.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"volume_uuid": schema.StringAttribute{
 				Required:    true,
@@ -144,8 +156,8 @@ func (r *volumeBackupResource) Create(ctx context.Context, request resource.Crea
 	result, err := r.client.CreateVolumeBackup(plan.VolumeUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create volume backup",
-			"Error "+err.Error(),
+			"Error creating Volume Backup",
+			"Could not create volume backup, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -177,10 +189,12 @@ func (r *volumeBackupResource) Read(ctx context.Context, request resource.ReadRe
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	volumeBackups, err := r.client.QueryVolumeBackup(&queryParam)
-
+	volumeBackup, err := findResourceByQuery(r.client.QueryVolumeBackup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query volume backups. It may have been deleted.: "+err.Error())
 		state = volumeBackupModel{
 			Uuid: types.StringValue(""),
@@ -190,31 +204,17 @@ func (r *volumeBackupResource) Read(ctx context.Context, request resource.ReadRe
 		return
 	}
 
-	found := false
-
-	for _, volumeBackup := range volumeBackups {
-		if volumeBackup.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(volumeBackup.UUID)
-			state.Name = types.StringValue(volumeBackup.Name)
-			state.Description = stringValueOrNull(volumeBackup.Description)
-			state.VolumeUuid = types.StringValue(volumeBackup.VolumeUuid)
-			if len(volumeBackup.BackupStorageRefs) > 0 {
-				state.BackupStorageUuid = types.StringValue(volumeBackup.BackupStorageRefs[0].BackupStorageUuid)
-			}
-			state.Type = types.StringValue(volumeBackup.Type)
-			state.State = types.StringValue(volumeBackup.State)
-			state.Status = types.StringValue(volumeBackup.Status)
-			state.Size = types.Int64Value(volumeBackup.Size)
-			found = true
-			break
-		}
+	state.Uuid = types.StringValue(volumeBackup.UUID)
+	state.Name = types.StringValue(volumeBackup.Name)
+	state.Description = stringValueOrNull(volumeBackup.Description)
+	state.VolumeUuid = types.StringValue(volumeBackup.VolumeUuid)
+	if len(volumeBackup.BackupStorageRefs) > 0 {
+		state.BackupStorageUuid = types.StringValue(volumeBackup.BackupStorageRefs[0].BackupStorageUuid)
 	}
-	if !found {
-		tflog.Warn(ctx, "Volume backup not found. It might have been deleted outside of Terraform.")
-		state = volumeBackupModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Type = types.StringValue(volumeBackup.Type)
+	state.State = types.StringValue(volumeBackup.State)
+	state.Status = types.StringValue(volumeBackup.Status)
+	state.Size = types.Int64Value(volumeBackup.Size)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -224,7 +224,10 @@ func (r *volumeBackupResource) Read(ctx context.Context, request resource.ReadRe
 }
 
 func (r *volumeBackupResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Volume Backup resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *volumeBackupResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -243,7 +246,10 @@ func (r *volumeBackupResource) Delete(ctx context.Context, request resource.Dele
 	err := r.client.DeleteVolumeBackup(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete volume backup", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Volume Backup",
+			"Could not delete volume backup, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

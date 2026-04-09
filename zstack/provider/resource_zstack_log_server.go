@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -69,15 +72,24 @@ func (r *logServerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the log server.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the log server.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the log server.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"category": schema.StringAttribute{
 				Required:    true,
@@ -97,6 +109,9 @@ func (r *logServerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Optional:    true,
 				Computed:    true,
 				Description: "The log level.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"configuration": schema.StringAttribute{
 				Required:    true,
@@ -136,7 +151,7 @@ func (r *logServerResource) Create(ctx context.Context, req resource.CreateReque
 
 	item, err := r.client.AddLogServer(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to add log server", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error creating Log Server", "Could not create log server, unexpected error: "+err.Error())
 		return
 	}
 
@@ -160,9 +175,12 @@ func (r *logServerResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryLogServer(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryLogServer, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query log servers. It may have been deleted.: "+err.Error())
 		state = logServerModel{Uuid: types.StringValue("")}
 		diags = resp.State.Set(ctx, &state)
@@ -170,25 +188,13 @@ func (r *logServerResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Category = stringValueOrNull(item.Category)
-			state.Type = stringValueOrNull(item.Type)
-			state.Level = stringValueOrNull(item.Level)
-			state.Configuration = stringValueOrNull(item.Configuration)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Log server not found. It might have been deleted outside of Terraform.")
-		state = logServerModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Category = stringValueOrNull(item.Category)
+	state.Type = stringValueOrNull(item.Type)
+	state.Level = stringValueOrNull(item.Level)
+	state.Configuration = stringValueOrNull(item.Configuration)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -217,7 +223,7 @@ func (r *logServerResource) Update(ctx context.Context, req resource.UpdateReque
 
 	item, err := r.client.UpdateLogServer(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update log server", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error updating Log Server", "Could not update log server UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -247,7 +253,7 @@ func (r *logServerResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 
 	if err := r.client.DeleteLogServer(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete log server", err.Error())
+		resp.Diagnostics.AddError("Error deleting Log Server", "Could not delete log server UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }

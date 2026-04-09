@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_instances Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     Fetches a list of virtual router instances and their associated attributes from the ZStack environment.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_vip Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     This resource allows you to manage Virtual IP (VIP) addresses in ZStack. A VIP is a dedicated IP address that can be used for various network services, such as load balancing or high availability. You can define the VIP's properties, such as its name, description, associated L3 network, and the IP range it belongs to.
 ---

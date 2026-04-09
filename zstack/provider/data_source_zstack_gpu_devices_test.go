@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestGpuDeviceDataSource_Schema(t *testing.T) {
@@ -38,7 +41,7 @@ func TestGpuDeviceDataSource_Metadata(t *testing.T) {
 func TestAccGpuDeviceDataSource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
@@ -46,9 +49,9 @@ func TestAccGpuDeviceDataSource(t *testing.T) {
 data "zstack_gpu_devices" "test" {
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("data.zstack_gpu_devices.test", "gpu_devices.#"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_gpu_devices.test", tfjsonpath.New("gpu_devices"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

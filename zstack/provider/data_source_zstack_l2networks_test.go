@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackL2NetworkDataSource(t *testing.T) {
@@ -16,19 +19,19 @@ func TestAccZStackL2NetworkDataSource(t *testing.T) {
 	}
 	l2 := env.L2Networks[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_l2networks" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.#", fmt.Sprintf("%d", len(env.L2Networks))),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.name", envStr(l2, "name")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.type", envStr(l2, "type")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.uuid", envStr(l2, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.zone_uuid", envStr(l2, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.physical_interface", envStr(l2, "physical_interface")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks"), knownvalue.ListSizeExact(len(env.L2Networks))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(l2, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(l2, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l2, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(l2, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("physical_interface"), knownvalue.StringExact(envStr(l2, "physical_interface"))),
+				},
 			},
 		},
 	})
@@ -42,19 +45,19 @@ func TestAccZStackL2NetworkDataSourceFilterByName(t *testing.T) {
 	l2 := env.L2Networks[0]
 	name := envStr(l2, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_l2networks" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.uuid", envStr(l2, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.type", envStr(l2, "type")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.zone_uuid", envStr(l2, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.physical_interface", envStr(l2, "physical_interface")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l2, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(l2, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(l2, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("physical_interface"), knownvalue.StringExact(envStr(l2, "physical_interface"))),
+				},
 			},
 		},
 	})
@@ -69,18 +72,18 @@ func TestAccZStackL2NetworkDataSourceFilterByNamePattern(t *testing.T) {
 	name := envStr(l2, "name")
 	pattern := string([]rune(name)[:1]) + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_l2networks" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.uuid", envStr(l2, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.type", envStr(l2, "type")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.zone_uuid", envStr(l2, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l2networks.test", "l2networks.0.physical_interface", envStr(l2, "physical_interface")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l2, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(l2, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(l2, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l2networks.test", tfjsonpath.New("l2networks").AtSliceIndex(0).AtMapKey("physical_interface"), knownvalue.StringExact(envStr(l2, "physical_interface"))),
+				},
 			},
 		},
 	})

@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -132,7 +133,7 @@ func (r *vipQosResource) Create(ctx context.Context, req resource.CreateRequest,
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating VIP QoS",
-			"Could not create VIP QoS, unexpected error: "+err.Error(),
+			"Could not create vip qos, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -164,10 +165,17 @@ func (r *vipQosResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	result, err := r.client.GetVipQos(state.VipUuid.ValueString())
+	result, err := findResourceByGet(r.client.GetVipQos, state.VipUuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "VIP QoS not found, removing from state: "+err.Error())
-		resp.State.RemoveResource(ctx)
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "VIP QoS not found, removing from state: "+err.Error())
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading VIP QoS",
+			"Could not read vip qos, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -215,7 +223,7 @@ func (r *vipQosResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating VIP QoS",
-			"Could not update VIP QoS, unexpected error: "+err.Error(),
+			"Could not update vip qos, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -251,7 +259,7 @@ func (r *vipQosResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting VIP QoS",
-			"Could not delete VIP QoS, unexpected error: "+err.Error(),
+			"Could not delete vip qos, unexpected error: "+err.Error(),
 		)
 		return
 	}

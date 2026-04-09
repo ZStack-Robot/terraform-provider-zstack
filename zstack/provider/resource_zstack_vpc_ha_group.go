@@ -4,11 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -65,21 +71,34 @@ func (r *vpcHaGroupResource) Schema(_ context.Context, request resource.SchemaRe
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the VPC HA Group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VPC HA Group.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the VPC HA Group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"monitor_ips": schema.ListAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
 				Description: "List of IP addresses to monitor for HA.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -110,8 +129,8 @@ func (r *vpcHaGroupResource) Create(ctx context.Context, request resource.Create
 	vpcHaGroup, err := r.client.CreateVpcHaGroup(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create VPC HA Group",
-			"Error "+err.Error(),
+			"Error creating VPC HA Group",
+			"Could not create vpc ha group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -140,10 +159,12 @@ func (r *vpcHaGroupResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vpcHaGroups, err := r.client.QueryVpcHaGroup(&queryParam)
-
+	vpcHaGroup, err := findResourceByQuery(r.client.QueryVpcHaGroup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VPC HA Groups. It may have been deleted.: "+err.Error())
 		state = vpcHaGroupModel{
 			Uuid: types.StringValue(""),
@@ -153,28 +174,14 @@ func (r *vpcHaGroupResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	found := false
-
-	for _, vpcHaGroup := range vpcHaGroups {
-		if vpcHaGroup.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vpcHaGroup.UUID)
-			state.Name = types.StringValue(vpcHaGroup.Name)
-			state.Description = stringValueOrNull(vpcHaGroup.Description)
-			monitorIps := make([]string, len(vpcHaGroup.Monitors))
-			for i, monitor := range vpcHaGroup.Monitors {
-				monitorIps[i] = monitor.MonitorIp
-			}
-			state.MonitorIps = stringSliceToList(monitorIps)
-			found = true
-			break
-		}
+	state.Uuid = types.StringValue(vpcHaGroup.UUID)
+	state.Name = types.StringValue(vpcHaGroup.Name)
+	state.Description = stringValueOrNull(vpcHaGroup.Description)
+	monitorIps := make([]string, len(vpcHaGroup.Monitors))
+	for i, monitor := range vpcHaGroup.Monitors {
+		monitorIps[i] = monitor.MonitorIp
 	}
-	if !found {
-		tflog.Warn(ctx, "VPC HA Group not found. It might have been deleted outside of Terraform.")
-		state = vpcHaGroupModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.MonitorIps = stringSliceToList(monitorIps)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -205,8 +212,8 @@ func (r *vpcHaGroupResource) Update(ctx context.Context, request resource.Update
 	vpcHaGroup, err := r.client.UpdateVpcHaGroup(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update VPC HA Group",
-			"Error "+err.Error(),
+			"Error updating VPC HA Group",
+			"Could not update vpc ha group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -243,7 +250,10 @@ func (r *vpcHaGroupResource) Delete(ctx context.Context, request resource.Delete
 	err := r.client.DeleteVpcHaGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete VPC HA Group", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VPC HA Group",
+			"Could not delete vpc ha group, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

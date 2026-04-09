@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -69,19 +74,31 @@ func (r *sshKeyPairResource) Schema(_ context.Context, req resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The unique identifier (UUID) of the SSH key pair.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the SSH key pair.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description of the SSH key pair.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"public_key": schema.StringAttribute{
 				Required:    true,
 				Description: "The SSH public key content.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -110,7 +127,8 @@ func (r *sshKeyPairResource) Create(ctx context.Context, req resource.CreateRequ
 	sshKeyPair, err := r.client.CreateSshKeyPair(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not create SSH key pair in ZStack", "Error: "+err.Error(),
+			"Error creating SSH Key Pair",
+			"Could not create ssh key pair, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -133,10 +151,15 @@ func (r *sshKeyPairResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	sshKeyPair, err := r.client.GetSshKeyPair(state.Uuid.ValueString())
+	sshKeyPair, err := findResourceByGet(r.client.GetSshKeyPair, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading SSH key pair", "Could not read SSH key pair UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading SSH Key Pair",
+			"Could not read ssh key pair UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -177,7 +200,8 @@ func (r *sshKeyPairResource) Update(ctx context.Context, req resource.UpdateRequ
 	sshKeyPair, err := r.client.UpdateSshKeyPair(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not update SSH key pair", "Error: "+err.Error(),
+			"Error updating SSH Key Pair",
+			"Could not update ssh key pair, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -207,7 +231,10 @@ func (r *sshKeyPairResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 	err := r.client.DeleteSshKeyPair(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to delete SSH key pair", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting SSH Key Pair",
+			"Could not delete ssh key pair, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

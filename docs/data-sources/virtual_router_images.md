@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_images Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     Fetches a list of virtual router images and their associated attributes from the ZStack environment.
 ---

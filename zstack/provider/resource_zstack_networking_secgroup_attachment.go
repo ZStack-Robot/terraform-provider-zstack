@@ -8,6 +8,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -60,14 +62,23 @@ func (r *securityGroupAttachmentResource) Schema(_ context.Context, request reso
 			"secgroup_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the security group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"nic_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the vm instance NIC.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Terraform resource ID.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -99,8 +110,8 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	attachedNics, err := r.client.GetSecurityGroup(secgroupUUID)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Unable to Query ZStack Security Groups",
-			err.Error(),
+			"Error creating Security Group Attachment",
+			"Could not create security group attachment, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -110,15 +121,15 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	// Step 1: get candidates vm nics
 	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
 	if err != nil {
-		response.Diagnostics.AddError("GetCandidateVmNicForSecurityGroup failed", err.Error())
+		response.Diagnostics.AddError("Error creating Security Group Attachment", "Could not create security group attachment, unexpected error: "+err.Error())
 		return
 	}
 
 	// Step 2: Check if the NIC UUID matches the candidate
 	if candidate == nil || candidate.UUID != nicUUID {
 		response.Diagnostics.AddError(
-			"Invalid NIC UUID",
-			fmt.Sprintf("VM NIC UUID %s is not a valid candidate for security group %s", nicUUID, secgroupUUID),
+			"Error creating Security Group Attachment",
+			fmt.Sprintf("Could not create security group attachment: VM NIC UUID %s is not a valid candidate for security group UUID %s", nicUUID, secgroupUUID),
 		)
 		return
 	}
@@ -132,8 +143,8 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 	})
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to add VM NIC to security group",
-			"Error: "+err.Error(),
+			"Error creating Security Group Attachment",
+			"Could not create security group attachment, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -163,8 +174,8 @@ func (r *securityGroupAttachmentResource) Read(ctx context.Context, req resource
 	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Read Security Group Attachment",
-			fmt.Sprintf("GetCandidateVmNicForSecurityGroup failed: %v", err),
+			"Error reading Security Group Attachment",
+			"Could not read security group attachment, unexpected error: "+err.Error(),
 		)
 		return
 	}

@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -79,6 +82,9 @@ func (r *cdpTaskResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the CDP task.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -179,7 +185,7 @@ func (r *cdpTaskResource) Create(ctx context.Context, req resource.CreateRequest
 
 	item, err := r.client.CreateCdpTask(p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to create CDP task", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error creating CDP Task", "Could not create CDP task, unexpected error: "+err.Error())
 		return
 	}
 
@@ -207,39 +213,30 @@ func (r *cdpTaskResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryCdpTask(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryCdpTask, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query CDP tasks. It may have been deleted.: "+err.Error())
-		state = cdpTaskModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading CDP Task",
+			"Could not read CDP task UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.TaskType = stringValueOrNull(item.TaskType)
-			state.PolicyUuid = stringValueOrNull(item.PolicyUuid)
-			state.BackupStorageUuid = stringValueOrNull(item.BackupStorageUuid)
-			state.BackupBandwidth = types.Int64Value(item.BackupBandwidth)
-			state.MaxCapacity = types.Int64Value(item.MaxCapacity)
-			state.MaxLatency = types.Int64Value(item.MaxLatency)
-			state.Status = stringValueOrNull(item.Status)
-			state.State = stringValueOrNull(item.State)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "CDP task not found. It might have been deleted outside of Terraform.")
-		state = cdpTaskModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.TaskType = stringValueOrNull(item.TaskType)
+	state.PolicyUuid = stringValueOrNull(item.PolicyUuid)
+	state.BackupStorageUuid = stringValueOrNull(item.BackupStorageUuid)
+	state.BackupBandwidth = types.Int64Value(item.BackupBandwidth)
+	state.MaxCapacity = types.Int64Value(item.MaxCapacity)
+	state.MaxLatency = types.Int64Value(item.MaxLatency)
+	state.Status = stringValueOrNull(item.Status)
+	state.State = stringValueOrNull(item.State)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -277,7 +274,7 @@ func (r *cdpTaskResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	item, err := r.client.UpdateCdpTask(state.Uuid.ValueString(), p)
 	if err != nil {
-		resp.Diagnostics.AddError("Fail to update CDP task", "Error "+err.Error())
+		resp.Diagnostics.AddError("Error updating CDP Task", "Could not update CDP task, unexpected error: "+err.Error())
 		return
 	}
 
@@ -312,7 +309,7 @@ func (r *cdpTaskResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	if err := r.client.DeleteCdpTask(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Fail to delete CDP task", err.Error())
+		resp.Diagnostics.AddError("Error deleting CDP Task", "Could not delete CDP task, unexpected error: "+err.Error())
 		return
 	}
 }

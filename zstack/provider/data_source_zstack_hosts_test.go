@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackHostsDataSource(t *testing.T) {
@@ -16,22 +19,22 @@ func TestAccZStackHostsDataSource(t *testing.T) {
 	}
 	h := env.Hosts[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_hosts" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.#", fmt.Sprintf("%d", len(env.Hosts))),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.architecture", envStr(h, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.cluster_uuid", envStr(h, "cluster_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.state", envStr(h, "state")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.name", envStr(h, "name")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.status", envStr(h, "status")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.type", envStr(h, "type")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.zone_uuid", envStr(h, "zone_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.uuid", envStr(h, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts"), knownvalue.ListSizeExact(len(env.Hosts))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(h, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("cluster_uuid"), knownvalue.StringExact(envStr(h, "cluster_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(h, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(h, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(h, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(h, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(h, "zone_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(h, "uuid"))),
+				},
 			},
 		},
 	})
@@ -45,22 +48,22 @@ func TestAccZStackHostDataSourceFilterByname(t *testing.T) {
 	h := env.Hosts[0]
 	name := envStr(h, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_hosts" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.uuid", envStr(h, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.architecture", envStr(h, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.cluster_uuid", envStr(h, "cluster_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.state", envStr(h, "state")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.status", envStr(h, "status")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.type", envStr(h, "type")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.zone_uuid", envStr(h, "zone_uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(h, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(h, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("cluster_uuid"), knownvalue.StringExact(envStr(h, "cluster_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(h, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(h, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(h, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(h, "zone_uuid"))),
+				},
 			},
 		},
 	})
@@ -75,21 +78,21 @@ func TestAccZStackHostDataSourceFilterBynamePattern(t *testing.T) {
 	name := envStr(h, "name")
 	pattern := name[:3] + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_hosts" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.uuid", envStr(h, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.architecture", envStr(h, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.cluster_uuid", envStr(h, "cluster_uuid")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.state", envStr(h, "state")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.status", envStr(h, "status")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.type", envStr(h, "type")),
-					resource.TestCheckResourceAttr("data.zstack_hosts.test", "hosts.0.zone_uuid", envStr(h, "zone_uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(h, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(h, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("cluster_uuid"), knownvalue.StringExact(envStr(h, "cluster_uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(h, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(h, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(h, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_hosts.test", tfjsonpath.New("hosts").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.StringExact(envStr(h, "zone_uuid"))),
+				},
 			},
 		},
 	})

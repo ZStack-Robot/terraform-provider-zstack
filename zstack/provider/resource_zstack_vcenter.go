@@ -4,8 +4,10 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -13,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -83,6 +86,9 @@ func (r *vcenterResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The vCenter name.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -171,8 +177,8 @@ func (r *vcenterResource) Create(ctx context.Context, request resource.CreateReq
 	vcenter, err := r.client.AddVCenter(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create vCenter",
-			"Error "+err.Error(),
+			"Error creating vCenter",
+			"Could not create vcenter, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -201,9 +207,12 @@ func (r *vcenterResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vcenters, err := r.client.QueryVCenter(&queryParam)
+	vcenter, err := findResourceByQuery(r.client.QueryVCenter, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query vCenters. It may have been deleted.: "+err.Error())
 		state = vcenterModel{Uuid: types.StringValue("")}
 		diags = response.State.Set(ctx, &state)
@@ -211,29 +220,17 @@ func (r *vcenterResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
-	found := false
-	for _, vcenter := range vcenters {
-		if vcenter.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vcenter.UUID)
-			state.Name = types.StringValue(vcenter.Name)
-			state.Description = stringValueOrNull(vcenter.Description)
-			state.Username = stringValueOrNull(vcenter.UserName)
-			state.ZoneUuid = types.StringValue(vcenter.ZoneUuid)
-			state.DomainName = stringValueOrNull(vcenter.DomainName)
-			state.Port = types.Int64Value(int64(vcenter.Port))
-			state.Version = stringValueOrNull(vcenter.Version)
-			state.Https = types.BoolValue(vcenter.Https)
-			state.State = stringValueOrNull(vcenter.State)
-			state.Status = stringValueOrNull(vcenter.Status)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "vCenter not found. It might have been deleted outside of Terraform.")
-		state = vcenterModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(vcenter.UUID)
+	state.Name = types.StringValue(vcenter.Name)
+	state.Description = stringValueOrNull(vcenter.Description)
+	state.Username = stringValueOrNull(vcenter.UserName)
+	state.ZoneUuid = types.StringValue(vcenter.ZoneUuid)
+	state.DomainName = stringValueOrNull(vcenter.DomainName)
+	state.Port = types.Int64Value(int64(vcenter.Port))
+	state.Version = stringValueOrNull(vcenter.Version)
+	state.Https = types.BoolValue(vcenter.Https)
+	state.State = stringValueOrNull(vcenter.State)
+	state.Status = stringValueOrNull(vcenter.Status)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -270,8 +267,8 @@ func (r *vcenterResource) Update(ctx context.Context, request resource.UpdateReq
 	vcenter, err := r.client.UpdateVCenter(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update vCenter",
-			"Error "+err.Error(),
+			"Error updating vCenter",
+			"Could not update vcenter, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -307,7 +304,10 @@ func (r *vcenterResource) Delete(ctx context.Context, request resource.DeleteReq
 
 	err := r.client.DeleteVCenter(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete vCenter", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting vCenter",
+			"Could not delete vcenter, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

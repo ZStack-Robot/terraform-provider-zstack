@@ -4,12 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -71,24 +76,42 @@ func (r *zoneResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the zone.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the zone.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the zone.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The state of the zone (Enabled, Disabled).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("Enabled", "Disabled"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the zone.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -118,7 +141,10 @@ func (r *zoneResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	zone, err := r.client.CreateZone(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create zone", err.Error())
+		resp.Diagnostics.AddError(
+			"Error creating Zone",
+			"Could not create zone, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -131,14 +157,20 @@ func (r *zoneResource) Create(ctx context.Context, req resource.CreateRequest, r
 			},
 		})
 		if err != nil {
-			resp.Diagnostics.AddError("Could not change zone state", err.Error())
+			resp.Diagnostics.AddError(
+				"Error changing Zone state",
+				"Could not change zone state, unexpected error: "+err.Error(),
+			)
 			return
 		}
 
 		// Re-read the zone to get the updated state
 		zone, err = r.client.GetZone(zone.UUID)
 		if err != nil {
-			resp.Diagnostics.AddError("Could not read zone after state change", err.Error())
+			resp.Diagnostics.AddError(
+				"Error reading Zone",
+				"Could not read zone after state change: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -158,9 +190,16 @@ func (r *zoneResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	zone, err := r.client.GetZone(state.Uuid.ValueString())
+	zone, err := findResourceByGet(r.client.GetZone, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read zone", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error reading Zone",
+			"Could not read zone UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
@@ -194,7 +233,10 @@ func (r *zoneResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	if _, err := r.client.UpdateZone(uuid, updateParam); err != nil {
-		resp.Diagnostics.AddError("Could not update zone", err.Error())
+		resp.Diagnostics.AddError(
+			"Error updating Zone",
+			"Could not update zone, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -206,7 +248,10 @@ func (r *zoneResource) Update(ctx context.Context, req resource.UpdateRequest, r
 				StateEvent: stateEvent,
 			},
 		}); err != nil {
-			resp.Diagnostics.AddError("Could not change zone state", err.Error())
+			resp.Diagnostics.AddError(
+				"Error changing Zone state",
+				"Could not change zone state, unexpected error: "+err.Error(),
+			)
 			return
 		}
 	}
@@ -214,7 +259,10 @@ func (r *zoneResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// Read back the updated resource
 	zone, err := r.client.GetZone(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated zone", err.Error())
+		resp.Diagnostics.AddError(
+			"Error reading Zone",
+			"Could not read zone UUID "+uuid+" after update: "+err.Error(),
+		)
 		return
 	}
 
@@ -239,7 +287,10 @@ func (r *zoneResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	if err := r.client.DeleteZone(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete zone", err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Zone",
+			"Could not delete zone, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

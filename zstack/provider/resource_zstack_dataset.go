@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,6 +80,9 @@ func (r *datasetResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"name": schema.StringAttribute{
 				Required: true,
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional: true,
@@ -143,7 +149,10 @@ func (r *datasetResource) Create(ctx context.Context, request resource.CreateReq
 
 	item, err := r.client.CreateDataset(p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to create dataset", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Dataset",
+			"Could not create dataset, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -168,36 +177,27 @@ func (r *datasetResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	items, err := r.client.QueryDataset(&queryParam)
+	item, err := findResourceByQuery(r.client.QueryDataset, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query dataset. It may have been deleted.: "+err.Error())
-		state = datasetModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Dataset",
+			"Could not read dataset UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, item := range items {
-		if item.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(item.UUID)
-			state.Name = types.StringValue(item.Name)
-			state.Description = stringValueOrNull(item.Description)
-			state.Url = types.StringValue(item.Url)
-			state.ModelCenterUuid = types.StringValue(item.ModelCenterUuid)
-			state.System = types.BoolValue(item.System)
-			state.InstallPath = stringValueOrNull(item.InstallPath)
-			state.Size = types.Int64Value(item.Size)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Dataset not found. It might have been deleted outside of Terraform.")
-		state = datasetModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(item.UUID)
+	state.Name = types.StringValue(item.Name)
+	state.Description = stringValueOrNull(item.Description)
+	state.Url = types.StringValue(item.Url)
+	state.ModelCenterUuid = types.StringValue(item.ModelCenterUuid)
+	state.System = types.BoolValue(item.System)
+	state.InstallPath = stringValueOrNull(item.InstallPath)
+	state.Size = types.Int64Value(item.Size)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -225,7 +225,10 @@ func (r *datasetResource) Update(ctx context.Context, request resource.UpdateReq
 
 	item, err := r.client.UpdateDataset(state.Uuid.ValueString(), p)
 	if err != nil {
-		response.Diagnostics.AddError("Fail to update dataset", "Error "+err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Dataset",
+			"Could not update dataset, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -257,7 +260,10 @@ func (r *datasetResource) Delete(ctx context.Context, request resource.DeleteReq
 
 	err := r.client.DeleteDataset(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete dataset", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Dataset",
+			"Could not delete dataset, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }

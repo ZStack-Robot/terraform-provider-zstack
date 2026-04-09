@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -75,6 +78,9 @@ func (r *vpcFirewallResource) Schema(_ context.Context, request resource.SchemaR
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VPC firewall.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -117,8 +123,8 @@ func (r *vpcFirewallResource) Create(ctx context.Context, request resource.Creat
 	vpcFirewall, err := r.client.CreateVpcFirewall(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create VPC firewall",
-			"Error "+err.Error(),
+			"Error creating VPC Firewall",
+			"Could not create vpc firewall, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -142,10 +148,12 @@ func (r *vpcFirewallResource) Read(ctx context.Context, request resource.ReadReq
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	vpcFirewalls, err := r.client.QueryVpcFirewall(&queryParam)
-
+	vpcFirewall, err := findResourceByQuery(r.client.QueryVpcFirewall, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query VPC firewalls. It may have been deleted.: "+err.Error())
 		state = vpcFirewallResourceModel{
 			Uuid: types.StringValue(""),
@@ -155,23 +163,9 @@ func (r *vpcFirewallResource) Read(ctx context.Context, request resource.ReadReq
 		return
 	}
 
-	found := false
-
-	for _, vpcFirewall := range vpcFirewalls {
-		if vpcFirewall.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(vpcFirewall.UUID)
-			state.Name = types.StringValue(vpcFirewall.Name)
-			state.Description = types.StringValue(vpcFirewall.Description)
-			found = true
-			break
-		}
-	}
-	if !found {
-		tflog.Warn(ctx, "VPC firewall not found. It might have been deleted outside of Terraform.")
-		state = vpcFirewallResourceModel{
-			Uuid: types.StringValue(""),
-		}
-	}
+	state.Uuid = types.StringValue(vpcFirewall.UUID)
+	state.Name = types.StringValue(vpcFirewall.Name)
+	state.Description = types.StringValue(vpcFirewall.Description)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -208,8 +202,8 @@ func (r *vpcFirewallResource) Update(ctx context.Context, request resource.Updat
 	vpcFirewall, err := r.client.UpdateVpcFirewall(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update VPC firewall",
-			"Error "+err.Error(),
+			"Error updating VPC Firewall",
+			"Could not update vpc firewall, unexpected error: "+err.Error(),
 		)
 		return
 	}

@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -85,6 +88,9 @@ func (r *baremetalPxeServerResource) Schema(_ context.Context, _ resource.Schema
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the PXE server.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Required:    true,
@@ -194,8 +200,8 @@ func (r *baremetalPxeServerResource) Create(ctx context.Context, request resourc
 	pxeServer, err := r.client.CreateBaremetalPxeServer(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create baremetal PXE server",
-			"Error "+err.Error(),
+			"Error creating Baremetal PXE Server",
+			"Could not create baremetal PXE server, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -228,43 +234,34 @@ func (r *baremetalPxeServerResource) Read(ctx context.Context, request resource.
 		return
 	}
 
-	queryParam := param.NewQueryParam()
-	pxeServers, err := r.client.QueryBaremetalPxeServer(&queryParam)
+	pxeServer, err := findResourceByQuery(r.client.QueryBaremetalPxeServer, state.Uuid.ValueString())
 	if err != nil {
-		tflog.Warn(ctx, "Unable to query baremetal PXE servers. It may have been deleted.: "+err.Error())
-		state = baremetalPxeServerModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Baremetal PXE Server",
+			"Could not read baremetal PXE server UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
-	found := false
-	for _, pxeServer := range pxeServers {
-		if pxeServer.UUID == state.Uuid.ValueString() {
-			state.Uuid = types.StringValue(pxeServer.UUID)
-			state.Name = types.StringValue(pxeServer.Name)
-			state.ZoneUuid = types.StringValue(pxeServer.ZoneUuid)
-			state.Description = stringValueOrNull(pxeServer.Description)
-			state.Hostname = types.StringValue(pxeServer.Hostname)
-			state.SshUsername = types.StringValue(pxeServer.SshUsername)
-			state.SshPassword = types.StringValue(pxeServer.SshPassword)
-			state.SshPort = types.Int64Value(int64(pxeServer.SshPort))
-			state.StoragePath = types.StringValue(pxeServer.StoragePath)
-			state.DhcpInterface = types.StringValue(pxeServer.DhcpInterface)
-			state.DhcpRangeBegin = stringValueOrNull(pxeServer.DhcpRangeBegin)
-			state.DhcpRangeEnd = stringValueOrNull(pxeServer.DhcpRangeEnd)
-			state.DhcpRangeNetmask = stringValueOrNull(pxeServer.DhcpRangeNetmask)
-			state.State = stringValueOrNull(pxeServer.State)
-			state.Status = stringValueOrNull(pxeServer.Status)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		tflog.Warn(ctx, "Baremetal PXE server not found. It might have been deleted outside of Terraform.")
-		state = baremetalPxeServerModel{Uuid: types.StringValue("")}
-	}
+	state.Uuid = types.StringValue(pxeServer.UUID)
+	state.Name = types.StringValue(pxeServer.Name)
+	state.ZoneUuid = types.StringValue(pxeServer.ZoneUuid)
+	state.Description = stringValueOrNull(pxeServer.Description)
+	state.Hostname = types.StringValue(pxeServer.Hostname)
+	state.SshUsername = types.StringValue(pxeServer.SshUsername)
+	state.SshPassword = types.StringValue(pxeServer.SshPassword)
+	state.SshPort = types.Int64Value(int64(pxeServer.SshPort))
+	state.StoragePath = types.StringValue(pxeServer.StoragePath)
+	state.DhcpInterface = types.StringValue(pxeServer.DhcpInterface)
+	state.DhcpRangeBegin = stringValueOrNull(pxeServer.DhcpRangeBegin)
+	state.DhcpRangeEnd = stringValueOrNull(pxeServer.DhcpRangeEnd)
+	state.DhcpRangeNetmask = stringValueOrNull(pxeServer.DhcpRangeNetmask)
+	state.State = stringValueOrNull(pxeServer.State)
+	state.Status = stringValueOrNull(pxeServer.Status)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -296,8 +293,8 @@ func (r *baremetalPxeServerResource) Update(ctx context.Context, request resourc
 	pxeServer, err := r.client.UpdateBaremetalPxeServer(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to update baremetal PXE server",
-			"Error "+err.Error(),
+			"Error updating Baremetal PXE Server",
+			"Could not update baremetal PXE server, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -337,7 +334,7 @@ func (r *baremetalPxeServerResource) Delete(ctx context.Context, request resourc
 
 	err := r.client.DeleteBaremetalPxeServer(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete baremetal PXE server", err.Error())
+		response.Diagnostics.AddError("Error deleting Baremetal PXE Server", "Could not delete baremetal PXE server, unexpected error: "+err.Error())
 		return
 	}
 }
