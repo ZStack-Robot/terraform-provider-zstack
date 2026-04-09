@@ -40,3 +40,12 @@ Manages a ZStack license.
 - `user` (String) The license user.
 - `uuid` (String) The UUID of the license.
 - `vm_num` (Number) The licensed VM quota.
+
+## Import
+
+Import is supported using the following syntax. The `management_node_uuid` must be supplied because the API does not reliably return it:
+
+```shell
+# Format: <uuid>:<management_node_uuid>
+terraform import zstack_license.example abc123:def456
+```
