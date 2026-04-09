@@ -8,6 +8,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -62,18 +64,30 @@ func (r *guestToolsResource) Schema(_ context.Context, request resource.SchemaRe
 			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Same as the vm_instance_uuid. Used for Terraform tracking.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"instance_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "UUID of the ZStack VM instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"guest_tools_version": schema.StringAttribute{
 				Computed:    true,
 				Description: "Version of the ZStack guest tools installed on the VM.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"guest_tools_status": schema.StringAttribute{
 				Computed:    true,
 				Description: "Status of the ZStack guest tools on the VM (e.g., 'Connected', 'Disconnected').",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -88,7 +102,10 @@ func (r *guestToolsResource) Create(ctx context.Context, request resource.Create
 	}
 
 	if plan.Instance_Uuid.IsNull() || plan.Instance_Uuid.IsUnknown() {
-		response.Diagnostics.AddError("Missing VM UUID", "The 'instance_uuid' must be provided.")
+		response.Diagnostics.AddError(
+			"Error creating Guest Tool Attachment",
+			"Could not create guest tool attachment, missing instance_uuid.",
+		)
 		return
 	}
 	instance_uuid := plan.Instance_Uuid.ValueString()
@@ -102,8 +119,8 @@ func (r *guestToolsResource) Create(ctx context.Context, request resource.Create
 
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to attach guest tools  to VM instance",
-			"Error "+err.Error(),
+			"Error attaching Guest Tools to VM Instance",
+			"Could not attach guest tools to VM instance, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -111,8 +128,8 @@ func (r *guestToolsResource) Create(ctx context.Context, request resource.Create
 	guest_tools, err := r.client.GetVmGuestToolsInfo(instance_uuid)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to retrieve guest tools info after attach",
-			"Error: "+err.Error(),
+			"Error reading Guest Tool Attachment",
+			"Could not read guest tool attachment after attach: "+err.Error(),
 		)
 		return
 	}
@@ -141,6 +158,10 @@ func (r *guestToolsResource) Read(ctx context.Context, request resource.ReadRequ
 
 	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
+		if isZStackNotFoundError(err) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to query guest tools info. It may have been detached or the VM is powered off: "+err.Error())
 		state = qgaModel{
 			ID: types.StringValue(""),
@@ -163,7 +184,10 @@ func (r *guestToolsResource) Read(ctx context.Context, request resource.ReadRequ
 }
 
 func (r *guestToolsResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	tflog.Info(ctx, "Update is a no-op for guest_tools_attachment resource")
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Guest Tool Attachment resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *guestToolsResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {

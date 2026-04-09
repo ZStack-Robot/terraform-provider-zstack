@@ -4,11 +4,13 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestPortForwardingRuleResource_Schema(t *testing.T) {
@@ -68,11 +70,12 @@ func TestAccPortForwardingRuleResource(t *testing.T) {
 	}
 
 	// Use a pre-existing VIP if available via data source
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckPortForwardingRuleDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
@@ -83,13 +86,18 @@ resource "zstack_port_forwarding_rule" "test" {
   protocol_type  = "TCP"
   allowed_cidr   = "0.0.0.0/0"
 }
-`),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_port_forwarding_rule.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_port_forwarding_rule.test", "name", "acc-test-pf-rule"),
-					tfresource.TestCheckResourceAttr("zstack_port_forwarding_rule.test", "protocol_type", "TCP"),
-					tfresource.TestCheckResourceAttr("zstack_port_forwarding_rule.test", "vip_port_start", "8080"),
-				),
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-pf-rule")),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("protocol_type"), knownvalue.StringExact("TCP")),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("vip_port_start"), knownvalue.StringExact("8080")),
+				},
+			},
+			{
+				ResourceName:      "zstack_port_forwarding_rule.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

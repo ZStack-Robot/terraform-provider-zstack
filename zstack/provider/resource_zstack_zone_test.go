@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestZoneResource_Schema(t *testing.T) {
@@ -53,8 +56,9 @@ func TestZoneResource_Metadata(t *testing.T) {
 func TestAccZoneResource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckZoneDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
@@ -63,11 +67,40 @@ resource "zstack_zone" "test" {
   description = "Acceptance test zone"
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_zone.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_zone.test", "name", "acc-test-zone"),
-					tfresource.TestCheckResourceAttr("zstack_zone.test", "state", "Enabled"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-zone")),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("state"), knownvalue.StringExact("Enabled")),
+				},
+			},
+			{
+				ResourceName:      "zstack_zone.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func TestAccZoneResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckZoneDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_zone" "test" {
+  name        = "acc-test-zone-disappears"
+  description = "Disappears test zone"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckZoneDisappears("zstack_zone.test"),
+				},
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

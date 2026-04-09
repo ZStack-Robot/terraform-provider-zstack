@@ -4,11 +4,13 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestLoadBalancerListenerResource_Schema(t *testing.T) {
@@ -65,11 +67,12 @@ func TestAccLoadBalancerListenerResource(t *testing.T) {
 		t.Skip("no l3_networks in env.json, skipping load balancer listener acceptance test")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLoadBalancerListenerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
@@ -85,15 +88,20 @@ resource "zstack_load_balancer_listener" "test" {
   load_balancer_port = 80
   instance_port      = 8080
 }
-`),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_load_balancer_listener.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_load_balancer_listener.test", "name", "acc-test-lb-listener"),
-					tfresource.TestCheckResourceAttr("zstack_load_balancer_listener.test", "protocol", "tcp"),
-					tfresource.TestCheckResourceAttr("zstack_load_balancer_listener.test", "load_balancer_port", "80"),
-					tfresource.TestCheckResourceAttr("zstack_load_balancer_listener.test", "instance_port", "8080"),
-					tfresource.TestCheckResourceAttrSet("zstack_load_balancer_listener.test", "load_balancer_uuid"),
-				),
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-lb-listener")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("protocol"), knownvalue.StringExact("tcp")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("load_balancer_port"), knownvalue.StringExact("80")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("instance_port"), knownvalue.StringExact("8080")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("load_balancer_uuid"), knownvalue.NotNull()),
+				},
+			},
+			{
+				ResourceName:      "zstack_load_balancer_listener.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

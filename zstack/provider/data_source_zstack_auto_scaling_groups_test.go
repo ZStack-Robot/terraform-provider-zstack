@@ -8,6 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAutoScalingGroupDataSource_Schema(t *testing.T) {
@@ -38,7 +41,7 @@ func TestAutoScalingGroupDataSource_Metadata(t *testing.T) {
 func TestAccAutoScalingGroupDataSource(t *testing.T) {
 	_ = loadEnvData(t)
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []tfresource.TestStep{
 			{
@@ -46,9 +49,9 @@ func TestAccAutoScalingGroupDataSource(t *testing.T) {
 data "zstack_auto_scaling_groups" "test" {
 }
 `,
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("data.zstack_auto_scaling_groups.test", "auto_scaling_groups.#"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_auto_scaling_groups.test", tfjsonpath.New("auto_scaling_groups"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})

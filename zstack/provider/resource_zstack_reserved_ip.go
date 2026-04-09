@@ -9,6 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -69,22 +72,37 @@ func (r *reservedIpResource) Schema(_ context.Context, request resource.SchemaRe
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the reserved ip range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"l3_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the L3 network where the ip range will be reserved.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"start_ip": schema.StringAttribute{
 				Required:    true,
 				Description: "The start IP address of the reserved range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"end_ip": schema.StringAttribute{
 				Required:    true,
 				Description: "The end IP address of the reserved range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip_version": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The IP version (e.g., 4 for IPv4 or 6 for IPv6) of the reserved range.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -111,20 +129,11 @@ func (r *reservedIpResource) Create(ctx context.Context, request resource.Create
 		},
 	}
 
-	// The SDK's AddReservedIpRange has a bug: it uses a literal {l3NetworkUuid}
-	// placeholder in the URL path that never gets substituted. Work around it
-	// by calling Post directly with the l3NetworkUuid interpolated into the path.
-	var ipRange view.ReservedIpRangeInventoryView
-	err := r.client.Post(
-		fmt.Sprintf("v1/l3-networks/%s/reserved-ip-ranges", reservedIpPlan.L3NetworkUuid.ValueString()),
-		p,
-		&ipRange,
-	)
-	// ipRange, err := r.client.AddReservedIpRange(p)
+	ipRange, err := r.client.AddReservedIpRange(reservedIpPlan.L3NetworkUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add reserved ip range to L3 network",
-			"Error "+err.Error(),
+			"Error creating Reserved IP Range",
+			"Could not create reserved ip range in L3 network "+reservedIpPlan.L3NetworkUuid.ValueString()+", unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -148,20 +157,25 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 	}
 
 	var reservedIpRanges []view.ReservedIpRangeInventoryView
-	_, err := r.client.Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	_, err := r.client.Zql(ctx, fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
 	if err != nil {
+		if isZStackNotFoundError(err) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		return
 	}
 
 	if len(reservedIpRanges) == 0 {
-		state.Uuid = types.StringValue("")
-	} else {
-		state.Uuid = types.StringValue(reservedIpRanges[0].UUID)
-		state.StartIp = types.StringValue(reservedIpRanges[0].StartIp)
-		state.EndIp = types.StringValue(reservedIpRanges[0].EndIp)
-		state.IpVersion = types.Int64Value(int64(reservedIpRanges[0].IpVersion))
-		state.L3NetworkUuid = types.StringValue(reservedIpRanges[0].L3NetworkUuid)
+		response.State.RemoveResource(ctx)
+		return
 	}
+
+	state.Uuid = types.StringValue(reservedIpRanges[0].UUID)
+	state.StartIp = types.StringValue(reservedIpRanges[0].StartIp)
+	state.EndIp = types.StringValue(reservedIpRanges[0].EndIp)
+	state.IpVersion = types.Int64Value(int64(reservedIpRanges[0].IpVersion))
+	state.L3NetworkUuid = types.StringValue(reservedIpRanges[0].L3NetworkUuid)
 
 	// 更新 State
 	diags = response.State.Set(ctx, &state)
@@ -172,7 +186,10 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 }
 
 func (r *reservedIpResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Reserved IP resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *reservedIpResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -191,7 +208,10 @@ func (r *reservedIpResource) Delete(ctx context.Context, request resource.Delete
 	err := r.client.DeleteReservedIpRange(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete reserved ip range", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Reserved IP Range",
+			"Could not delete reserved ip range, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

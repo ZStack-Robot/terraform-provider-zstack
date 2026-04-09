@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_virtual_router_instance Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Virtual Router"
 description: |-
     This resource allows you to manage virtual router instances in ZStack. A virtual router instance is a virtual machine that provides network services such as routing, NAT, and VPN. You can define the instance's properties, such as its name, description, associated virtual router offering, and deployment location.
 ---

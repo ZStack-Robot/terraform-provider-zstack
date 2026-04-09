@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_primary_storages Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Storage"
 description: |-
     List all primary storages, or query primary storages by exact name match, or query primary storages by name pattern fuzzy match.
 ---

@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -70,34 +75,64 @@ func (r *subnetResource) Schema(_ context.Context, request resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The unique identifier of the subnet.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"l3_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the L3 network to which the subnet belongs.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the subnet. This is a user-defined identifier for the subnet.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"start_ip": schema.StringAttribute{
 				Required:    true,
 				Description: "The starting IP address of the subnet range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"end_ip": schema.StringAttribute{
 				Required:    true,
 				Description: "The ending IP address of the subnet range.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"netmask": schema.StringAttribute{
 				Required:    true,
 				Description: "The subnet mask, used to define the network portion of an IP address.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"gateway": schema.StringAttribute{
 				Required:    true,
 				Description: "The default gateway for the subnet.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip_range_type": schema.StringAttribute{
 				Optional:    true,
 				Description: "The type of IP range. Possible values depend on the ZStack configuration (e.g., 'Normal' or 'Reserved').",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("Normal", "Reserved"),
+				},
 			},
 		},
 	}
@@ -128,13 +163,13 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 		},
 	}
 
-	subnet, err := r.client.AddIpRange(p)
+	subnet, err := r.client.AddIpRange(plan.L3NetworkUuid.ValueString(), p)
 
 	//AddReservedIpRange(plan.Uuid.String().L3NetworkUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to add subnet(ip range) to L3 network",
-			"Error "+err.Error(),
+			"Error creating Subnet IP Range",
+			"Could not create subnet ip range in L3 network "+plan.L3NetworkUuid.ValueString()+", unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -162,45 +197,28 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
-	q := param.NewQueryParam()
-	subnets, err := r.client.QueryIpRange(&q)
-
-	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	subnet, err := findResourceByQuery(r.client.QueryIpRange, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "cannot read subnet, maybe it has been deleted, set uuid to 'empty'. subnet was no longer managed by terraform. error: "+err.Error())
 		diags = response.State.Set(ctx, &state)
 		response.Diagnostics.Append(diags...)
 		return
 	}
 
-	// Iterate over the fetched subnets and match the UUID
-	found := false
-	for _, subnet := range subnets {
-		if subnet.UUID == state.Uuid.ValueString() {
-			// Update state with the matched subnet details
-			state = subnetModel{
-				Uuid:          types.StringValue(subnet.UUID),
-				Name:          types.StringValue(subnet.Name),
-				StartIp:       types.StringValue(subnet.StartIp),
-				EndIp:         types.StringValue(subnet.EndIp),
-				Netmask:       types.StringValue(subnet.Netmask),
-				Gateway:       types.StringValue(subnet.Gateway),
-				L3NetworkUuid: types.StringValue(subnet.L3NetworkUuid),
-			}
-			found = true
-			break
-		}
+	state = subnetModel{
+		Uuid:          types.StringValue(subnet.UUID),
+		Name:          types.StringValue(subnet.Name),
+		StartIp:       types.StringValue(subnet.StartIp),
+		EndIp:         types.StringValue(subnet.EndIp),
+		Netmask:       types.StringValue(subnet.Netmask),
+		Gateway:       types.StringValue(subnet.Gateway),
+		L3NetworkUuid: types.StringValue(subnet.L3NetworkUuid),
 	}
 
-	if !found {
-		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "Subnet not found. It might have been deleted outside of Terraform.")
-		state = subnetModel{
-			Uuid: types.StringValue(""),
-		}
-	}
-
-	// 更新 State
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
@@ -209,7 +227,10 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 }
 
 func (r *subnetResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Subnet IP Range resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *subnetResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -228,7 +249,10 @@ func (r *subnetResource) Delete(ctx context.Context, request resource.DeleteRequ
 	err := r.client.DeleteIpRange(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("Failed to delete subnet(ip range)", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Subnet IP Range",
+			"Could not delete subnet ip range, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

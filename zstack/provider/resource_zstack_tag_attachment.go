@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -62,16 +66,25 @@ func (r *tagAttachmentResource) Schema(_ context.Context, request resource.Schem
 			"tag_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the tag.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"resource_uuids": schema.ListAttribute{
 				Required:    true,
 				ElementType: types.StringType,
 				Description: "The uuid of the resource.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
 			},
 			"tokens": schema.MapAttribute{
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "If attach type is 'withToken', you must set this. For simple attach, leave it empty or omit.",
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
@@ -110,7 +123,7 @@ func (r *tagAttachmentResource) Create(ctx context.Context, request resource.Cre
 		attachParams.Params.Tokens = tokenMap
 	}
 
-	_, err := r.client.AttachTagToResources(attachParams)
+	_, err := r.client.AttachTagToResources(plan.TagUuid.ValueString(), attachParams)
 	if err != nil {
 		response.Diagnostics.AddError("Error attaching tag", err.Error())
 		return
@@ -175,7 +188,10 @@ func (r *tagAttachmentResource) Read(ctx context.Context, request resource.ReadR
 }
 
 func (r *tagAttachmentResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	response.Diagnostics.AddWarning("Update not supported", "Please recreate the resource if you need changes")
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"Tag Attachment resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *tagAttachmentResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {

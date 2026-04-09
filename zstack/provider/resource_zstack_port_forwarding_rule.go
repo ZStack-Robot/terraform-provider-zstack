@@ -4,13 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -81,15 +85,24 @@ func (r *portForwardingRuleResource) Schema(_ context.Context, _ resource.Schema
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the port forwarding rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the port forwarding rule.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the port forwarding rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vip_uuid": schema.StringAttribute{
 				Required:    true,
@@ -106,20 +119,32 @@ func (r *portForwardingRuleResource) Schema(_ context.Context, _ resource.Schema
 				Optional:    true,
 				Computed:    true,
 				Description: "The end port on the VIP side. Defaults to the same as vip_port_start.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"private_port_start": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The start port on the private (VM) side. Defaults to the same as vip_port_start.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"private_port_end": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The end port on the private (VM) side. Defaults to the same as vip_port_end.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"protocol_type": schema.StringAttribute{
 				Required:    true,
 				Description: "The protocol type: TCP or UDP.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("TCP", "UDP"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -128,23 +153,38 @@ func (r *portForwardingRuleResource) Schema(_ context.Context, _ resource.Schema
 				Optional:    true,
 				Computed:    true,
 				Description: "The UUID of the VM NIC to which the port forwarding rule is attached.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"allowed_cidr": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The CIDR block allowed to access this port forwarding rule (e.g., 0.0.0.0/0).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vip_ip": schema.StringAttribute{
 				Computed:    true,
 				Description: "The IP address of the VIP.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"guest_ip": schema.StringAttribute{
 				Computed:    true,
 				Description: "The IP address of the guest VM.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the port forwarding rule (Enabled, Disabled).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -192,7 +232,7 @@ func (r *portForwardingRuleResource) Create(ctx context.Context, req resource.Cr
 
 	rule, err := r.client.CreatePortForwardingRule(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create port forwarding rule", err.Error())
+		resp.Diagnostics.AddError("Error creating Port Forwarding Rule", "Could not create port forwarding rule, unexpected error: "+err.Error())
 		return
 	}
 
@@ -211,9 +251,13 @@ func (r *portForwardingRuleResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	rule, err := r.client.GetPortForwardingRule(state.Uuid.ValueString())
+	rule, err := findResourceByGet(r.client.GetPortForwardingRule, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read port forwarding rule", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading Port Forwarding Rule", "Could not read port forwarding rule UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -249,7 +293,7 @@ func (r *portForwardingRuleResource) Update(ctx context.Context, req resource.Up
 		}
 
 		if _, err := r.client.UpdatePortForwardingRule(uuid, updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update port forwarding rule", err.Error())
+			resp.Diagnostics.AddError("Error updating Port Forwarding Rule", "Could not update port forwarding rule UUID "+uuid+": "+err.Error())
 			return
 		}
 	}
@@ -262,7 +306,7 @@ func (r *portForwardingRuleResource) Update(ctx context.Context, req resource.Up
 		// Detach from current NIC if attached
 		if currentNic != "" {
 			if err := r.client.DetachPortForwardingRule(uuid, param.DeleteModePermissive); err != nil {
-				resp.Diagnostics.AddError("Could not detach port forwarding rule from VM NIC", err.Error())
+				resp.Diagnostics.AddError("Error detaching Port Forwarding Rule from VM NIC", "Could not detach port forwarding rule from VM NIC, unexpected error: "+err.Error())
 				return
 			}
 		}
@@ -270,7 +314,7 @@ func (r *portForwardingRuleResource) Update(ctx context.Context, req resource.Up
 		// Attach to new NIC if specified
 		if desiredNic != "" {
 			if err := r.attachToVmNic(uuid, desiredNic); err != nil {
-				resp.Diagnostics.AddError("Could not attach port forwarding rule to VM NIC", err.Error())
+				resp.Diagnostics.AddError("Error attaching Port Forwarding Rule to VM NIC", "Could not attach port forwarding rule to VM NIC, unexpected error: "+err.Error())
 				return
 			}
 		}
@@ -279,7 +323,7 @@ func (r *portForwardingRuleResource) Update(ctx context.Context, req resource.Up
 	// Read back the updated resource
 	rule, err := r.client.GetPortForwardingRule(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated port forwarding rule", err.Error())
+		resp.Diagnostics.AddError("Error reading Port Forwarding Rule", "Could not read port forwarding rule after update UUID "+uuid+": "+err.Error())
 		return
 	}
 
@@ -304,7 +348,7 @@ func (r *portForwardingRuleResource) Delete(ctx context.Context, req resource.De
 	}
 
 	if err := r.client.DeletePortForwardingRule(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete port forwarding rule", err.Error())
+		resp.Diagnostics.AddError("Error deleting Port Forwarding Rule", "Could not delete port forwarding rule UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 }
@@ -320,12 +364,7 @@ func (r *portForwardingRuleResource) attachToVmNic(ruleUuid, vmNicUuid string) e
 		Params:    param.AttachPortForwardingRuleParamDetail{},
 	}
 
-	var resp view.PortForwardingRuleInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/port-forwarding/%s/vm-instances/nics/%s", ruleUuid, vmNicUuid),
-		attachParam,
-		&resp,
-	); err != nil {
+	if _, err := r.client.AttachPortForwardingRule(ruleUuid, vmNicUuid, attachParam); err != nil {
 		return err
 	}
 	return nil

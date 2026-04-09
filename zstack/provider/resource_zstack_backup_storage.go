@@ -4,13 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -79,15 +84,24 @@ func (r *backupStorageResource) Schema(_ context.Context, _ resource.SchemaReque
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the backup storage.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
@@ -95,33 +109,54 @@ func (r *backupStorageResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("ImageStoreBackupStorage", "CephBackupStorage", "SftpBackupStorage"),
+				},
 			},
 			"url": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The URL/path for the backup storage (required for ImageStore and Sftp types).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The status of the backup storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"total_capacity": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The total capacity of the backup storage in bytes.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"available_capacity": schema.Int64Attribute{
 				Computed:    true,
 				Description: "The available capacity of the backup storage in bytes.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
 			},
 			"attached_zone_uuids": schema.ListAttribute{
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
 				Description: "List of zone UUIDs to attach this backup storage to.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"hostname": schema.StringAttribute{
 				Optional:    true,
@@ -247,15 +282,26 @@ func (r *backupStorageResource) Create(ctx context.Context, request resource.Cre
 		return
 	}
 
+	// Save partial state so the backup storage UUID is tracked even if zone attachment fails
+	partialBs, err := r.client.GetBackupStorage(bsUuid)
+	if err != nil {
+		response.Diagnostics.AddError("Failed to read backup storage after creation", err.Error())
+		return
+	}
+	partialModel := backupStorageModelFromView(partialBs, plan)
+	diags = response.State.Set(ctx, partialModel)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	// Handle zone attachments
 	zoneUuids := listToStringSlice(plan.AttachedZoneUuids)
 	for _, zoneUuid := range zoneUuids {
 		attachParam := param.AttachBackupStorageToZoneParam{
 			BaseParam: param.BaseParam{},
 		}
-		var result view.BackupStorageInventoryView
-		// Use direct Post to work around URL template bug in AttachBackupStorageToZone
-		if err := r.client.Post(fmt.Sprintf("v1/zones/%s/backup-storage/%s", zoneUuid, bsUuid), attachParam, &result); err != nil {
+		if _, err := r.client.AttachBackupStorageToZone(zoneUuid, bsUuid, attachParam); err != nil {
 			response.Diagnostics.AddError("Failed to attach backup storage to zone",
 				fmt.Sprintf("Error attaching backup storage %s to zone %s: %s", bsUuid, zoneUuid, err.Error()))
 			return
@@ -288,8 +334,13 @@ func (r *backupStorageResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	bs, err := r.client.GetBackupStorage(state.Uuid.ValueString())
+	bs, err := findResourceByGet(r.client.GetBackupStorage, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			tflog.Warn(ctx, "Failed to read backup storage, it may have been deleted: "+err.Error())
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Failed to read backup storage, it may have been deleted: "+err.Error())
 		response.State.RemoveResource(ctx)
 		return
@@ -354,9 +405,7 @@ func (r *backupStorageResource) Update(ctx context.Context, request resource.Upd
 			attachParam := param.AttachBackupStorageToZoneParam{
 				BaseParam: param.BaseParam{},
 			}
-			var result view.BackupStorageInventoryView
-			// Use direct Post to work around URL template bug
-			if err := r.client.Post(fmt.Sprintf("v1/zones/%s/backup-storage/%s", zoneUuid, uuid), attachParam, &result); err != nil {
+			if _, err := r.client.AttachBackupStorageToZone(zoneUuid, uuid, attachParam); err != nil {
 				response.Diagnostics.AddError("Failed to attach backup storage to zone",
 					fmt.Sprintf("Error attaching backup storage %s to zone %s: %s", uuid, zoneUuid, err.Error()))
 				return
@@ -422,7 +471,6 @@ func (r *backupStorageResource) Delete(ctx context.Context, request resource.Del
 func (r *backupStorageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
-
 
 func backupStorageModelFromView(bs *view.BackupStorageInventoryView, plan backupStorageResourceModel) backupStorageResourceModel {
 	model := backupStorageResourceModel{

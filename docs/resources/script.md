@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_script Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Manages a VM instance script in ZStack.
 ---

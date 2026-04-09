@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccCreateImageResource(t *testing.T) {
@@ -16,8 +19,9 @@ func TestAccCreateImageResource(t *testing.T) {
 	}
 	bsUUID := envStr(env.BackupStorages[0], "uuid")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckImageDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -34,17 +38,23 @@ func TestAccCreateImageResource(t *testing.T) {
 					boot_mode   = "Legacy"
 				}`, bsUUID),
 
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("zstack_image.test", "name", "example-image"),
-					resource.TestCheckResourceAttr("zstack_image.test", "description", "A test image for creation"),
-					resource.TestCheckResourceAttr("zstack_image.test", "guest_os_type", "Centos 7"),
-					resource.TestCheckResourceAttr("zstack_image.test", "platform", "Linux"),
-					resource.TestCheckResourceAttr("zstack_image.test", "format", "qcow2"),
-					resource.TestCheckResourceAttr("zstack_image.test", "architecture", "x86_64"),
-					resource.TestCheckResourceAttr("zstack_image.test", "boot_mode", "Legacy"),
-					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.#", "1"),
-					resource.TestCheckResourceAttr("zstack_image.test", "backup_storage_uuids.0", bsUUID),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("name"), knownvalue.StringExact("example-image")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("description"), knownvalue.StringExact("A test image for creation")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("guest_os_type"), knownvalue.StringExact("Centos 7")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("platform"), knownvalue.StringExact("Linux")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("format"), knownvalue.StringExact("qcow2")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("architecture"), knownvalue.StringExact("x86_64")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("boot_mode"), knownvalue.StringExact("Legacy")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("backup_storage_uuids"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("backup_storage_uuids").AtSliceIndex(0), knownvalue.StringExact(bsUUID)),
+				},
+			},
+			{
+				ResourceName:            "zstack_image.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"description", "guest_os_type", "platform", "format", "media_type", "backup_storage_uuids", "architecture", "virtio", "boot_mode", "expunge", "system", "last_updated"},
 			},
 		},
 	})

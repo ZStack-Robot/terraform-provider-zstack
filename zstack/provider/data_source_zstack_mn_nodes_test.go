@@ -7,7 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
+
+var _ = fmt.Sprintf
 
 func TestAccZStackmnNodeDataSource(t *testing.T) {
 	env := loadEnvData(t)
@@ -16,16 +21,16 @@ func TestAccZStackmnNodeDataSource(t *testing.T) {
 	}
 	mn := env.MnNodes[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_mnnodes" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.#", fmt.Sprintf("%d", len(env.MnNodes))),
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.host_name", envStr(mn, "host_name")),
-					resource.TestCheckResourceAttr("data.zstack_mnnodes.test", "mn_nodes.0.uuid", envStr(mn, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_mnnodes.test", tfjsonpath.New("mn_nodes"), knownvalue.ListSizeExact(len(env.MnNodes))),
+					statecheck.ExpectKnownValue("data.zstack_mnnodes.test", tfjsonpath.New("mn_nodes").AtSliceIndex(0).AtMapKey("host_name"), knownvalue.StringExact(envStr(mn, "host_name"))),
+					statecheck.ExpectKnownValue("data.zstack_mnnodes.test", tfjsonpath.New("mn_nodes").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(mn, "uuid"))),
+				},
 			},
 		},
 	})

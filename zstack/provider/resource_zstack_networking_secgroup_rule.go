@@ -4,12 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int32validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -75,19 +79,31 @@ func (r *securityGroupRuleResource) Schema(_ context.Context, request resource.S
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the security group rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "A name for the security group rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the security group rule.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"security_group_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the security group to which this rule belongs.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"priority": schema.Int32Attribute{
 				Required:    true,
@@ -96,6 +112,9 @@ func (r *securityGroupRuleResource) Schema(_ context.Context, request resource.S
 			"direction": schema.StringAttribute{
 				Required:    true,
 				Description: "The direction of the rule, either 'Ingress' or 'Egress'.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("Ingress", "Egress"),
 				},
@@ -117,6 +136,9 @@ func (r *securityGroupRuleResource) Schema(_ context.Context, request resource.S
 			"ip_version": schema.Int32Attribute{
 				Required:    true,
 				Description: "The IP version, either '4' or '6'.",
+				PlanModifiers: []planmodifier.Int32{
+					int32planmodifier.RequiresReplace(),
+				},
 				Validators: []validator.Int32{
 					int32validator.OneOf(4, 6),
 				},
@@ -195,17 +217,19 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 		},
 	}
 
-	// Call the API to add the security group rule
-	resp, err := r.client.AddSecurityGroupRule(params)
+	// Call the API to add the security group rule.
+	securityGroupUuid := rulePlan.SecurityGroupUuid.ValueString()
+	respPtr, err := r.client.AddSecurityGroupRule(securityGroupUuid, params)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to create security group rule",
-			fmt.Sprintf("Error creating security group rule: %s", err.Error()),
+			"Error creating Security Group Rule",
+			"Could not create security group rule, unexpected error: "+err.Error(),
 		)
 		return
 	}
-	if resp == nil || len(resp.Rules) == 0 {
-		response.Diagnostics.AddError("Empty response", "AddSecurityGroupRule returned no rules")
+	resp := respPtr
+	if len(resp.Rules) == 0 {
+		response.Diagnostics.AddError("Error creating Security Group Rule", "Could not create security group rule: AddSecurityGroupRule returned no rules")
 		return
 	}
 
@@ -251,8 +275,8 @@ func (r *securityGroupRuleResource) Create(ctx context.Context, request resource
 
 	if created == nil {
 		response.Diagnostics.AddError(
-			"Failed to locate created rule",
-			"Could not uniquely identify the created rule in API response; check matching logic or API behavior.")
+			"Error creating Security Group Rule",
+			"Could not create security group rule: could not uniquely identify the created rule in API response; check matching logic or API behavior.")
 		return
 	}
 
@@ -314,15 +338,19 @@ func (r *securityGroupRuleResource) Read(ctx context.Context, request resource.R
 	}
 
 	if state.Uuid.IsNull() || state.Uuid.ValueString() == "" {
-		response.Diagnostics.AddError("Missing UUID", "Cannot read SecurityGroupRule without UUID")
+		response.Diagnostics.AddError("Error reading Security Group Rule", "Could not read security group rule without UUID")
 		return
 	}
 
 	//rules, err := r.client.GetSecurityGroupRule(state.Uuid.ValueString())
-	rule, err := r.client.GetSecurityGroupRule(state.Uuid.ValueString())
+	rule, err := findResourceByGet(r.client.GetSecurityGroupRule, state.Uuid.ValueString())
 
 	if err != nil {
-		response.Diagnostics.AddError("Fail to get security gourp and rules ", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError("Error reading Security Group Rule", "Could not read security group rule UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -382,13 +410,13 @@ func (r *securityGroupRuleResource) Update(ctx context.Context, request resource
 		return
 	}
 	if r.client == nil {
-		response.Diagnostics.AddError("Client Not Configured", "The Client was not properly configured")
+		response.Diagnostics.AddError("Error updating Security Group Rule", "Could not update security group rule because the client was not properly configured")
 		return
 	}
 
 	ruleUUID := state.Uuid.ValueString()
 	if ruleUUID == "" {
-		response.Diagnostics.AddError("Missing Security Group Rule UUID", "UUID is required to update the rule.")
+		response.Diagnostics.AddError("Error updating Security Group Rule", "Could not update security group rule without UUID")
 		return
 	}
 
@@ -436,13 +464,13 @@ func (r *securityGroupRuleResource) Update(ctx context.Context, request resource
 		Params:    change,
 	})
 	if err != nil {
-		response.Diagnostics.AddError("Failed to update security group rule", fmt.Sprintf("Error: %s", err))
+		response.Diagnostics.AddError("Error updating Security Group Rule", "Could not update security group rule UUID "+ruleUUID+": "+err.Error())
 		return
 	}
 
 	rule, err := r.client.GetSecurityGroupRule(ruleUUID)
 	if err != nil {
-		response.Diagnostics.AddError("Failed to read security group rule after update", fmt.Sprintf("Error: %s", err))
+		response.Diagnostics.AddError("Error reading Security Group Rule", "Could not read security group rule after update UUID "+ruleUUID+": "+err.Error())
 		return
 	}
 	_ = needUpdate
@@ -495,8 +523,8 @@ func (r *securityGroupRuleResource) Delete(ctx context.Context, request resource
 	err := r.client.DeleteSecurityGroupRule(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to delete security group",
-			"Error "+err.Error(),
+			"Error deleting Security Group Rule",
+			"Could not delete security group rule UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

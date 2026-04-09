@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackImageDataSource(t *testing.T) {
@@ -16,22 +19,22 @@ func TestAccZStackImageDataSource(t *testing.T) {
 	}
 	img := env.Images[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_images" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.#", fmt.Sprintf("%d", len(env.Images))),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.name", envStr(img, "name")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.architecture", envStr(img, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.format", envStr(img, "format")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.guest_os_type", envStr(img, "guest_os_type")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.platform", envStr(img, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.state", envStr(img, "state")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.status", envStr(img, "status")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.uuid", envStr(img, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images"), knownvalue.ListSizeExact(len(env.Images))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(img, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(img, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("format"), knownvalue.StringExact(envStr(img, "format"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("guest_os_type"), knownvalue.StringExact(envStr(img, "guest_os_type"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(img, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(img, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(img, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(img, "uuid"))),
+				},
 			},
 		},
 	})
@@ -45,22 +48,22 @@ func TestAccZStackImageDataSourceFilterByName(t *testing.T) {
 	img := env.Images[0]
 	name := envStr(img, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_images" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.uuid", envStr(img, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.architecture", envStr(img, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.format", envStr(img, "format")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.guest_os_type", envStr(img, "guest_os_type")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.platform", envStr(img, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.state", envStr(img, "state")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.status", envStr(img, "status")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(img, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(img, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("format"), knownvalue.StringExact(envStr(img, "format"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("guest_os_type"), knownvalue.StringExact(envStr(img, "guest_os_type"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(img, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(img, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(img, "status"))),
+				},
 			},
 		},
 	})
@@ -75,21 +78,21 @@ func TestAccZStackImageDataSourceFilterByNamePattern(t *testing.T) {
 	name := envStr(img, "name")
 	pattern := name[:3] + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_images" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.uuid", envStr(img, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.architecture", envStr(img, "architecture")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.format", envStr(img, "format")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.guest_os_type", envStr(img, "guest_os_type")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.platform", envStr(img, "platform")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.state", envStr(img, "state")),
-					resource.TestCheckResourceAttr("data.zstack_images.test", "images.0.status", envStr(img, "status")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(img, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(img, "architecture"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("format"), knownvalue.StringExact(envStr(img, "format"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("guest_os_type"), knownvalue.StringExact(envStr(img, "guest_os_type"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(img, "platform"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(img, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_images.test", tfjsonpath.New("images").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(img, "status"))),
+				},
 			},
 		},
 	})

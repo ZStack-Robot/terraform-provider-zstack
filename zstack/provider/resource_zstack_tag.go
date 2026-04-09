@@ -5,12 +5,15 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -68,6 +71,9 @@ func (r *tagResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the tag.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -77,6 +83,9 @@ func (r *tagResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the tag.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"value": schema.StringAttribute{
 				Required:    true,
@@ -89,6 +98,9 @@ func (r *tagResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Description: "The type of the tag. Valid values are 'simple' and 'withToken'.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("simple", "withToken"),
 				},
@@ -118,7 +130,10 @@ func (r *tagResource) Create(ctx context.Context, request resource.CreateRequest
 
 	tag, err := r.client.CreateTag(params)
 	if err != nil {
-		response.Diagnostics.AddError("Error creating tag", err.Error())
+		response.Diagnostics.AddError(
+			"Error creating Tag",
+			"Could not create tag, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -143,16 +158,21 @@ func (r *tagResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	tag, err := r.client.GetTag(state.Uuid.ValueString())
+	tag, err := findResourceByGet(r.client.GetTag, state.Uuid.ValueString())
 	if err != nil {
-		response.Diagnostics.AddError("Error reading tag", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error reading Tag",
+			"Could not read tag UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
 	state.Name = types.StringValue(tag.Name)
-	// TODO: SDK TagInventoryView is missing Value field - needs SDK update
-	// state.Value = types.StringValue(tag.Value)
-	state.Description = stringValueOrNull(tag.Description)
+	state.Value = stringValueOrNull(tag.Value)
 	state.Color = stringValueOrNull(tag.Color)
 	state.Type = stringValueOrNull(tag.Type)
 
@@ -180,7 +200,10 @@ func (r *tagResource) Update(ctx context.Context, request resource.UpdateRequest
 
 	//uuid := ("uuid".ValueString())
 	if state.Uuid.ValueString() == "" {
-		response.Diagnostics.AddError("Tag UUID is empty", "Cannot update tag without a UUID.")
+		response.Diagnostics.AddError(
+			"Error updating Tag",
+			"Could not update tag without a UUID.",
+		)
 		return
 	}
 
@@ -193,16 +216,16 @@ func (r *tagResource) Update(ctx context.Context, request resource.UpdateRequest
 
 		if len(oldParts) != 2 || len(newParts) != 2 {
 			response.Diagnostics.AddError(
-				"Invalid Token Format",
-				fmt.Sprintf("Expected value format 'token::key'. Got old='%s' new='%s'", oldValue, newValue),
+				"Error updating Tag",
+				fmt.Sprintf("Could not update tag, expected value format 'token::key'. Got old='%s' new='%s'", oldValue, newValue),
 			)
 			return
 		}
 
 		if oldParts[0] != newParts[0] {
 			response.Diagnostics.AddError(
-				"Invalid Update: Cannot change token type",
-				fmt.Sprintf("The token part '%s' cannot be modified to '%s'. Only the key part after '::' can be changed.", oldParts[0], newParts[0]),
+				"Error updating Tag",
+				fmt.Sprintf("Could not update tag because token part '%s' cannot be modified to '%s'. Only the key part after '::' can be changed.", oldParts[0], newParts[0]),
 			)
 			return
 		}
@@ -220,7 +243,10 @@ func (r *tagResource) Update(ctx context.Context, request resource.UpdateRequest
 
 	tag, err := r.client.UpdateTag(state.Uuid.ValueString(), params)
 	if err != nil {
-		response.Diagnostics.AddError("Error updating tag", err.Error())
+		response.Diagnostics.AddError(
+			"Error updating Tag",
+			"Could not update tag, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -251,7 +277,10 @@ func (r *tagResource) Delete(ctx context.Context, request resource.DeleteRequest
 
 	err := r.client.DeleteTag(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 	if err != nil {
-		response.Diagnostics.AddError("Error deleting tag", err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting Tag",
+			"Could not delete tag, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }
@@ -274,12 +303,11 @@ func (r *tagResource) ImportState(ctx context.Context, request resource.ImportSt
 	}
 
 	response.State.Set(ctx, &tagResourceModel{
-		Uuid: types.StringValue(tag.UUID),
-		Name: types.StringValue(tag.Name),
-		// TODO: SDK TagInventoryView is missing Value field - needs SDK update
-		// Value:       types.StringValue(tag.Value),
-		Description: types.StringValue(tag.Description),
-		Color:       types.StringValue(tag.Color),
-		Type:        types.StringValue(tag.Type),
+		Uuid:        types.StringValue(tag.UUID),
+		Name:        types.StringValue(tag.Name),
+		Value:       stringValueOrNull(tag.Value),
+		Description: stringValueOrNull(tag.Description),
+		Color:       stringValueOrNull(tag.Color),
+		Type:        stringValueOrNull(tag.Type),
 	})
 }

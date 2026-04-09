@@ -4,11 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -93,7 +98,8 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 	vrInstance, err := r.client.CreateVpcVRouter(virtualRouterInstanceParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not Create virtual router instance", "Error "+err.Error(),
+			"Error creating Virtual Router Instance",
+			"Could not create virtual router instance, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -133,7 +139,10 @@ func (r *virtualRouterInstanceResource) Delete(ctx context.Context, req resource
 	err := r.client.DestroyVmInstance(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 
 	if err != nil {
-		resp.Diagnostics.AddError("fail to delete virtual router image", ""+err.Error())
+		resp.Diagnostics.AddError(
+			"Error deleting Virtual Router Instance",
+			"Could not delete virtual router instance, unexpected error: "+err.Error(),
+		)
 		return
 	}
 }
@@ -151,10 +160,15 @@ func (r *virtualRouterInstanceResource) Read(ctx context.Context, req resource.R
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	vrInstance, err := r.client.GetVirtualRouterVm(state.Uuid.ValueString())
+	vrInstance, err := findResourceByGet(r.client.GetVirtualRouterVm, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error getting virtual router image uuid", "Could not read image uuid "+err.Error(),
+			"Error reading Virtual Router Instance",
+			"Could not read virtual router instance UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -188,49 +202,85 @@ func (r *virtualRouterInstanceResource) Schema(_ context.Context, req resource.S
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the virtual router instance, uniquely identifying this resource in ZStack. Automatically generated upon creation.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the virtual router instance. This is a required field in your environment.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Description: "An optional description of the virtual router instance. Provides additional context or purpose of this instance.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"virtual_router_offering_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the virtual router offering associated with this instance. Specifies the configuration and resource settings for the virtual router.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The current state of the virtual router instance. Possible values include 'Enabled', 'Disabled', etc.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The operational status of the virtual router instance. Indicates whether the instance is running, stopped, or in an error Status.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the zone where the virtual router instance will be deployed. Ensures the instance is placed within a specific zone.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"cluster_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the cluster where the virtual router instance will be deployed. Takes precedence over 'zone_uuid' if both are specified.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"host_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the host where the virtual router instance will be deployed. Takes precedence over both 'zone_uuid' and 'cluster_uuid' if specified.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"primary_storage_uuid_for_rootvolume": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the primary storage where the root volume of the virtual router instance will be created. Ensures the root volume is placed on the specified storage.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 		},
 	}
 }
 
 func (r *virtualRouterInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-
+	resp.Diagnostics.AddError(
+		"Update not supported",
+		"Virtual Router Instance resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *virtualRouterInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

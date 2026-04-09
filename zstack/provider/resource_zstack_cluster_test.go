@@ -9,6 +9,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestClusterResource_Schema(t *testing.T) {
@@ -58,8 +61,9 @@ func TestAccClusterResource(t *testing.T) {
 		t.Skip("no zones in env.json, skipping cluster acceptance test")
 	}
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckClusterDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -69,11 +73,46 @@ resource "zstack_cluster" "test" {
   hypervisor_type = "KVM"
 }
 `, envStr(env.Zones[0], "uuid")),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_cluster.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_cluster.test", "name", "acc-test-cluster"),
-					tfresource.TestCheckResourceAttr("zstack_cluster.test", "hypervisor_type", "KVM"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-cluster")),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("hypervisor_type"), knownvalue.StringExact("KVM")),
+				},
+			},
+			{
+				ResourceName:      "zstack_cluster.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func TestAccClusterResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env data")
+	}
+	zoneUUID := envStr(env.Zones[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckClusterDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_cluster" "test_disappears" {
+  name            = "acc-test-cluster-disappears"
+  description     = "Disappears test cluster"
+  hypervisor_type = "KVM"
+  zone_uuid       = %q
+}
+`, zoneUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_cluster.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckClusterDisappears("zstack_cluster.test_disappears"),
+				},
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

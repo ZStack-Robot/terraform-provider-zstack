@@ -10,6 +10,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestVolumeResource_Schema(t *testing.T) {
@@ -36,8 +39,9 @@ func TestAccVolumeResource(t *testing.T) {
 	}
 	doUUID := envStr(env.DiskOfferings[0], "uuid")
 
-	tfresource.Test(t, tfresource.TestCase{
+	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVolumeDestroy,
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -46,10 +50,15 @@ resource "zstack_volume" "test" {
   disk_offering_uuid = %q
 }
 `, doUUID),
-				Check: tfresource.ComposeAggregateTestCheckFunc(
-					tfresource.TestCheckResourceAttrSet("zstack_volume.test", "uuid"),
-					tfresource.TestCheckResourceAttr("zstack_volume.test", "name", "acc-test-volume"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-volume")),
+				},
+			},
+			{
+				ResourceName:      "zstack_volume.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

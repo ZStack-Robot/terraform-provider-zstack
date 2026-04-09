@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_networking_secgroup_rule Resource - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Networking"
 description: |-
     This resource manages a security group rule in ZStack.
 ---

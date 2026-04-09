@@ -6,12 +6,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,15 +80,24 @@ func (r *l2VlanNetworkResource) Schema(_ context.Context, _ resource.SchemaReque
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the L2 VLAN network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the L2 VLAN network.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the L2 VLAN network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vlan": schema.Int64Attribute{
 				Required:    true,
@@ -107,22 +119,35 @@ func (r *l2VlanNetworkResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "The physical network interface (e.g., eth0, bond0) used by this L2 VLAN network.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the L2 network (e.g., L2VlanNetwork).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vswitch_type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The virtual switch type (e.g., LinuxBridge, OvsDpdk).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("LinuxBridge", "OvsDpdk"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"attached_cluster_uuids": schema.ListAttribute{
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
 				Description: "The list of cluster UUIDs to which this L2 VLAN network is attached.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -160,7 +185,19 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 
 	l2Network, err := r.client.CreateL2VlanNetwork(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create L2 VLAN network", err.Error())
+		resp.Diagnostics.AddError("Error creating L2 VLAN Network", "Could not create L2 VLAN network, unexpected error: "+err.Error())
+		return
+	}
+
+	// Save partial state so the L2 VLAN network UUID is tracked even if cluster attachment fails
+	partialState, err := r.readL2VlanNetwork(l2Network.UUID)
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading L2 VLAN Network", "Could not read L2 VLAN network after create: "+err.Error())
+		return
+	}
+	diags = resp.State.Set(ctx, &partialState)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -169,8 +206,8 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 	for _, clusterUuid := range desiredClusters {
 		if err := r.attachCluster(l2Network.UUID, clusterUuid); err != nil {
 			resp.Diagnostics.AddError(
-				"L2 VLAN network created but cluster attach failed",
-				fmt.Sprintf("Failed to attach cluster %s: %s", clusterUuid, err.Error()),
+				"Error attaching Cluster to L2 VLAN Network",
+				fmt.Sprintf("Could not attach cluster %s to L2 VLAN network: %s", clusterUuid, err.Error()),
 			)
 			return
 		}
@@ -179,7 +216,7 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 	// Read back the created resource
 	state, err := r.readL2VlanNetwork(l2Network.UUID)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read created L2 VLAN network", err.Error())
+		resp.Diagnostics.AddError("Error reading L2 VLAN Network", "Could not read L2 VLAN network after create: "+err.Error())
 		return
 	}
 
@@ -198,7 +235,11 @@ func (r *l2VlanNetworkResource) Read(ctx context.Context, req resource.ReadReque
 
 	refreshedState, err := r.readL2VlanNetwork(state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read L2 VLAN network", err.Error())
+		if isZStackNotFoundError(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading L2 VLAN Network", "Could not read L2 VLAN network, unexpected error: "+err.Error())
 		return
 	}
 
@@ -232,21 +273,21 @@ func (r *l2VlanNetworkResource) Update(ctx context.Context, req resource.UpdateR
 		}
 
 		if _, err := r.client.UpdateL2Network(uuid, updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update L2 VLAN network", err.Error())
+			resp.Diagnostics.AddError("Error updating L2 VLAN Network", "Could not update L2 VLAN network, unexpected error: "+err.Error())
 			return
 		}
 	}
 
 	// Reconcile cluster attachments
 	if err := r.reconcileClusterAttachments(uuid, state.AttachedClusterUuids, plan.AttachedClusterUuids); err != nil {
-		resp.Diagnostics.AddError("Could not update cluster attachments", err.Error())
+		resp.Diagnostics.AddError("Error updating L2 VLAN Network Cluster Attachments", "Could not update L2 VLAN network cluster attachments, unexpected error: "+err.Error())
 		return
 	}
 
 	// Read back the updated resource
 	refreshedState, err := r.readL2VlanNetwork(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated L2 VLAN network", err.Error())
+		resp.Diagnostics.AddError("Error reading L2 VLAN Network", "Could not read L2 VLAN network after update: "+err.Error())
 		return
 	}
 
@@ -269,7 +310,7 @@ func (r *l2VlanNetworkResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	if err := r.client.DeleteL2Network(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete L2 VLAN network", err.Error())
+		resp.Diagnostics.AddError("Error deleting L2 VLAN Network", "Could not delete L2 VLAN network, unexpected error: "+err.Error())
 		return
 	}
 }
@@ -294,12 +335,7 @@ func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string)
 		Params:    param.AttachL2NetworkToClusterParamDetail{},
 	}
 
-	var resp view.L2NetworkInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/l2-networks/%s/clusters/%s", l2NetworkUuid, clusterUuid),
-		attachParam,
-		&resp,
-	); err != nil {
+	if _, err := r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, attachParam); err != nil {
 		return err
 	}
 	return nil

@@ -4,14 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -77,15 +80,24 @@ func (r *loadBalancerListenerResource) Schema(_ context.Context, _ resource.Sche
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the load balancer listener.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the load balancer listener.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the load balancer listener.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"load_balancer_uuid": schema.StringAttribute{
 				Required:    true,
@@ -97,6 +109,9 @@ func (r *loadBalancerListenerResource) Schema(_ context.Context, _ resource.Sche
 			"protocol": schema.StringAttribute{
 				Required:    true,
 				Description: "The protocol for the listener: tcp, udp, http, or https.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("tcp", "udp", "http", "https"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -119,10 +134,16 @@ func (r *loadBalancerListenerResource) Schema(_ context.Context, _ resource.Sche
 				Optional:    true,
 				Computed:    true,
 				Description: "The security policy type for HTTPS listeners (e.g., tls_cipher_policy_default).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"server_group_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the server group associated with this listener.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -143,7 +164,7 @@ func (r *loadBalancerListenerResource) Create(ctx context.Context, req resource.
 	}
 
 	tflog.Info(ctx, "Creating load balancer listener", map[string]any{
-		"name":              plan.Name.ValueString(),
+		"name":               plan.Name.ValueString(),
 		"load_balancer_uuid": plan.LoadBalancerUuid.ValueString(),
 	})
 
@@ -164,18 +185,13 @@ func (r *loadBalancerListenerResource) Create(ctx context.Context, req resource.
 		createParam.Params.SecurityPolicyType = stringPtr(plan.SecurityPolicyType.ValueString())
 	}
 
-	// SDK Workaround: use ZSHttpClient.Post directly to resolve URL template
-	var listener view.LoadBalancerListenerInventoryView
-	if err := r.client.ZSHttpClient.Post(
-		fmt.Sprintf("v1/load-balancers/%s/listeners", plan.LoadBalancerUuid.ValueString()),
-		createParam,
-		&listener,
-	); err != nil {
-		resp.Diagnostics.AddError("Could not create load balancer listener", err.Error())
+	listener, err := r.client.CreateLoadBalancerListener(plan.LoadBalancerUuid.ValueString(), createParam)
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating Load Balancer Listener", "Could not create load balancer listener, unexpected error: "+err.Error())
 		return
 	}
 
-	state := loadBalancerListenerModelFromView(&listener)
+	state := loadBalancerListenerModelFromView(listener)
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -190,9 +206,13 @@ func (r *loadBalancerListenerResource) Read(ctx context.Context, req resource.Re
 		return
 	}
 
-	listener, err := r.client.GetLoadBalancerListener(state.Uuid.ValueString())
+	listener, err := findResourceByGet(r.client.GetLoadBalancerListener, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read load balancer listener", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading Load Balancer Listener", "Could not read load balancer listener, unexpected error: "+err.Error())
 		return
 	}
 
@@ -228,7 +248,7 @@ func (r *loadBalancerListenerResource) Update(ctx context.Context, req resource.
 		}
 
 		if _, err := r.client.UpdateLoadBalancerListener(uuid, updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update load balancer listener", err.Error())
+			resp.Diagnostics.AddError("Error updating Load Balancer Listener", "Could not update load balancer listener, unexpected error: "+err.Error())
 			return
 		}
 	}
@@ -236,7 +256,7 @@ func (r *loadBalancerListenerResource) Update(ctx context.Context, req resource.
 	// Read back the updated resource
 	listener, err := r.client.GetLoadBalancerListener(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated load balancer listener", err.Error())
+		resp.Diagnostics.AddError("Error reading Load Balancer Listener", "Could not read load balancer listener after update: "+err.Error())
 		return
 	}
 
@@ -261,7 +281,7 @@ func (r *loadBalancerListenerResource) Delete(ctx context.Context, req resource.
 	}
 
 	if err := r.client.DeleteLoadBalancerListener(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete load balancer listener", err.Error())
+		resp.Diagnostics.AddError("Error deleting Load Balancer Listener", "Could not delete load balancer listener, unexpected error: "+err.Error())
 		return
 	}
 }

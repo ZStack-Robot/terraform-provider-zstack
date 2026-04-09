@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_backupstorages Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Storage"
 description: |-
     List all backup storages, or query backup storages by exact name match, or query backup storages by name pattern fuzzy match.
 ---

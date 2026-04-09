@@ -4,13 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -74,15 +77,24 @@ func (r *loadBalancerResource) Schema(_ context.Context, _ resource.SchemaReques
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the load balancer.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the load balancer.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The description of the load balancer.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"vip_uuid": schema.StringAttribute{
 				Required:    true,
@@ -94,14 +106,23 @@ func (r *loadBalancerResource) Schema(_ context.Context, _ resource.SchemaReques
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the load balancer (Enabled, Disabled).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Computed:    true,
 				Description: "The type of the load balancer.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"server_group_uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the default server group associated with the load balancer.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -132,7 +153,7 @@ func (r *loadBalancerResource) Create(ctx context.Context, req resource.CreateRe
 
 	lb, err := r.client.CreateLoadBalancer(createParam)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not create load balancer", err.Error())
+		resp.Diagnostics.AddError("Error creating Load Balancer", "Could not create load balancer, unexpected error: "+err.Error())
 		return
 	}
 
@@ -151,9 +172,13 @@ func (r *loadBalancerResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
-	lb, err := r.client.GetLoadBalancer(state.Uuid.ValueString())
+	lb, err := findResourceByGet(r.client.GetLoadBalancer, state.Uuid.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read load balancer", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading Load Balancer", "Could not read load balancer, unexpected error: "+err.Error())
 		return
 	}
 
@@ -188,7 +213,7 @@ func (r *loadBalancerResource) Update(ctx context.Context, req resource.UpdateRe
 		}
 
 		if _, err := r.client.UpdateLoadBalancer(uuid, updateParam); err != nil {
-			resp.Diagnostics.AddError("Could not update load balancer", err.Error())
+			resp.Diagnostics.AddError("Error updating Load Balancer", "Could not update load balancer, unexpected error: "+err.Error())
 			return
 		}
 	}
@@ -196,7 +221,7 @@ func (r *loadBalancerResource) Update(ctx context.Context, req resource.UpdateRe
 	// Read back the updated resource
 	lb, err := r.client.GetLoadBalancer(uuid)
 	if err != nil {
-		resp.Diagnostics.AddError("Could not read updated load balancer", err.Error())
+		resp.Diagnostics.AddError("Error reading Load Balancer", "Could not read load balancer after update: "+err.Error())
 		return
 	}
 
@@ -221,7 +246,7 @@ func (r *loadBalancerResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 
 	if err := r.client.DeleteLoadBalancer(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
-		resp.Diagnostics.AddError("Could not delete load balancer", err.Error())
+		resp.Diagnostics.AddError("Error deleting Load Balancer", "Could not delete load balancer, unexpected error: "+err.Error())
 		return
 	}
 }

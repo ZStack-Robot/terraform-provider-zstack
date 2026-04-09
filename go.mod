@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.25.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.11.0
-	github.com/zstackio/zstack-sdk-go-v2 v0.0.2-0.20260303063956-a91754e8617b
+	github.com/zstackio/zstack-sdk-go-v2 v0.0.4
 )
 
 require (

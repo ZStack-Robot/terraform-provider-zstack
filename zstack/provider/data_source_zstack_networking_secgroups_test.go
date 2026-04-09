@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackNetworkingSecGroupsDataSource(t *testing.T) {
@@ -19,7 +22,7 @@ func TestAccZStackNetworkingSecGroupsDataSource(t *testing.T) {
 	name := envStr(sg, "name")
 	pattern := string([]rune(name)[:1]) + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -31,11 +34,11 @@ data "zstack_networking_secgroups" "test" {
 		values = [%q]
 	}
 }`, pattern, envStr(sg, "state")),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroups.test", "networking_secgroups.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroups.test", "networking_secgroups.0.state", envStr(sg, "state")),
-					resource.TestCheckResourceAttr("data.zstack_networking_secgroups.test", "networking_secgroups.0.uuid", envStr(sg, "uuid")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroups.test", tfjsonpath.New("networking_secgroups").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroups.test", tfjsonpath.New("networking_secgroups").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(sg, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_networking_secgroups.test", tfjsonpath.New("networking_secgroups").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(sg, "uuid"))),
+				},
 			},
 		},
 	})

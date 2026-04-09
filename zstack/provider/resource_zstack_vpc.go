@@ -4,11 +4,18 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -20,21 +27,6 @@ var (
 	_ resource.ResourceWithConfigure   = &vpcResource{}
 	_ resource.ResourceWithImportState = &vpcResource{}
 )
-
-type NetworkServiceProviderInventoryView struct {
-	Type                string   `json:"type"`
-	Uuid                string   `json:"uuid"`
-	NetworkServiceTypes []string `json:"networkServiceTypes"`
-}
-
-type AttachNetworkServiceToL3NetworkParam struct {
-	BaseParam struct{}
-	Params    AttachNetworkServiceToL3NetworkDetailParam
-}
-
-type AttachNetworkServiceToL3NetworkDetailParam struct {
-	NetworkServices map[string][]string
-}
 
 type vpcResource struct {
 	client *client.ZSClient
@@ -91,46 +83,86 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VPC network.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"l2_network_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "The UUID of the L2 network associated with this VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"enable_ipam": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Enable IP Address Management (IPAM) for this VPC network.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"dns": schema.StringAttribute{
 				Optional:    true,
 				Description: "Attach Dns Server for this VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"virtual_router_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "Attach virtual router  for this VPC network.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"subnet_cidr": schema.SingleNestedAttribute{
 				Required: true,
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.RequiresReplace(),
+				},
 				Attributes: map[string]schema.Attribute{
 					"name": schema.StringAttribute{
 						Required:    true,
 						Description: "The name of the subnet CIDR.",
+						Validators: []validator.String{
+							stringvalidator.LengthAtLeast(1),
+						},
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.RequiresReplace(),
+						},
 					},
 					"network_cidr": schema.StringAttribute{
 						Required:    true,
 						Description: "The CIDR block for the subnet.",
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.RequiresReplace(),
+						},
 					},
 					"gateway": schema.StringAttribute{
 						Required:    true,
 						Description: "The gateway IP address for the subnet.",
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.RequiresReplace(),
+						},
 					},
 				},
 				Description: "Details of the subnet CIDR to be configured in the VPC network.",
@@ -210,8 +242,8 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	pvc, err := r.client.CreateL3Network(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to create L3VpcNetwork",
-			"Error "+err.Error(),
+			"Error creating VPC",
+			"Could not create vpc, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -222,10 +254,48 @@ func (r *vpcResource) Create(ctx context.Context, request resource.CreateRequest
 	plan.L2NetworkUuid = types.StringValue(pvc.L2NetworkUuid)
 	plan.EnableIPAM = types.BoolValue(pvc.EnableIPAM)
 
-	r.client.AttachNetworkServiceToL3Network(netSvcParam)
-	r.client.AddIpRangeByNetworkCidr(cidrParam)
-	r.client.AddDnsToL3Network(dnsParam)
-	r.client.AttachL3NetworkToVm(attachVRtoVPC)
+	// Save partial state so the L3 network UUID is tracked even if follow-up steps fail
+	diags = response.State.Set(ctx, plan)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	if _, err := r.client.AttachNetworkServiceToL3Network(pvc.UUID, netSvcParam); err != nil {
+		response.Diagnostics.AddError(
+			"Error attaching network services to VPC",
+			"Could not attach network services to vpc UUID "+pvc.UUID+": "+err.Error(),
+		)
+		return
+	}
+
+	if _, err := r.client.AddIpRangeByNetworkCidr(pvc.UUID, cidrParam); err != nil {
+		response.Diagnostics.AddError(
+			"Error adding IP range to VPC",
+			"Could not add IP range to vpc UUID "+pvc.UUID+": "+err.Error(),
+		)
+		return
+	}
+
+	if !plan.Dns.IsNull() && plan.Dns.ValueString() != "" {
+		if _, err := r.client.AddDnsToL3Network(pvc.UUID, dnsParam); err != nil {
+			response.Diagnostics.AddError(
+				"Error adding DNS to VPC",
+				"Could not add DNS to vpc UUID "+pvc.UUID+": "+err.Error(),
+			)
+			return
+		}
+	}
+
+	if !plan.VirtualRouterUuid.IsNull() && plan.VirtualRouterUuid.ValueString() != "" {
+		if _, err := r.client.AttachL3NetworkToVm(plan.VirtualRouterUuid.ValueString(), pvc.UUID, attachVRtoVPC); err != nil {
+			response.Diagnostics.AddError(
+				"Error attaching VPC to Virtual Router",
+				"Could not attach vpc UUID "+pvc.UUID+" to virtual router UUID "+plan.VirtualRouterUuid.ValueString()+": "+err.Error(),
+			)
+			return
+		}
+	}
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
@@ -242,39 +312,24 @@ func (r *vpcResource) Read(ctx context.Context, request resource.ReadRequest, re
 		return
 	}
 
-	q2 := param.NewQueryParam()
-	vpcs, err := r.client.QueryL3Network(&q2)
-
-	//Zql(fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	vpc, err := findResourceByQuery(r.client.QueryL3Network, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "cannot read vpcs, maybe it has been deleted, set uuid to 'empty'. vpcs was no longer managed by terraform. error: "+err.Error())
 		diags = response.State.Set(ctx, &state)
 		response.Diagnostics.Append(diags...)
 		return
 	}
 
-	found := false
+	state.Uuid = types.StringValue(vpc.UUID)
+	state.Name = types.StringValue(vpc.Name)
+	state.Description = types.StringValue(vpc.Description)
+	state.L2NetworkUuid = types.StringValue(vpc.L2NetworkUuid)
+	state.EnableIPAM = types.BoolValue(vpc.EnableIPAM)
 
-	for _, vpc := range vpcs {
-		if vpc.UUID == state.Uuid.ValueString() {
-			// Update state with the matched subnet details
-			state.Uuid = types.StringValue(vpc.UUID)
-			state.Name = types.StringValue(vpc.Name)
-			state.Description = types.StringValue(vpc.Description)
-			state.L2NetworkUuid = types.StringValue(vpc.L2NetworkUuid)
-			state.EnableIPAM = types.BoolValue(vpc.EnableIPAM)
-			found = true
-			break
-		}
-	}
-	if !found {
-		// If the subnet is not found, mark it as unmanaged
-		tflog.Warn(ctx, "vpc not found. It might have been deleted outside of Terraform.")
-		state = vpcModel{
-			Uuid: types.StringValue(""),
-		}
-	}
-	// update State
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
@@ -283,7 +338,10 @@ func (r *vpcResource) Read(ctx context.Context, request resource.ReadRequest, re
 }
 
 func (r *vpcResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-
+	response.Diagnostics.AddError(
+		"Update not supported",
+		"VPC resource does not support updates. Please recreate the resource instead.",
+	)
 }
 
 func (r *vpcResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -302,7 +360,10 @@ func (r *vpcResource) Delete(ctx context.Context, request resource.DeleteRequest
 	err := r.client.DeleteL3Network(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
-		response.Diagnostics.AddError("fail to delete reserved ip range", ""+err.Error())
+		response.Diagnostics.AddError(
+			"Error deleting VPC",
+			"Could not delete vpc, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

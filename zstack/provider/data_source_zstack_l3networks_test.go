@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccZStackL3NetworksDataSource(t *testing.T) {
@@ -16,23 +19,23 @@ func TestAccZStackL3NetworksDataSource(t *testing.T) {
 	}
 	l3 := env.L3Networks[0]
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + `data "zstack_l3networks" "test" {}`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", fmt.Sprintf("%d", len(env.L3Networks))),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", envStr(l3, "name")),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.dns.0.dns_model"),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.cidr"),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.start_ip"),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.end_ip"),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.netmask"),
-					resource.TestCheckResourceAttrSet("data.zstack_l3networks.test", "l3networks.0.ip_range.0.gateway"),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks"), knownvalue.ListSizeExact(len(env.L3Networks))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(l3, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l3, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("category"), knownvalue.StringExact(envStr(l3, "category"))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("dns").AtSliceIndex(0).AtMapKey("dns_model"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("cidr"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("start_ip"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("end_ip"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("netmask"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("gateway"), knownvalue.NotNull()),
+				},
 			},
 		},
 	})
@@ -46,17 +49,17 @@ func TestAccZStackL3NetworksDataSourceFilterByName(t *testing.T) {
 	l3 := env.L3Networks[0]
 	name := envStr(l3, "name")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_l3networks" "test" { name = %q }`, name),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.#", "1"),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l3, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("category"), knownvalue.StringExact(envStr(l3, "category"))),
+				},
 			},
 		},
 	})
@@ -71,16 +74,16 @@ func TestAccZStackL3NetworksDataSourceFilterByNamePattern(t *testing.T) {
 	name := envStr(l3, "name")
 	pattern := string([]rune(name)[:1]) + "%"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`data "zstack_l3networks" "test" { name_pattern = %q }`, pattern),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.name", name),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.uuid", envStr(l3, "uuid")),
-					resource.TestCheckResourceAttr("data.zstack_l3networks.test", "l3networks.0.category", envStr(l3, "category")),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l3, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("category"), knownvalue.StringExact(envStr(l3, "category"))),
+				},
 			},
 		},
 	})

@@ -4,12 +4,16 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int32planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -68,29 +72,49 @@ func (r *securityGroupResource) Schema(_ context.Context, request resource.Schem
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The UUID of the security group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "A name for the security group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description for the security group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"sdn_controller_uuid": schema.StringAttribute{
 				Optional: true,
 				Description: "SDN Controller UUID. Required when vswitch_type is 'OvnDpdk'. " +
 					"Used to build SystemTags 'SdnControllerUuid::<uuid>' on create.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"ip_version": schema.Int32Attribute{
 				Required:    true,
 				Description: "",
+				PlanModifiers: []planmodifier.Int32{
+					int32planmodifier.RequiresReplace(),
+				},
 			},
 			"vswitch_type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of virtual switch to use for the security group, e.g., 'LinuxBridge' or 'OvnDpdk'. Defaults to 'LinuxBridge' if not specified.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("LinuxBridge", "OvnDpdk"),
 				},
@@ -146,8 +170,8 @@ func (r *securityGroupResource) Create(ctx context.Context, request resource.Cre
 	secGroup, err := r.client.CreateSecurityGroup(p)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Failed to create security group",
-			"Error "+err.Error(),
+			"Error creating Security Group",
+			"Could not create security group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -179,9 +203,13 @@ func (r *securityGroupResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	secGroups, err := r.client.GetSecurityGroup(state.Uuid.ValueString())
+	secGroups, err := findResourceByGet(r.client.GetSecurityGroup, state.Uuid.ValueString())
 	if err != nil {
-		response.Diagnostics.AddError("Failed to read security group", err.Error())
+		if errors.Is(err, ErrResourceNotFound) {
+			response.State.RemoveResource(ctx)
+			return
+		}
+		response.Diagnostics.AddError("Error reading Security Group", "Could not read security group UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
 
@@ -246,8 +274,8 @@ func (r *securityGroupResource) Delete(ctx context.Context, request resource.Del
 	err := r.client.DeleteSecurityGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
-			"Fail to delete security group",
-			"Error "+err.Error(),
+			"Error deleting Security Group",
+			"Could not delete security group UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}

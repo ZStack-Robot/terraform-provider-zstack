@@ -4,12 +4,17 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -73,32 +78,57 @@ func (r *affinityGroupResource) Schema(_ context.Context, req resource.SchemaReq
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "The unique identifier (UUID) of the affinity group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the affinity group.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "A description of the affinity group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"policy": schema.StringAttribute{
 				Required:    true,
 				Description: "The placement policy: antiSoft, antiHard, proSoft, or proHard.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("antiSoft", "antiHard", "proSoft", "proHard"),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "The type of affinity group. Defaults to 'host'.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"zone_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "The UUID of the zone for this affinity group.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"state": schema.StringAttribute{
 				Computed:    true,
 				Description: "The state of the affinity group (Enabled, Disabled).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -135,7 +165,7 @@ func (r *affinityGroupResource) Create(ctx context.Context, req resource.CreateR
 	affinityGroup, err := r.client.CreateAffinityGroup(createParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not create affinity group in ZStack", "Error: "+err.Error(),
+			"Error creating Affinity Group", "Could not create affinity group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -166,10 +196,14 @@ func (r *affinityGroupResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	affinityGroup, err := r.client.GetAffinityGroup(state.Uuid.ValueString())
+	affinityGroup, err := findResourceByGet(r.client.GetAffinityGroup, state.Uuid.ValueString())
 	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
-			"Error reading affinity group", "Could not read affinity group UUID "+state.Uuid.ValueString()+": "+err.Error(),
+			"Error reading Affinity Group", "Could not read affinity group UUID "+state.Uuid.ValueString()+": "+err.Error(),
 		)
 		return
 	}
@@ -218,7 +252,7 @@ func (r *affinityGroupResource) Update(ctx context.Context, req resource.UpdateR
 	affinityGroup, err := r.client.UpdateAffinityGroup(state.Uuid.ValueString(), updateParam)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Could not update affinity group", "Error: "+err.Error(),
+			"Error updating Affinity Group", "Could not update affinity group, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -255,7 +289,7 @@ func (r *affinityGroupResource) Delete(ctx context.Context, req resource.DeleteR
 
 	err := r.client.DeleteAffinityGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to delete affinity group", err.Error())
+		resp.Diagnostics.AddError("Error deleting Affinity Group", "Could not delete affinity group, unexpected error: "+err.Error())
 		return
 	}
 }

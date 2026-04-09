@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_guest_tools Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Compute"
 description: |-
     Fetches a  instance guest tools info.
 ---

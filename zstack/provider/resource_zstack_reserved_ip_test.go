@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 // decrementIP returns the IP address one less than the given IP.
@@ -59,8 +62,9 @@ func TestAccReservedIpResource(t *testing.T) {
 	reserveEnd := end.String()
 	reserveStart := decrementIP(end.To4()).String()
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckReservedIpDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
@@ -70,11 +74,16 @@ func TestAccReservedIpResource(t *testing.T) {
 					end_ip   = %q
 				}`, l3UUID, reserveStart, reserveEnd),
 
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("zstack_reserved_ip.test", "l3_network_uuid", l3UUID),
-					resource.TestCheckResourceAttr("zstack_reserved_ip.test", "start_ip", reserveStart),
-					resource.TestCheckResourceAttr("zstack_reserved_ip.test", "end_ip", reserveEnd),
-				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_reserved_ip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
+					statecheck.ExpectKnownValue("zstack_reserved_ip.test", tfjsonpath.New("start_ip"), knownvalue.StringExact(reserveStart)),
+					statecheck.ExpectKnownValue("zstack_reserved_ip.test", tfjsonpath.New("end_ip"), knownvalue.StringExact(reserveEnd)),
+				},
+			},
+			{
+				ResourceName:      "zstack_reserved_ip.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_disks Data Source - terraform-provider-zstack"
-subcategory: ""
+subcategory: "Storage"
 description: |-
     Fetches a list of disks and their associated attributes from the ZStack environment.
 ---
