@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -193,6 +194,7 @@ func (r *volumeSnapshotResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"revert": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
+				Default:     booldefault.StaticBool(false),
 				Description: "Set to true to revert the source volume to this snapshot. The revert is triggered during update when this field changes from false to true. After the revert completes, the value resets to false.",
 			},
 		},
@@ -223,7 +225,7 @@ func (r *volumeSnapshotResource) Create(ctx context.Context, req resource.Create
 	}
 
 	state := volumeSnapshotModelFromView(snapshot)
-	state.Revert = plan.Revert
+	state.Revert = types.BoolValue(false)
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -236,8 +238,6 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	currentRevert := state.Revert
 
 	snapshot, err := findResourceByGet(r.client.GetVolumeSnapshot, state.Uuid.ValueString())
 	if err != nil {
@@ -253,7 +253,7 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	state = volumeSnapshotModelFromView(snapshot)
-	state.Revert = currentRevert
+	state.Revert = types.BoolValue(false)
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -287,7 +287,8 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 		}
 	}
 
-	if !plan.Revert.IsNull() && plan.Revert.ValueBool() {
+	// One-shot trigger: only revert on a false→true edge (not when state already holds true)
+	if plan.Revert.ValueBool() && !state.Revert.ValueBool() {
 		tflog.Info(ctx, "Reverting volume from snapshot", map[string]any{"snapshot_uuid": state.Uuid.ValueString()})
 		if _, err := r.client.RevertVolumeFromSnapshot(state.Uuid.ValueString(), param.RevertVolumeFromSnapshotParam{}); err != nil {
 			resp.Diagnostics.AddError(
@@ -308,7 +309,8 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 	}
 
 	updatedState := volumeSnapshotModelFromView(snapshot)
-	updatedState.Revert = plan.Revert
+	// Always reset revert to false so it doesn't re-trigger on subsequent updates
+	updatedState.Revert = types.BoolValue(false)
 	diags = resp.State.Set(ctx, &updatedState)
 	resp.Diagnostics.Append(diags...)
 }

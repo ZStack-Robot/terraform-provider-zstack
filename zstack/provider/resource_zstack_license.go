@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -53,7 +54,8 @@ type licenseModel struct {
 
 func populateLicenseModelFromInventory(state *licenseModel, license *view.LicenseInventoryView) {
 	state.Uuid = stringValueOrNull(license.UUID)
-	state.ManagementNodeUuid = stringValueOrNull(license.ManagementNodeUuid)
+	// ManagementNodeUuid is a user-provided routing parameter (API path param)
+	// and is not reliably returned by the API — preserve the value already in state.
 	state.User = stringValueOrNull(license.User)
 	state.ProdInfo = stringValueOrNull(license.ProdInfo)
 	state.CpuNum = types.Int64Value(int64(license.CpuNum))
@@ -115,7 +117,6 @@ func (r *licenseResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"management_node_uuid": schema.StringAttribute{
 				Required:    true,
-				Computed:    true,
 				Description: "The management node UUID used for license upload.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -241,16 +242,8 @@ func (r *licenseResource) Read(ctx context.Context, request resource.ReadRequest
 		return
 	}
 
-	existingManagementNodeUuid := state.ManagementNodeUuid
 	populateLicenseModelFromInventory(&state, license)
 	state.License = existingLicense
-
-	// Preserve management_node_uuid from state if API returns null/empty
-	if state.ManagementNodeUuid.IsNull() || state.ManagementNodeUuid.IsUnknown() {
-		if !existingManagementNodeUuid.IsNull() && !existingManagementNodeUuid.IsUnknown() {
-			state.ManagementNodeUuid = existingManagementNodeUuid
-		}
-	}
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -299,5 +292,15 @@ func (r *licenseResource) Delete(ctx context.Context, request resource.DeleteReq
 }
 
 func (r *licenseResource) ImportState(ctx context.Context, request resource.ImportStateRequest, response *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), request, response)
+	parts := strings.SplitN(request.ID, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		response.Diagnostics.AddError(
+			"Invalid import ID format",
+			"Expected format: <uuid>:<management_node_uuid> (e.g. abc123:def456). "+
+				"The 'management_node_uuid' field is not reliably returned by the API and must be supplied at import time.",
+		)
+		return
+	}
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("uuid"), parts[0])...)
+	response.Diagnostics.Append(response.State.SetAttribute(ctx, path.Root("management_node_uuid"), parts[1])...)
 }
