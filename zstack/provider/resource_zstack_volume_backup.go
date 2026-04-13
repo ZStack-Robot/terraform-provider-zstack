@@ -195,12 +195,10 @@ func (r *volumeBackupResource) Read(ctx context.Context, request resource.ReadRe
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query volume backups. It may have been deleted.: "+err.Error())
-		state = volumeBackupModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Volume Backup",
+			"Could not read volume backup UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
