@@ -6,6 +6,7 @@ dist/
 zstack/provider/testdata/env.json
 # Ignore generated binary from go build/run
 generate_env
+terraform-provider-zstack
 # Ignore generated Terraform batch-test files
 zstack/provider/testdata/terraform/
 # Ignore test reports

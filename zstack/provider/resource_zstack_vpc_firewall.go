@@ -154,12 +154,10 @@ func (r *vpcFirewallResource) Read(ctx context.Context, request resource.ReadReq
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query VPC firewalls. It may have been deleted.: "+err.Error())
-		state = vpcFirewallResourceModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading VPC Firewall",
+			"Could not read VPC firewall UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
