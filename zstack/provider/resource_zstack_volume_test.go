@@ -58,7 +58,7 @@ resource "zstack_volume" "test" {
 			{
 				ResourceName:      "zstack_volume.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_volume.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_volume.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

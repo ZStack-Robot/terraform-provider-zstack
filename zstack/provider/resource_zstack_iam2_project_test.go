@@ -70,19 +70,32 @@ func TestAccIAM2ProjectResource(t *testing.T) {
 			{
 				Config: providerConfig() + `
 resource "zstack_iam2_project" "test" {
-  name        = "acc-test-iam2-project"
+  name        = "acc-test-iam2-proj"
   description = "acceptance test IAM2 project"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-project")),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-proj")),
+				},
+			},
+			// Step 2: Update — modify name and description
+			{
+				Config: providerConfig() + `
+resource "zstack_iam2_project" "test" {
+  name        = "acc-test-iam2-proj-updated"
+  description = "Updated acceptance test IAM2 project"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-proj-updated")),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("Updated acceptance test IAM2 project")),
 				},
 			},
 			{
 				ResourceName:      "zstack_iam2_project.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_iam2_project.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_iam2_project.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
@@ -100,7 +113,7 @@ func TestAccIAM2ProjectResource_disappears(t *testing.T) {
 			{
 				Config: providerConfig() + `
 resource "zstack_iam2_project" "test_disappears" {
-  name        = "acc-test-project-disappears"
+  name        = "acc-test-proj-disappears"
   description = "Disappears test project"
 }
 `,

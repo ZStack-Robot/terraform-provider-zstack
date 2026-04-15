@@ -102,7 +102,7 @@ resource "zstack_virtual_router_offer" "test" {
 			{
 				ResourceName:            "zstack_virtual_router_offer.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_virtual_router_offer.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_offer.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"management_network_uuid", "zone_uuid", "image_uuid", "public_network_uuid", "is_default"},

@@ -82,7 +82,7 @@ resource "zstack_ssh_key_pair" "test" {
 			{
 				ResourceName:      "zstack_ssh_key_pair.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_ssh_key_pair.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_ssh_key_pair.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

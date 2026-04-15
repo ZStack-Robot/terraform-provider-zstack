@@ -4,9 +4,14 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestTagAttachmentResource_Schema(t *testing.T) {
@@ -40,4 +45,37 @@ func TestTagAttachmentResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_tag_attachment" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccTagAttachmentResource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env data, required for tag attachment target")
+	}
+	zoneUUID := envStr(env.Zones[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckTagAttachmentDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_tag" "test_for_attach" {
+  name  = "acc-test-tag-for-attach"
+  value = "attach-value"
+  type  = "simple"
+  color = "#FF0000"
+}
+
+resource "zstack_tag_attachment" "test" {
+  tag_uuid       = zstack_tag.test_for_attach.uuid
+  resource_uuids = [%q]
+}
+`, zoneUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_tag_attachment.test", tfjsonpath.New("tag_uuid"), knownvalue.NotNull()),
+				},
+			},
+		},
+	})
 }
