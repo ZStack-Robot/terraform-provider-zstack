@@ -1046,10 +1046,6 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "vm uuid is empty, so nothing to delete, skip it")
-		return
-	}
 	if resp.Diagnostics.HasError() {
 		return
 	}

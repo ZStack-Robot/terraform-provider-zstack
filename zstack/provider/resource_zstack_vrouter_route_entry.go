@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -188,12 +187,10 @@ func (r *vrouterRouteEntryResource) Read(ctx context.Context, request resource.R
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query VRouter route entries. It may have been deleted.: "+err.Error())
-		state = vrouterRouteEntryResourceModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading VRouter Route Entrie",
+			"Could not read VRouter Route Entrie, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -227,10 +224,6 @@ func (r *vrouterRouteEntryResource) Delete(ctx context.Context, request resource
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "VRouter route entry UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteVRouterRouteEntry(state.RouteTableUuid.ValueString(), state.Uuid.ValueString(), param.DeleteModePermissive)
 

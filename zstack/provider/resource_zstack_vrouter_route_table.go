@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -144,12 +143,10 @@ func (r *vrouterRouteTableResource) Read(ctx context.Context, request resource.R
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query VRouter route tables. It may have been deleted.: "+err.Error())
-		state = vrouterRouteTableResourceModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading VRouter Route Table",
+			"Could not read VRouter Route Table, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -217,10 +214,6 @@ func (r *vrouterRouteTableResource) Delete(ctx context.Context, request resource
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "VRouter route table UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteVRouterRouteTable(state.Uuid.ValueString(), param.DeleteModePermissive)
 

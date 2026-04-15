@@ -131,10 +131,6 @@ func (r *virtualRouterInstanceResource) Delete(ctx context.Context, req resource
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "virtual router image uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DestroyVmInstance(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 

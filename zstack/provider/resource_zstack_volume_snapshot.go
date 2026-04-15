@@ -195,7 +195,7 @@ func (r *volumeSnapshotResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
-				Description: "Set to true to revert the source volume to this snapshot. The revert is triggered during update when this field changes from false to true. After the revert completes, the value resets to false.",
+				Description: "Set to true to revert the source volume to this snapshot. The revert is triggered during update when this field transitions from false to true. To revert again later, set this back to false and then to true.",
 			},
 		},
 	}
@@ -239,6 +239,9 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
+	// Preserve the current revert value so Read does not reset it.
+	priorRevert := state.Revert
+
 	snapshot, err := findResourceByGet(r.client.GetVolumeSnapshot, state.Uuid.ValueString())
 	if err != nil {
 		if errors.Is(err, ErrResourceNotFound) {
@@ -253,7 +256,7 @@ func (r *volumeSnapshotResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	state = volumeSnapshotModelFromView(snapshot)
-	state.Revert = types.BoolValue(false)
+	state.Revert = priorRevert
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 }
@@ -309,8 +312,7 @@ func (r *volumeSnapshotResource) Update(ctx context.Context, req resource.Update
 	}
 
 	updatedState := volumeSnapshotModelFromView(snapshot)
-	// Always reset revert to false so it doesn't re-trigger on subsequent updates
-	updatedState.Revert = types.BoolValue(false)
+	updatedState.Revert = plan.Revert
 	diags = resp.State.Set(ctx, &updatedState)
 	resp.Diagnostics.Append(diags...)
 }

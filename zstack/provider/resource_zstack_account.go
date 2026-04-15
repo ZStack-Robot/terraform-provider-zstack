@@ -234,10 +234,6 @@ func (r *accountResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "account uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteAccount(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

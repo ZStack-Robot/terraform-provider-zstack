@@ -189,10 +189,10 @@ func (r *snsHttpEndpointResource) Read(ctx context.Context, request resource.Rea
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query SNS HTTP endpoints. It may have been deleted.: "+err.Error())
-		state = snsHttpEndpointModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading SNS HTTP Endpoint",
+			"Could not read SNS HTTP endpoint UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 

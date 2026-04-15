@@ -23,38 +23,77 @@ type EnvData struct {
 	BackupStorages  []map[string]interface{} `json:"backup_storages"`
 
 	// Compute
-	Images            []map[string]interface{} `json:"images"`
-	InstanceOfferings []map[string]interface{} `json:"instance_offerings"`
-	DiskOfferings     []map[string]interface{} `json:"disk_offerings"`
-	VmInstances       []map[string]interface{} `json:"vm_instances"`
-	GpuDevices        []map[string]interface{} `json:"gpu_devices"`
-	AutoScalingGroups []map[string]interface{} `json:"auto_scaling_groups"`
+	Images             []map[string]interface{} `json:"images"`
+	InstanceOfferings  []map[string]interface{} `json:"instance_offerings"`
+	DiskOfferings      []map[string]interface{} `json:"disk_offerings"`
+	VmInstances        []map[string]interface{} `json:"vm_instances"`
+	GpuDevices         []map[string]interface{} `json:"gpu_devices"`
+	AutoScalingGroups  []map[string]interface{} `json:"auto_scaling_groups"`
+	PciDeviceOfferings []map[string]interface{} `json:"pci_device_offerings"`
+	VCenters           []map[string]interface{} `json:"vcenters"`
 
 	// Storage
-	Volumes         []map[string]interface{} `json:"volumes"`
-	VolumeSnapshots []map[string]interface{} `json:"volume_snapshots"`
+	Volumes                  []map[string]interface{} `json:"volumes"`
+	VolumeSnapshots          []map[string]interface{} `json:"volume_snapshots"`
+	CephPrimaryStorages      []map[string]interface{} `json:"ceph_primary_storages"`
+	CephBackupStorages       []map[string]interface{} `json:"ceph_backup_storages"`
+	CephPools                []map[string]interface{} `json:"ceph_pools"`
+	ImageStoreBackupStorages []map[string]interface{} `json:"image_store_backup_storages"`
+	VolumeBackups            []map[string]interface{} `json:"volume_backups"`
+	DatabaseBackups          []map[string]interface{} `json:"database_backups"`
+	NvmeServers              []map[string]interface{} `json:"nvme_servers"`
+	IscsiServers             []map[string]interface{} `json:"iscsi_servers"`
 
 	// Network
-	L2Networks            []map[string]interface{} `json:"l2_networks"`
-	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
-	L3Networks            []map[string]interface{} `json:"l3_networks"`
-	IpRanges              []map[string]interface{} `json:"ip_ranges"`
-	Vips                  []map[string]interface{} `json:"vips"`
-	Eips                  []map[string]interface{} `json:"eips"`
-	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
-	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
+	L2Networks           []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks       []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks           []map[string]interface{} `json:"l3_networks"`
+	IpRanges             []map[string]interface{} `json:"ip_ranges"`
+	Vips                 []map[string]interface{} `json:"vips"`
+	Eips                 []map[string]interface{} `json:"eips"`
+	PortForwardingRules  []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers        []map[string]interface{} `json:"load_balancers"`
 	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
-	SecurityGroups        []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
-	VmNics                []map[string]interface{} `json:"vm_nics"`
+	SecurityGroups       []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules   []map[string]interface{} `json:"security_group_rules"`
+	VmNics               []map[string]interface{} `json:"vm_nics"`
+	AccessControlLists   []map[string]interface{} `json:"access_control_lists"`
+	Certificates         []map[string]interface{} `json:"certificates"`
+	FlowCollectors       []map[string]interface{} `json:"flow_collectors"`
+	FlowMeters           []map[string]interface{} `json:"flow_meters"`
+	IPSecConnections     []map[string]interface{} `json:"ipsec_connections"`
+	MulticastRouters     []map[string]interface{} `json:"multicast_routers"`
+	PolicyRouteRuleSets  []map[string]interface{} `json:"policy_route_rule_sets"`
+	PolicyRouteRules     []map[string]interface{} `json:"policy_route_rules"`
+	VpcFirewalls         []map[string]interface{} `json:"vpc_firewalls"`
+	VpcHaGroups          []map[string]interface{} `json:"vpc_ha_groups"`
+	VpcSharedQos         []map[string]interface{} `json:"vpc_shared_qos"`
+	VRouterRouteTables   []map[string]interface{} `json:"vrouter_route_tables"`
+	VRouterRouteEntries  []map[string]interface{} `json:"vrouter_route_entries"`
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
-	Accounts     []map[string]interface{} `json:"accounts"`
-	IAM2Projects []map[string]interface{} `json:"iam2_projects"`
+	Accounts         []map[string]interface{} `json:"accounts"`
+	IAM2Projects     []map[string]interface{} `json:"iam2_projects"`
+	AccessKeys       []map[string]interface{} `json:"access_keys"`
+	IAM2Organizations []map[string]interface{} `json:"iam2_organizations"`
+	IAM2VirtualIDs   []map[string]interface{} `json:"iam2_virtual_ids"`
+	Roles            []map[string]interface{} `json:"roles"`
+	Users            []map[string]interface{} `json:"users"`
+
+	// Monitoring
+	Alarms            []map[string]interface{} `json:"alarms"`
+	EmailMedia        []map[string]interface{} `json:"email_media"`
+	LogServers        []map[string]interface{} `json:"log_servers"`
+	MonitorGroups     []map[string]interface{} `json:"monitor_groups"`
+	MonitorTemplates  []map[string]interface{} `json:"monitor_templates"`
+	SNSEmailEndpoints []map[string]interface{} `json:"sns_email_endpoints"`
+	SNSTopics         []map[string]interface{} `json:"sns_topics"`
+	SnmpAgents        []map[string]interface{} `json:"snmp_agents"`
+	Webhooks          []map[string]interface{} `json:"webhooks"`
 
 	// Auxiliary
 	AffinityGroups []map[string]interface{} `json:"affinity_groups"`
@@ -67,6 +106,14 @@ type EnvData struct {
 	InstanceScripts  []map[string]interface{} `json:"instance_scripts"`
 	ScriptExecutions []map[string]interface{} `json:"script_executions"`
 	MnNodes          []map[string]interface{} `json:"mn_nodes"`
+
+	// Automation
+	LdapServers       []map[string]interface{} `json:"ldap_servers"`
+	PortMirrors       []map[string]interface{} `json:"port_mirrors"`
+	PortMirrorSessions []map[string]interface{} `json:"port_mirror_sessions"`
+	PriceTables       []map[string]interface{} `json:"price_tables"`
+	SchedulerJobs     []map[string]interface{} `json:"scheduler_jobs"`
+	SchedulerTriggers []map[string]interface{} `json:"scheduler_triggers"`
 }
 
 var (

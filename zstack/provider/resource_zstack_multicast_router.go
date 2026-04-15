@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -159,10 +158,10 @@ func (r *multicastRouterResource) Read(ctx context.Context, request resource.Rea
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query multicast routers. It may have been deleted.: "+err.Error())
-		state = multicastRouterModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Multicast Router",
+			"Could not read Multicast Router, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -193,10 +192,6 @@ func (r *multicastRouterResource) Delete(ctx context.Context, request resource.D
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Multicast router UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteMulticastRouter(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

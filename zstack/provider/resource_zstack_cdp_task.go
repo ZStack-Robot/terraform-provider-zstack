@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -303,10 +302,6 @@ func (r *cdpTaskResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "CDP task UUID is empty, skipping delete.")
-		return
-	}
 
 	if err := r.client.DeleteCdpTask(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting CDP Task", "Could not delete CDP task, unexpected error: "+err.Error())

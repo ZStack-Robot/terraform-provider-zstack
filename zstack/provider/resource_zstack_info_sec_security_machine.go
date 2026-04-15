@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
@@ -201,10 +200,10 @@ func (r *infoSecSecurityMachineResource) Read(ctx context.Context, req resource.
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query security machines. It may have been deleted.: "+err.Error())
-		state = infoSecSecurityMachineModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.AddError(
+			"Error reading Security Machine",
+			"Could not read Security Machine, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -258,10 +257,6 @@ func (r *infoSecSecurityMachineResource) Delete(ctx context.Context, req resourc
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Security machine UUID is empty, skipping delete.")
-		return
-	}
 
 	if err := r.client.DeleteSecurityMachine(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting InfoSec Security Machine", "Could not delete InfoSec security machine, unexpected error: "+err.Error())

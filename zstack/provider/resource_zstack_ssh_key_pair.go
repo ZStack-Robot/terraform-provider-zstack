@@ -224,10 +224,6 @@ func (r *sshKeyPairResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "SSH key pair uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteSshKeyPair(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

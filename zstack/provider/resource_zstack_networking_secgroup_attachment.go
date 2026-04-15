@@ -106,47 +106,29 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 		"nic_uuid":      nicUUID,
 	})
 
-	// Check if the attachment already exists. This makes the Create operation idempotent.
-	attachedNics, err := r.client.GetSecurityGroup(secgroupUUID)
+	attached, err := r.isNicAttached(secgroupUUID, nicUUID)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Error creating Security Group Attachment",
-			"Could not create security group attachment, unexpected error: "+err.Error(),
+			"Could not query NIC membership: "+err.Error(),
 		)
 		return
 	}
 
-	attachedNics.UUID = nicUUID
-
-	// Step 1: get candidates vm nics
-	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
-	if err != nil {
-		response.Diagnostics.AddError("Error creating Security Group Attachment", "Could not create security group attachment, unexpected error: "+err.Error())
-		return
-	}
-
-	// Step 2: Check if the NIC UUID matches the candidate
-	if candidate == nil || candidate.UUID != nicUUID {
-		response.Diagnostics.AddError(
-			"Error creating Security Group Attachment",
-			fmt.Sprintf("Could not create security group attachment: VM NIC UUID %s is not a valid candidate for security group UUID %s", nicUUID, secgroupUUID),
-		)
-		return
-	}
-
-	// Step 3: Add VM NIC to security group
-	_, err = r.client.AddVmNicToSecurityGroup(secgroupUUID, param.AddVmNicToSecurityGroupParam{
-		BaseParam: param.BaseParam{},
-		Params: param.AddVmNicToSecurityGroupParamDetail{
-			VmNicUuids: []string{nicUUID},
-		},
-	})
-	if err != nil {
-		response.Diagnostics.AddError(
-			"Error creating Security Group Attachment",
-			"Could not create security group attachment, unexpected error: "+err.Error(),
-		)
-		return
+	if !attached {
+		_, err = r.client.AddVmNicToSecurityGroup(secgroupUUID, param.AddVmNicToSecurityGroupParam{
+			BaseParam: param.BaseParam{},
+			Params: param.AddVmNicToSecurityGroupParamDetail{
+				VmNicUuids: []string{nicUUID},
+			},
+		})
+		if err != nil {
+			response.Diagnostics.AddError(
+				"Error creating Security Group Attachment",
+				"Could not add VM NIC to security group: "+err.Error(),
+			)
+			return
+		}
 	}
 
 	tflog.Info(ctx, "Security group attachment created successfully", map[string]interface{}{
@@ -155,7 +137,6 @@ func (r *securityGroupAttachmentResource) Create(ctx context.Context, request re
 		"nic_uuid":      nicUUID,
 	})
 
-	// Set the final state
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 }
@@ -171,16 +152,16 @@ func (r *securityGroupAttachmentResource) Read(ctx context.Context, req resource
 	secgroupUUID := state.SecurityGroupUuid.ValueString()
 	vmNicUUID := state.VmNicUuid.ValueString()
 
-	candidate, err := r.client.GetCandidateVmNicForSecurityGroup(secgroupUUID)
+	attached, err := r.isNicAttached(secgroupUUID, vmNicUUID)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading Security Group Attachment",
-			"Could not read security group attachment, unexpected error: "+err.Error(),
+			"Could not query NIC membership: "+err.Error(),
 		)
 		return
 	}
 
-	if candidate != nil && candidate.UUID == vmNicUUID {
+	if !attached {
 		resp.State.RemoveResource(ctx)
 		return
 	}
@@ -222,11 +203,49 @@ func (r *securityGroupAttachmentResource) Delete(ctx context.Context, request re
 		return
 	}
 
-	err := r.client.DeleteVmNicFromSecurityGroup(nicUUID, param.DeleteModePermissive)
+	// The SDK's DeleteVmNicFromSecurityGroup is buggy — it sends
+	// DELETE /v1/security-groups/{nicUUID} which deletes the security group
+	// instead of detaching the NIC.  The correct endpoint is:
+	//   DELETE /v1/security-groups/{sgUUID}/vm-instances/nics?vmNicUuids={nicUUID}
+	// We call DeleteWithSpec directly to construct the correct URL.
+	err := r.client.DeleteWithSpec(
+		"v1/security-groups",
+		secgroupUUID,
+		"vm-instances/nics",
+		fmt.Sprintf("vmNicUuids=%s", nicUUID),
+		nil,
+	)
 	if err != nil {
-		tflog.Warn(ctx, "Failed to delete VM NIC from security group, it might already be gone.", map[string]interface{}{"error": err.Error()})
+		// Check whether the NIC is actually still attached.
+		// If it is no longer attached, the detach error is harmless and we can remove state.
+		attached, queryErr := r.isNicAttached(secgroupUUID, nicUUID)
+		if queryErr != nil {
+			response.Diagnostics.AddError(
+				"Error detaching VM NIC from Security Group",
+				fmt.Sprintf("Detach failed (%s) and could not verify attachment status: %s", err.Error(), queryErr.Error()),
+			)
+			return
+		}
+		if attached {
+			response.Diagnostics.AddError(
+				"Error detaching VM NIC from Security Group",
+				"Could not detach VM NIC from security group: "+err.Error(),
+			)
+			return
+		}
+		// NIC is no longer attached — safe to remove state.
 	}
 
-	tflog.Info(ctx, "Successfully deleted security group attachment.")
 	response.State.RemoveResource(ctx)
+}
+
+func (r *securityGroupAttachmentResource) isNicAttached(secgroupUUID, nicUUID string) (bool, error) {
+	q := param.NewQueryParam()
+	q.AddQ("securityGroupUuid=" + secgroupUUID)
+	q.AddQ("vmNicUuid=" + nicUUID)
+	refs, err := r.client.QueryVmNicInSecurityGroup(&q)
+	if err != nil {
+		return false, err
+	}
+	return len(refs) > 0, nil
 }

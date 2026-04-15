@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -213,10 +212,10 @@ func (r *vcenterResource) Read(ctx context.Context, request resource.ReadRequest
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query vCenters. It may have been deleted.: "+err.Error())
-		state = vcenterModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading vCenter",
+			"Could not read vCenter, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -294,11 +293,6 @@ func (r *vcenterResource) Delete(ctx context.Context, request resource.DeleteReq
 	diags := request.State.Get(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
-		return
-	}
-
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "vCenter UUID is empty, skipping delete.")
 		return
 	}
 

@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -165,12 +164,10 @@ func (r *lbServerGroupResource) Read(ctx context.Context, request resource.ReadR
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query Load Balancer Server Groups. It may have been deleted.: "+err.Error())
-		state = lbServerGroupModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Load Balancer Server Group",
+			"Could not read Load Balancer Server Group, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -236,10 +233,6 @@ func (r *lbServerGroupResource) Delete(ctx context.Context, request resource.Del
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Load Balancer Server Group UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteLoadBalancerServerGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 
