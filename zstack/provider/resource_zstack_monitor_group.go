@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -153,10 +152,10 @@ func (r *monitorGroupResource) Read(ctx context.Context, req resource.ReadReques
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query monitor groups. It may have been deleted.: "+err.Error())
-		state = monitorGroupModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.AddError(
+			"Error reading Monitor Group",
+			"Could not read Monitor Group, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -212,10 +211,6 @@ func (r *monitorGroupResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Monitor group UUID is empty, skipping delete.")
-		return
-	}
 
 	if err := r.client.DeleteMonitorGroup(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting Monitor Group", "Could not delete monitor group UUID "+state.Uuid.ValueString()+": "+err.Error())

@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -231,10 +230,6 @@ func (r *accessControlListResource) Delete(ctx context.Context, request resource
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Access Control List UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteAccessControlList(state.Uuid.ValueString(), param.DeleteModePermissive)
 

@@ -162,12 +162,10 @@ func (r *guestToolsResource) Read(ctx context.Context, request resource.ReadRequ
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query guest tools info. It may have been detached or the VM is powered off: "+err.Error())
-		state = qgaModel{
-			ID: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Guest Tools Attachment",
+			"Could not read guest tools info, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

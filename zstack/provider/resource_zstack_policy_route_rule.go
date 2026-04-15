@@ -241,8 +241,10 @@ func (r *policyRouteRuleResource) Read(ctx context.Context, req resource.ReadReq
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query Policy Route Rule: "+err.Error())
-		resp.State.RemoveResource(ctx)
+		resp.Diagnostics.AddError(
+			"Error reading Policy Route Rule",
+			"Could not read policy route rule, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

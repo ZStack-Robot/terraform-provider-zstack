@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -182,10 +181,10 @@ func (r *ldapServerResource) Read(ctx context.Context, req resource.ReadRequest,
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query LDAP servers. It may have been deleted.: "+err.Error())
-		state = ldapServerModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.AddError(
+			"Error reading LDAP Server",
+			"Could not read LDAP Server, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -254,10 +253,6 @@ func (r *ldapServerResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "LDAP server UUID is empty, skipping delete.")
-		return
-	}
 
 	if err := r.client.DeleteLdapServer(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting LDAP Server", "Could not delete LDAP server, unexpected error: "+err.Error())

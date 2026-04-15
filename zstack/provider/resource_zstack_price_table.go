@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -152,12 +151,10 @@ func (r *priceTableResource) Read(ctx context.Context, request resource.ReadRequ
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query price tables. It may have been deleted.: "+err.Error())
-		state = priceTableModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Price Table",
+			"Could not read Price Table, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -220,10 +217,6 @@ func (r *priceTableResource) Delete(ctx context.Context, request resource.Delete
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Price table UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeletePriceTable(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

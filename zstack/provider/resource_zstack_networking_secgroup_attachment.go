@@ -203,12 +203,39 @@ func (r *securityGroupAttachmentResource) Delete(ctx context.Context, request re
 		return
 	}
 
-	err := r.client.DeleteVmNicFromSecurityGroup(nicUUID, param.DeleteModePermissive)
+	// The SDK's DeleteVmNicFromSecurityGroup is buggy — it sends
+	// DELETE /v1/security-groups/{nicUUID} which deletes the security group
+	// instead of detaching the NIC.  The correct endpoint is:
+	//   DELETE /v1/security-groups/{sgUUID}/vm-instances/nics?vmNicUuids={nicUUID}
+	// We call DeleteWithSpec directly to construct the correct URL.
+	err := r.client.DeleteWithSpec(
+		"v1/security-groups",
+		secgroupUUID,
+		"vm-instances/nics",
+		fmt.Sprintf("vmNicUuids=%s", nicUUID),
+		nil,
+	)
 	if err != nil {
-		tflog.Warn(ctx, "Failed to delete VM NIC from security group, it might already be gone.", map[string]interface{}{"error": err.Error()})
+		// Check whether the NIC is actually still attached.
+		// If it is no longer attached, the detach error is harmless and we can remove state.
+		attached, queryErr := r.isNicAttached(secgroupUUID, nicUUID)
+		if queryErr != nil {
+			response.Diagnostics.AddError(
+				"Error detaching VM NIC from Security Group",
+				fmt.Sprintf("Detach failed (%s) and could not verify attachment status: %s", err.Error(), queryErr.Error()),
+			)
+			return
+		}
+		if attached {
+			response.Diagnostics.AddError(
+				"Error detaching VM NIC from Security Group",
+				"Could not detach VM NIC from security group: "+err.Error(),
+			)
+			return
+		}
+		// NIC is no longer attached — safe to remove state.
 	}
 
-	tflog.Info(ctx, "Successfully deleted security group attachment.")
 	response.State.RemoveResource(ctx)
 }
 

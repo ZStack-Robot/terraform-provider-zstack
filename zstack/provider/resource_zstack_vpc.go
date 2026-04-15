@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -318,9 +317,10 @@ func (r *vpcResource) Read(ctx context.Context, request resource.ReadRequest, re
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "cannot read vpcs, maybe it has been deleted, set uuid to 'empty'. vpcs was no longer managed by terraform. error: "+err.Error())
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading VPC",
+			"Could not read VPC, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -352,10 +352,6 @@ func (r *vpcResource) Delete(ctx context.Context, request resource.DeleteRequest
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "reserved ip UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteL3Network(state.Uuid.ValueString(), param.DeleteModePermissive)
 

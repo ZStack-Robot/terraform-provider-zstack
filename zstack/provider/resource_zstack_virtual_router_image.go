@@ -183,10 +183,6 @@ func (r *virtualRouterImageResource) Delete(ctx context.Context, req resource.De
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "virtual router image uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteImage(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 

@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -194,12 +193,10 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query VIPs. It may have been deleted.: "+err.Error())
-		state = vipModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading VIP",
+			"Could not read VIP, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -229,11 +226,6 @@ func (r *vipResource) Delete(ctx context.Context, request resource.DeleteRequest
 	diags := request.State.Get(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
-		return
-	}
-
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "reserved ip UUID is empty, skipping delete.")
 		return
 	}
 

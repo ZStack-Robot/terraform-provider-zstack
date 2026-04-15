@@ -136,10 +136,6 @@ func (r *virtualRouterOfferingResource) Delete(ctx context.Context, req resource
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "virtual router offering uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteInstanceOffering(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 

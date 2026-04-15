@@ -198,10 +198,6 @@ func (r *imageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 		expunge = state.Expunge.ValueBool()
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "image uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteImage(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 

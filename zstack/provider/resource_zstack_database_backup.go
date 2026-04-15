@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -214,10 +213,6 @@ func (r *databaseBackupResource) Delete(ctx context.Context, request resource.De
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Database backup UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteDatabaseBackup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

@@ -282,10 +282,6 @@ func (r *affinityGroupResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "affinity group uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteAffinityGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

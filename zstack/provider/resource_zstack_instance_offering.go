@@ -121,10 +121,6 @@ func (r *instanceOfferingResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "instance offering uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteInstanceOffering(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 
