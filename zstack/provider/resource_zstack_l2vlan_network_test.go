@@ -91,7 +91,9 @@ resource "zstack_l2vlan_network" "test" {
 			{
 				ResourceName:      "zstack_l2vlan_network.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_l2vlan_network.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

@@ -89,7 +89,9 @@ resource "zstack_account" "test" {
 			{
 				ResourceName:            "zstack_account.test",
 				ImportState:             true,
+				ImportStateIdFunc:       importStateUUID("zstack_account.test"),
 				ImportStateVerify:       true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"password"},
 			},
 		},

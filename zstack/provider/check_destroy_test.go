@@ -88,7 +88,7 @@ var testAccCheckPortForwardingRuleDestroy = testAccCheckResourceDestroyByGet("zs
 })
 
 func testAccCheckVipDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_vip" {
 			continue
@@ -117,7 +117,7 @@ func testAccCheckVipDestroy(s *terraform.State) error {
 }
 
 func testAccCheckReservedIpDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_reserved_ip" {
 			continue
@@ -145,7 +145,7 @@ func testAccCheckReservedIpDestroy(s *terraform.State) error {
 }
 
 func testAccCheckSecGroupAttachmentDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_networking_secgroup_attachment" {
 			continue

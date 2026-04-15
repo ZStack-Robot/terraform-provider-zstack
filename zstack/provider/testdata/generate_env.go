@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -139,13 +140,22 @@ func main() {
 	port, _ := strconv.Atoi(portStr)
 	akID := getEnvOrDefault("ZSTACK_ACCESS_KEY_ID", "")
 	akSecret := getEnvOrDefault("ZSTACK_ACCESS_KEY_SECRET", "")
+	accountName := getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "")
+	accountPassword := getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "")
 
-	if akID == "" || akSecret == "" {
-		fmt.Fprintln(os.Stderr, "ZSTACK_ACCESS_KEY_ID and ZSTACK_ACCESS_KEY_SECRET must be set")
+	var cli *client.ZSClient
+	if akID != "" && akSecret != "" {
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
+	} else if accountName != "" && accountPassword != "" {
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(accountName, accountPassword).ReadOnly(true).Debug(false))
+		if _, err := cli.Login(context.Background()); err != nil {
+			fmt.Fprintf(os.Stderr, "Login failed: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, "Either ZSTACK_ACCESS_KEY_ID/SECRET or ZSTACK_ACCOUNT_NAME/PASSWORD must be set")
 		os.Exit(1)
 	}
-
-	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
 
 	data := EnvData{}
 

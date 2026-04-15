@@ -49,7 +49,7 @@ func (d disappearsCheck) CheckState(ctx context.Context, req statecheck.CheckSta
 		return
 	}
 
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	if err := d.deleteFunc(cli, id); err != nil {
 		resp.Error = fmt.Errorf("failed to delete %s (%s): %w", d.resourceAddress, id, err)
 	}
