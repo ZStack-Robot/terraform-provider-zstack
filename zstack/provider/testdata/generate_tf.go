@@ -20,31 +20,105 @@ import (
 
 // EnvData mirrors the structure in generate_env.go / env.json.
 type EnvData struct {
-	Zones                  []map[string]interface{} `json:"zones"`
-	Clusters               []map[string]interface{} `json:"clusters"`
-	Hosts                  []map[string]interface{} `json:"hosts"`
-	Images                 []map[string]interface{} `json:"images"`
-	BackupStorages         []map[string]interface{} `json:"backup_storages"`
-	PrimaryStorages        []map[string]interface{} `json:"primary_storages"`
-	InstanceOfferings      []map[string]interface{} `json:"instance_offerings"`
-	DiskOfferings          []map[string]interface{} `json:"disk_offerings"`
-	L2Networks             []map[string]interface{} `json:"l2_networks"`
-	L3Networks             []map[string]interface{} `json:"l3_networks"`
-	VmInstances            []map[string]interface{} `json:"vm_instances"`
-	SecurityGroups         []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules     []map[string]interface{} `json:"security_group_rules"`
+	// Infrastructure
+	Zones           []map[string]interface{} `json:"zones"`
+	Clusters        []map[string]interface{} `json:"clusters"`
+	Hosts           []map[string]interface{} `json:"hosts"`
+	PrimaryStorages []map[string]interface{} `json:"primary_storages"`
+	BackupStorages  []map[string]interface{} `json:"backup_storages"`
+
+	// Compute
+	Images             []map[string]interface{} `json:"images"`
+	InstanceOfferings  []map[string]interface{} `json:"instance_offerings"`
+	DiskOfferings      []map[string]interface{} `json:"disk_offerings"`
+	VmInstances        []map[string]interface{} `json:"vm_instances"`
+	GpuDevices         []map[string]interface{} `json:"gpu_devices"`
+	AutoScalingGroups  []map[string]interface{} `json:"auto_scaling_groups"`
+	PciDeviceOfferings []map[string]interface{} `json:"pci_device_offerings"`
+	VCenters           []map[string]interface{} `json:"vcenters"`
+
+	// Storage
+	Volumes                  []map[string]interface{} `json:"volumes"`
+	VolumeSnapshots          []map[string]interface{} `json:"volume_snapshots"`
+	CephPrimaryStorages      []map[string]interface{} `json:"ceph_primary_storages"`
+	CephBackupStorages       []map[string]interface{} `json:"ceph_backup_storages"`
+	CephPools                []map[string]interface{} `json:"ceph_pools"`
+	ImageStoreBackupStorages []map[string]interface{} `json:"image_store_backup_storages"`
+	VolumeBackups            []map[string]interface{} `json:"volume_backups"`
+	DatabaseBackups          []map[string]interface{} `json:"database_backups"`
+	NvmeServers              []map[string]interface{} `json:"nvme_servers"`
+	IscsiServers             []map[string]interface{} `json:"iscsi_servers"`
+
+	// Network
+	L2Networks           []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks       []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks           []map[string]interface{} `json:"l3_networks"`
+	IpRanges             []map[string]interface{} `json:"ip_ranges"`
+	Vips                 []map[string]interface{} `json:"vips"`
+	Eips                 []map[string]interface{} `json:"eips"`
+	PortForwardingRules  []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers        []map[string]interface{} `json:"load_balancers"`
+	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
+	SecurityGroups       []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules   []map[string]interface{} `json:"security_group_rules"`
+	VmNics               []map[string]interface{} `json:"vm_nics"`
+	AccessControlLists   []map[string]interface{} `json:"access_control_lists"`
+	Certificates         []map[string]interface{} `json:"certificates"`
+	FlowCollectors       []map[string]interface{} `json:"flow_collectors"`
+	FlowMeters           []map[string]interface{} `json:"flow_meters"`
+	IPSecConnections     []map[string]interface{} `json:"ipsec_connections"`
+	MulticastRouters     []map[string]interface{} `json:"multicast_routers"`
+	PolicyRouteRuleSets  []map[string]interface{} `json:"policy_route_rule_sets"`
+	PolicyRouteRules     []map[string]interface{} `json:"policy_route_rules"`
+	VpcFirewalls         []map[string]interface{} `json:"vpc_firewalls"`
+	VpcHaGroups          []map[string]interface{} `json:"vpc_ha_groups"`
+	VpcSharedQos         []map[string]interface{} `json:"vpc_shared_qos"`
+	VRouterRouteTables   []map[string]interface{} `json:"vrouter_route_tables"`
+	VRouterRouteEntries  []map[string]interface{} `json:"vrouter_route_entries"`
+
+	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
-	SdnControllers         []map[string]interface{} `json:"sdn_controllers"`
-	InstanceScripts        []map[string]interface{} `json:"instance_scripts"`
-	ScriptExecutions       []map[string]interface{} `json:"script_executions"`
-	MnNodes                []map[string]interface{} `json:"mn_nodes"`
-	IpRanges               []map[string]interface{} `json:"ip_ranges"`
-	VmNics                 []map[string]interface{} `json:"vm_nics"`
-	Accounts               []map[string]interface{} `json:"accounts"`
-	IAM2Projects           []map[string]interface{} `json:"iam2_projects"`
-	AffinityGroups         []map[string]interface{} `json:"affinity_groups"`
-	SshKeyPairs            []map[string]interface{} `json:"ssh_key_pairs"`
+
+	// System / IAM
+	Accounts         []map[string]interface{} `json:"accounts"`
+	IAM2Projects     []map[string]interface{} `json:"iam2_projects"`
+	AccessKeys       []map[string]interface{} `json:"access_keys"`
+	IAM2Organizations []map[string]interface{} `json:"iam2_organizations"`
+	IAM2VirtualIDs   []map[string]interface{} `json:"iam2_virtual_ids"`
+	Roles            []map[string]interface{} `json:"roles"`
+	Users            []map[string]interface{} `json:"users"`
+
+	// Monitoring
+	Alarms            []map[string]interface{} `json:"alarms"`
+	EmailMedia        []map[string]interface{} `json:"email_media"`
+	LogServers        []map[string]interface{} `json:"log_servers"`
+	MonitorGroups     []map[string]interface{} `json:"monitor_groups"`
+	MonitorTemplates  []map[string]interface{} `json:"monitor_templates"`
+	SNSEmailEndpoints []map[string]interface{} `json:"sns_email_endpoints"`
+	SNSTopics         []map[string]interface{} `json:"sns_topics"`
+	SnmpAgents        []map[string]interface{} `json:"snmp_agents"`
+	Webhooks          []map[string]interface{} `json:"webhooks"`
+
+	// Auxiliary
+	AffinityGroups []map[string]interface{} `json:"affinity_groups"`
+	SshKeyPairs    []map[string]interface{} `json:"ssh_key_pairs"`
+	UserTags       []map[string]interface{} `json:"user_tags"`
+	SystemTags     []map[string]interface{} `json:"system_tags"`
+
+	// Operations
+	SdnControllers   []map[string]interface{} `json:"sdn_controllers"`
+	InstanceScripts  []map[string]interface{} `json:"instance_scripts"`
+	ScriptExecutions []map[string]interface{} `json:"script_executions"`
+	MnNodes          []map[string]interface{} `json:"mn_nodes"`
+
+	// Automation
+	LdapServers       []map[string]interface{} `json:"ldap_servers"`
+	PortMirrors       []map[string]interface{} `json:"port_mirrors"`
+	PortMirrorSessions []map[string]interface{} `json:"port_mirror_sessions"`
+	PriceTables       []map[string]interface{} `json:"price_tables"`
+	SchedulerJobs     []map[string]interface{} `json:"scheduler_jobs"`
+	SchedulerTriggers []map[string]interface{} `json:"scheduler_triggers"`
 }
 
 // ---------------------------------------------------------------------------
@@ -456,6 +530,179 @@ output "uuid" {
 `, suffix), true, ""
 			},
 		},
+		// Role
+		{
+			name: "res-role",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_role" "test" {
+  name        = "tf-batch-test-role"
+  description = "[batch-test] role"
+}
+
+output "uuid" {
+  value = zstack_role.test.uuid
+}
+`, true, ""
+			},
+		},
+		// User
+		{
+			name: "res-user",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_user" "test" {
+  name        = "tf-batch-test-user"
+  password    = "BatchTest@12345"
+  description = "[batch-test] user"
+}
+
+output "uuid" {
+  value = zstack_user.test.uuid
+}
+`, true, ""
+			},
+		},
+		// IAM2 Organization
+		{
+			name: "res-iam2_organization",
+			fn: func(env *EnvData) (string, bool, string) {
+				suffix := time.Now().Format("20060102150405")
+				return fmt.Sprintf(`resource "zstack_iam2_organization" "test" {
+  name        = "tf-batch-test-iam2-org-%s"
+  type        = "Department"
+  description = "[batch-test] IAM2 organization"
+}
+
+output "uuid" {
+  value = zstack_iam2_organization.test.uuid
+}
+`, suffix), true, ""
+			},
+		},
+		// SNS Topic
+		{
+			name: "res-sns_topic",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_sns_topic" "test" {
+  name        = "tf-batch-test-sns-topic"
+  description = "[batch-test] SNS topic"
+}
+
+output "uuid" {
+  value = zstack_sns_topic.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Webhook
+		{
+			name: "res-webhook",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_webhook" "test" {
+  name        = "tf-batch-test-webhook"
+  url         = "http://example.com/hook"
+  type        = "generic"
+  description = "[batch-test] webhook"
+}
+
+output "uuid" {
+  value = zstack_webhook.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Monitor Group
+		{
+			name: "res-monitor_group",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_monitor_group" "test" {
+  name        = "tf-batch-test-monitor-group"
+  description = "[batch-test] monitor group"
+}
+
+output "uuid" {
+  value = zstack_monitor_group.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Monitor Template
+		{
+			name: "res-monitor_template",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_monitor_template" "test" {
+  name        = "tf-batch-test-monitor-template"
+  description = "[batch-test] monitor template"
+}
+
+output "uuid" {
+  value = zstack_monitor_template.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Price Table
+		{
+			name: "res-price_table",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_price_table" "test" {
+  name        = "tf-batch-test-price-table"
+  description = "[batch-test] price table"
+}
+
+output "uuid" {
+  value = zstack_price_table.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Access Control List
+		{
+			name: "res-access_control_list",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_access_control_list" "test" {
+  name        = "tf-batch-test-acl"
+  description = "[batch-test] access control list"
+  ip_version  = 4
+}
+
+output "uuid" {
+  value = zstack_access_control_list.test.uuid
+}
+`, true, ""
+			},
+		},
+		// Flow Meter (only "type" is Required)
+		{
+			name: "res-flow_meter",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_flow_meter" "test" {
+  name        = "tf-batch-test-flow-meter"
+  description = "[batch-test] flow meter"
+  type        = "NetFlow"
+}
+
+output "uuid" {
+  value = zstack_flow_meter.test.uuid
+}
+`, true, ""
+			},
+		},
+		// SNS Email Endpoint (name and email are Required)
+		{
+			name: "res-sns_email_endpoint",
+			fn: func(env *EnvData) (string, bool, string) {
+				return `resource "zstack_sns_email_endpoint" "test" {
+  name        = "tf-batch-test-sns-email"
+  email       = "test@example.com"
+  description = "[batch-test] SNS email endpoint"
+}
+
+output "uuid" {
+  value = zstack_sns_email_endpoint.test.uuid
+}
+`, true, ""
+			},
+		},
 	}
 }
 
@@ -731,6 +978,51 @@ output "id" {
   value = zstack_networking_secgroup_attachment.test.id
 }
 `, nicUUID), true, ""
+			},
+		},
+		// VPC (needs L2 network)
+		{
+			name: "res-vpc",
+			fn: func(env *EnvData) (string, bool, string) {
+				if len(env.L2Networks) == 0 {
+					return "", false, "l2_networks empty"
+				}
+				l2UUID := getStr(env.L2Networks[0], "uuid")
+				return fmt.Sprintf(`resource "zstack_vpc" "test" {
+  name            = "tf-batch-test-vpc"
+  description     = "[batch-test] VPC"
+  l2_network_uuid = %q
+
+  subnet_cidr = {
+    name         = "tf-batch-test-vpc-subnet"
+    network_cidr = "172.30.0.0/24"
+    gateway      = "172.30.0.1"
+  }
+}
+
+output "uuid" {
+  value = zstack_vpc.test.uuid
+}
+`, l2UUID), true, ""
+			},
+		},
+		// VM NIC (needs a Private L3 network)
+		{
+			name: "res-vm_nic",
+			fn: func(env *EnvData) (string, bool, string) {
+				priv := findPrivateL3(env)
+				if priv == nil {
+					return "", false, "no Private L3 network"
+				}
+				l3UUID := getStr(priv, "uuid")
+				return fmt.Sprintf(`resource "zstack_vm_nic" "test" {
+  l3_network_uuid = %q
+}
+
+output "uuid" {
+  value = zstack_vm_nic.test.uuid
+}
+`, l3UUID), true, ""
 			},
 		},
 		{

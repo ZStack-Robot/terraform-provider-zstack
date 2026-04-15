@@ -183,10 +183,10 @@ func (r *snsEmailEndpointResource) Read(ctx context.Context, request resource.Re
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query SNS email endpoints. It may have been deleted.: "+err.Error())
-		state = snsEmailEndpointModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading SNS Email Endpoint",
+			"Could not read SNS Email Endpoint, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

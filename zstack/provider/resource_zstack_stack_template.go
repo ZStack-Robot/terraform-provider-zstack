@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -197,10 +196,10 @@ func (r *stackTemplateResource) Read(ctx context.Context, request resource.ReadR
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query stack templates. It may have been deleted.: "+err.Error())
-		state = stackTemplateModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Stack Template",
+			"Could not read Stack Template, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -274,10 +273,6 @@ func (r *stackTemplateResource) Delete(ctx context.Context, request resource.Del
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Stack template UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteStackTemplate(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

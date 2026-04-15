@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -168,10 +167,10 @@ func (r *flowCollectorResource) Read(ctx context.Context, request resource.ReadR
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query flow collectors. It may have been deleted.: "+err.Error())
-		state = flowCollectorModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading Flow Collector",
+			"Could not read flow collector, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -239,11 +238,6 @@ func (r *flowCollectorResource) Delete(ctx context.Context, request resource.Del
 	diags := request.State.Get(ctx, &state)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
-		return
-	}
-
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Flow collector UUID is empty, skipping delete.")
 		return
 	}
 

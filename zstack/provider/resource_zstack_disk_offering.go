@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -114,10 +113,6 @@ func (r *diskOfferingResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "disk offering uuid is empty, so nothing to delete, skip it")
-		return
-	}
 
 	err := r.client.DeleteDiskOffering(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 

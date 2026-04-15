@@ -40,38 +40,77 @@ type EnvData struct {
 	BackupStorages  []map[string]interface{} `json:"backup_storages"`
 
 	// Compute
-	Images            []map[string]interface{} `json:"images"`
-	InstanceOfferings []map[string]interface{} `json:"instance_offerings"`
-	DiskOfferings     []map[string]interface{} `json:"disk_offerings"`
-	VmInstances       []map[string]interface{} `json:"vm_instances"`
-	GpuDevices        []map[string]interface{} `json:"gpu_devices"`
-	AutoScalingGroups []map[string]interface{} `json:"auto_scaling_groups"`
+	Images             []map[string]interface{} `json:"images"`
+	InstanceOfferings  []map[string]interface{} `json:"instance_offerings"`
+	DiskOfferings      []map[string]interface{} `json:"disk_offerings"`
+	VmInstances        []map[string]interface{} `json:"vm_instances"`
+	GpuDevices         []map[string]interface{} `json:"gpu_devices"`
+	AutoScalingGroups  []map[string]interface{} `json:"auto_scaling_groups"`
+	PciDeviceOfferings []map[string]interface{} `json:"pci_device_offerings"`
+	VCenters           []map[string]interface{} `json:"vcenters"`
 
 	// Storage
-	Volumes         []map[string]interface{} `json:"volumes"`
-	VolumeSnapshots []map[string]interface{} `json:"volume_snapshots"`
+	Volumes                  []map[string]interface{} `json:"volumes"`
+	VolumeSnapshots          []map[string]interface{} `json:"volume_snapshots"`
+	CephPrimaryStorages      []map[string]interface{} `json:"ceph_primary_storages"`
+	CephBackupStorages       []map[string]interface{} `json:"ceph_backup_storages"`
+	CephPools                []map[string]interface{} `json:"ceph_pools"`
+	ImageStoreBackupStorages []map[string]interface{} `json:"image_store_backup_storages"`
+	VolumeBackups            []map[string]interface{} `json:"volume_backups"`
+	DatabaseBackups          []map[string]interface{} `json:"database_backups"`
+	NvmeServers              []map[string]interface{} `json:"nvme_servers"`
+	IscsiServers             []map[string]interface{} `json:"iscsi_servers"`
 
 	// Network
-	L2Networks            []map[string]interface{} `json:"l2_networks"`
-	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
-	L3Networks            []map[string]interface{} `json:"l3_networks"`
-	IpRanges              []map[string]interface{} `json:"ip_ranges"`
-	Vips                  []map[string]interface{} `json:"vips"`
-	Eips                  []map[string]interface{} `json:"eips"`
-	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
-	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
+	L2Networks           []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks       []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks           []map[string]interface{} `json:"l3_networks"`
+	IpRanges             []map[string]interface{} `json:"ip_ranges"`
+	Vips                 []map[string]interface{} `json:"vips"`
+	Eips                 []map[string]interface{} `json:"eips"`
+	PortForwardingRules  []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers        []map[string]interface{} `json:"load_balancers"`
 	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
-	SecurityGroups        []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
-	VmNics                []map[string]interface{} `json:"vm_nics"`
+	SecurityGroups       []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules   []map[string]interface{} `json:"security_group_rules"`
+	VmNics               []map[string]interface{} `json:"vm_nics"`
+	AccessControlLists   []map[string]interface{} `json:"access_control_lists"`
+	Certificates         []map[string]interface{} `json:"certificates"`
+	FlowCollectors       []map[string]interface{} `json:"flow_collectors"`
+	FlowMeters           []map[string]interface{} `json:"flow_meters"`
+	IPSecConnections     []map[string]interface{} `json:"ipsec_connections"`
+	MulticastRouters     []map[string]interface{} `json:"multicast_routers"`
+	PolicyRouteRuleSets  []map[string]interface{} `json:"policy_route_rule_sets"`
+	PolicyRouteRules     []map[string]interface{} `json:"policy_route_rules"`
+	VpcFirewalls         []map[string]interface{} `json:"vpc_firewalls"`
+	VpcHaGroups          []map[string]interface{} `json:"vpc_ha_groups"`
+	VpcSharedQos         []map[string]interface{} `json:"vpc_shared_qos"`
+	VRouterRouteTables   []map[string]interface{} `json:"vrouter_route_tables"`
+	VRouterRouteEntries  []map[string]interface{} `json:"vrouter_route_entries"`
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
-	Accounts     []map[string]interface{} `json:"accounts"`
-	IAM2Projects []map[string]interface{} `json:"iam2_projects"`
+	Accounts         []map[string]interface{} `json:"accounts"`
+	IAM2Projects     []map[string]interface{} `json:"iam2_projects"`
+	AccessKeys       []map[string]interface{} `json:"access_keys"`
+	IAM2Organizations []map[string]interface{} `json:"iam2_organizations"`
+	IAM2VirtualIDs   []map[string]interface{} `json:"iam2_virtual_ids"`
+	Roles            []map[string]interface{} `json:"roles"`
+	Users            []map[string]interface{} `json:"users"`
+
+	// Monitoring
+	Alarms            []map[string]interface{} `json:"alarms"`
+	EmailMedia        []map[string]interface{} `json:"email_media"`
+	LogServers        []map[string]interface{} `json:"log_servers"`
+	MonitorGroups     []map[string]interface{} `json:"monitor_groups"`
+	MonitorTemplates  []map[string]interface{} `json:"monitor_templates"`
+	SNSEmailEndpoints []map[string]interface{} `json:"sns_email_endpoints"`
+	SNSTopics         []map[string]interface{} `json:"sns_topics"`
+	SnmpAgents        []map[string]interface{} `json:"snmp_agents"`
+	Webhooks          []map[string]interface{} `json:"webhooks"`
 
 	// Auxiliary
 	AffinityGroups []map[string]interface{} `json:"affinity_groups"`
@@ -84,6 +123,14 @@ type EnvData struct {
 	InstanceScripts  []map[string]interface{} `json:"instance_scripts"`
 	ScriptExecutions []map[string]interface{} `json:"script_executions"`
 	MnNodes          []map[string]interface{} `json:"mn_nodes"`
+
+	// Automation
+	LdapServers       []map[string]interface{} `json:"ldap_servers"`
+	PortMirrors       []map[string]interface{} `json:"port_mirrors"`
+	PortMirrorSessions []map[string]interface{} `json:"port_mirror_sessions"`
+	PriceTables       []map[string]interface{} `json:"price_tables"`
+	SchedulerJobs     []map[string]interface{} `json:"scheduler_jobs"`
+	SchedulerTriggers []map[string]interface{} `json:"scheduler_triggers"`
 }
 
 func main() {
@@ -783,6 +830,591 @@ func main() {
 		fmt.Fprintf(os.Stderr, "QuerySystemTag error: %v\n", err)
 	}
 
+	// --- Network (new) ---
+
+	// Access Control Lists
+	if acls, err := cli.QueryAccessControlList(q()); err == nil {
+		for _, acl := range acls {
+			data.AccessControlLists = append(data.AccessControlLists, map[string]interface{}{
+				"name": acl.Name,
+				"uuid": acl.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAccessControlList error: %v\n", err)
+	}
+
+	// Certificates
+	if certs, err := cli.QueryCertificate(q()); err == nil {
+		for _, cert := range certs {
+			data.Certificates = append(data.Certificates, map[string]interface{}{
+				"name": cert.Name,
+				"uuid": cert.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryCertificate error: %v\n", err)
+	}
+
+	// Flow Collectors
+	if fcs, err := cli.QueryFlowCollector(q()); err == nil {
+		for _, fc := range fcs {
+			data.FlowCollectors = append(data.FlowCollectors, map[string]interface{}{
+				"name":            fc.Name,
+				"uuid":            fc.UUID,
+				"description":     fc.Description,
+				"flow_meter_uuid": fc.FlowMeterUuid,
+				"server":          fc.Server,
+				"port":            fc.Port,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryFlowCollector error: %v\n", err)
+	}
+
+	// Flow Meters
+	if fms, err := cli.QueryFlowMeter(q()); err == nil {
+		for _, fm := range fms {
+			data.FlowMeters = append(data.FlowMeters, map[string]interface{}{
+				"name":            fm.Name,
+				"uuid":            fm.UUID,
+				"description":     fm.Description,
+				"sample":          fm.Sample,
+				"expire_interval": fm.ExpireInterval,
+				"version":         fm.Version,
+				"type":            fm.Type,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryFlowMeter error: %v\n", err)
+	}
+
+	// IPSec Connections
+	if ics, err := cli.QueryIPSecConnection(q()); err == nil {
+		for _, ic := range ics {
+			data.IPSecConnections = append(data.IPSecConnections, map[string]interface{}{
+				"name": ic.Name,
+				"uuid": ic.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryIPSecConnection error: %v\n", err)
+	}
+
+	// Multicast Routers
+	if mrs, err := cli.QueryMulticastRouter(q()); err == nil {
+		for _, mr := range mrs {
+			data.MulticastRouters = append(data.MulticastRouters, map[string]interface{}{
+				"name": mr.Name,
+				"uuid": mr.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryMulticastRouter error: %v\n", err)
+	}
+
+	// Policy Route Rule Sets
+	if prrss, err := cli.QueryPolicyRouteRuleSet(q()); err == nil {
+		for _, prrs := range prrss {
+			data.PolicyRouteRuleSets = append(data.PolicyRouteRuleSets, map[string]interface{}{
+				"name":        prrs.Name,
+				"uuid":        prrs.UUID,
+				"description": prrs.Description,
+				"type":        prrs.Type,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPolicyRouteRuleSet error: %v\n", err)
+	}
+
+	// Policy Route Rules
+	if prrs, err := cli.QueryPolicyRouteRule(q()); err == nil {
+		for _, prr := range prrs {
+			data.PolicyRouteRules = append(data.PolicyRouteRules, map[string]interface{}{
+				"uuid":          prr.UUID,
+				"rule_set_uuid": prr.RuleSetUuid,
+				"rule_number":   prr.RuleNumber,
+				"dest_ip":       prr.DestIp,
+				"source_ip":     prr.SourceIp,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPolicyRouteRule error: %v\n", err)
+	}
+
+	// VPC Firewalls
+	if vfs, err := cli.QueryVpcFirewall(q()); err == nil {
+		for _, vf := range vfs {
+			data.VpcFirewalls = append(data.VpcFirewalls, map[string]interface{}{
+				"name":        vf.Name,
+				"uuid":        vf.UUID,
+				"description": vf.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVpcFirewall error: %v\n", err)
+	}
+
+	// VPC HA Groups
+	if vhgs, err := cli.QueryVpcHaGroup(q()); err == nil {
+		for _, vhg := range vhgs {
+			data.VpcHaGroups = append(data.VpcHaGroups, map[string]interface{}{
+				"name": vhg.Name,
+				"uuid": vhg.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVpcHaGroup error: %v\n", err)
+	}
+
+	// VPC Shared QoS
+	if vsqs, err := cli.QueryVpcSharedQos(q()); err == nil {
+		for _, vsq := range vsqs {
+			data.VpcSharedQos = append(data.VpcSharedQos, map[string]interface{}{
+				"name":            vsq.Name,
+				"uuid":            vsq.UUID,
+				"description":     vsq.Description,
+				"vpc_uuid":        vsq.VpcUuid,
+				"l3_network_uuid": vsq.L3NetworkUuid,
+				"bandwidth":       vsq.Bandwidth,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVpcSharedQos error: %v\n", err)
+	}
+
+	// VRouter Route Tables
+	if vrts, err := cli.QueryVRouterRouteTable(q()); err == nil {
+		for _, vrt := range vrts {
+			data.VRouterRouteTables = append(data.VRouterRouteTables, map[string]interface{}{
+				"name":        vrt.Name,
+				"uuid":        vrt.UUID,
+				"description": vrt.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVRouterRouteTable error: %v\n", err)
+	}
+
+	// VRouter Route Entries
+	if vres, err := cli.QueryVRouterRouteEntry(q()); err == nil {
+		for _, vre := range vres {
+			data.VRouterRouteEntries = append(data.VRouterRouteEntries, map[string]interface{}{
+				"name": vre.Name,
+				"uuid": vre.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVRouterRouteEntry error: %v\n", err)
+	}
+
+	// --- Storage (new) ---
+
+	// Ceph Primary Storages
+	if cpss, err := cli.QueryCephPrimaryStorage(q()); err == nil {
+		for _, cps := range cpss {
+			data.CephPrimaryStorages = append(data.CephPrimaryStorages, map[string]interface{}{
+				"name":   cps.Name,
+				"uuid":   cps.UUID,
+				"state":  cps.State,
+				"status": cps.Status,
+				"type":   cps.Type,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryCephPrimaryStorage error: %v\n", err)
+	}
+
+	// Ceph Backup Storages
+	if cbss, err := cli.QueryCephBackupStorage(q()); err == nil {
+		for _, cbs := range cbss {
+			data.CephBackupStorages = append(data.CephBackupStorages, map[string]interface{}{
+				"name":   cbs.Name,
+				"uuid":   cbs.UUID,
+				"state":  cbs.State,
+				"status": cbs.Status,
+				"type":   cbs.Type,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryCephBackupStorage error: %v\n", err)
+	}
+
+	// Ceph Pools
+	if cps, err := cli.QueryCephPrimaryStoragePool(q()); err == nil {
+		for _, cp := range cps {
+			data.CephPools = append(data.CephPools, map[string]interface{}{
+				"name": cp.PoolName,
+				"uuid": cp.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryCephPrimaryStoragePool error: %v\n", err)
+	}
+
+	// Image Store Backup Storages
+	if isbss, err := cli.QueryImageStoreBackupStorage(q()); err == nil {
+		for _, isbs := range isbss {
+			data.ImageStoreBackupStorages = append(data.ImageStoreBackupStorages, map[string]interface{}{
+				"name":     isbs.Name,
+				"uuid":     isbs.UUID,
+				"hostname": isbs.Hostname,
+				"ssh_port": isbs.SshPort,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryImageStoreBackupStorage error: %v\n", err)
+	}
+
+	// Volume Backups
+	if vbs, err := cli.QueryVolumeBackup(q()); err == nil {
+		for _, vb := range vbs {
+			data.VolumeBackups = append(data.VolumeBackups, map[string]interface{}{
+				"name": vb.Name,
+				"uuid": vb.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVolumeBackup error: %v\n", err)
+	}
+
+	// Database Backups
+	if dbs, err := cli.QueryDatabaseBackup(q()); err == nil {
+		for _, db := range dbs {
+			data.DatabaseBackups = append(data.DatabaseBackups, map[string]interface{}{
+				"name": db.Name,
+				"uuid": db.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryDatabaseBackup error: %v\n", err)
+	}
+
+	// NVMe Servers
+	if nss, err := cli.QueryNvmeServer(q()); err == nil {
+		for _, ns := range nss {
+			data.NvmeServers = append(data.NvmeServers, map[string]interface{}{
+				"name": ns.Name,
+				"uuid": ns.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryNvmeServer error: %v\n", err)
+	}
+
+	// iSCSI Servers
+	if iss, err := cli.QueryIscsiServer(q()); err == nil {
+		for _, is := range iss {
+			data.IscsiServers = append(data.IscsiServers, map[string]interface{}{
+				"name": is.Name,
+				"uuid": is.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryIscsiServer error: %v\n", err)
+	}
+
+	// --- Compute (new) ---
+
+	// PCI Device Offerings
+	if pdos, err := cli.QueryPciDeviceOffering(q()); err == nil {
+		for _, pdo := range pdos {
+			data.PciDeviceOfferings = append(data.PciDeviceOfferings, map[string]interface{}{
+				"name":        pdo.Name,
+				"uuid":        pdo.UUID,
+				"description": pdo.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPciDeviceOffering error: %v\n", err)
+	}
+
+	// VCenters
+	if vcs, err := cli.QueryVCenter(q()); err == nil {
+		for _, vc := range vcs {
+			data.VCenters = append(data.VCenters, map[string]interface{}{
+				"name":        vc.Name,
+				"uuid":        vc.UUID,
+				"description": vc.Description,
+				"domain_name": vc.DomainName,
+				"port":        vc.Port,
+				"username":    vc.UserName,
+				"zone_uuid":   vc.ZoneUuid,
+				"version":     vc.Version,
+				"https":       vc.Https,
+				"state":       vc.State,
+				"status":      vc.Status,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryVCenter error: %v\n", err)
+	}
+
+	// --- IAM (new) ---
+
+	// Access Keys
+	if aks, err := cli.QueryAccessKey(q()); err == nil {
+		for _, ak := range aks {
+			data.AccessKeys = append(data.AccessKeys, map[string]interface{}{
+				"uuid":          ak.UUID,
+				"access_key_id": ak.AccessKeyID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAccessKey error: %v\n", err)
+	}
+
+	// IAM2 Organizations
+	if orgs, err := cli.QueryIAM2Organization(q()); err == nil {
+		for _, org := range orgs {
+			data.IAM2Organizations = append(data.IAM2Organizations, map[string]interface{}{
+				"name":        org.Name,
+				"uuid":        org.UUID,
+				"description": org.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryIAM2Organization error: %v\n", err)
+	}
+
+	// IAM2 Virtual IDs
+	if vids, err := cli.QueryIAM2VirtualID(q()); err == nil {
+		for _, vid := range vids {
+			data.IAM2VirtualIDs = append(data.IAM2VirtualIDs, map[string]interface{}{
+				"name":        vid.Name,
+				"uuid":        vid.UUID,
+				"description": vid.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryIAM2VirtualID error: %v\n", err)
+	}
+
+	// Roles
+	if roles, err := cli.QueryRole(q()); err == nil {
+		for _, rl := range roles {
+			data.Roles = append(data.Roles, map[string]interface{}{
+				"name":        rl.Name,
+				"uuid":        rl.UUID,
+				"description": rl.Description,
+				"identity":    rl.Identity,
+				"type":        rl.Type,
+				"state":       rl.State,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryRole error: %v\n", err)
+	}
+
+	// Users
+	if users, err := cli.QueryUser(q()); err == nil {
+		for _, usr := range users {
+			data.Users = append(data.Users, map[string]interface{}{
+				"name": usr.Name,
+				"uuid": usr.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryUser error: %v\n", err)
+	}
+
+	// --- Monitoring (new) ---
+
+	// Alarms
+	if alarms, err := cli.QueryAlarm(q()); err == nil {
+		for _, al := range alarms {
+			data.Alarms = append(data.Alarms, map[string]interface{}{
+				"name": al.Name,
+				"uuid": al.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryAlarm error: %v\n", err)
+	}
+
+	// Email Media
+	if ems, err := cli.QueryEmailMedia(q()); err == nil {
+		for _, em := range ems {
+			data.EmailMedia = append(data.EmailMedia, map[string]interface{}{
+				"name":        em.Name,
+				"uuid":        em.UUID,
+				"description": em.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryEmailMedia error: %v\n", err)
+	}
+
+	// Log Servers
+	if lss, err := cli.QueryLogServer(q()); err == nil {
+		for _, ls := range lss {
+			data.LogServers = append(data.LogServers, map[string]interface{}{
+				"name":          ls.Name,
+				"uuid":          ls.UUID,
+				"description":   ls.Description,
+				"category":      ls.Category,
+				"type":          ls.Type,
+				"level":         ls.Level,
+				"configuration": ls.Configuration,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryLogServer error: %v\n", err)
+	}
+
+	// Monitor Groups
+	if mgs, err := cli.QueryMonitorGroup(q()); err == nil {
+		for _, mg := range mgs {
+			data.MonitorGroups = append(data.MonitorGroups, map[string]interface{}{
+				"name":        mg.Name,
+				"uuid":        mg.UUID,
+				"description": mg.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryMonitorGroup error: %v\n", err)
+	}
+
+	// Monitor Templates
+	if mts, err := cli.QueryMonitorTemplate(q()); err == nil {
+		for _, mt := range mts {
+			data.MonitorTemplates = append(data.MonitorTemplates, map[string]interface{}{
+				"name":        mt.Name,
+				"uuid":        mt.UUID,
+				"description": mt.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryMonitorTemplate error: %v\n", err)
+	}
+
+	// SNS Email Endpoints
+	if seps, err := cli.QuerySNSEmailEndpoint(q()); err == nil {
+		for _, sep := range seps {
+			data.SNSEmailEndpoints = append(data.SNSEmailEndpoints, map[string]interface{}{
+				"name":        sep.Name,
+				"uuid":        sep.UUID,
+				"description": sep.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySNSEmailEndpoint error: %v\n", err)
+	}
+
+	// SNS Topics
+	if sts, err := cli.QuerySNSTopic(q()); err == nil {
+		for _, st := range sts {
+			data.SNSTopics = append(data.SNSTopics, map[string]interface{}{
+				"name":        st.Name,
+				"uuid":        st.UUID,
+				"description": st.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySNSTopic error: %v\n", err)
+	}
+
+	// SNMP Agents
+	if sas, err := cli.QuerySnmpAgent(q()); err == nil {
+		for _, sa := range sas {
+			data.SnmpAgents = append(data.SnmpAgents, map[string]interface{}{
+				"name": sa.Name,
+				"uuid": sa.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySnmpAgent error: %v\n", err)
+	}
+
+	// Webhooks
+	if whs, err := cli.QueryWebhook(q()); err == nil {
+		for _, wh := range whs {
+			data.Webhooks = append(data.Webhooks, map[string]interface{}{
+				"name":        wh.Name,
+				"uuid":        wh.UUID,
+				"description": wh.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryWebhook error: %v\n", err)
+	}
+
+	// --- Automation (new) ---
+
+	// LDAP Servers
+	if ldaps, err := cli.QueryLdapServer(q()); err == nil {
+		for _, ls := range ldaps {
+			data.LdapServers = append(data.LdapServers, map[string]interface{}{
+				"name":        ls.Name,
+				"uuid":        ls.UUID,
+				"description": ls.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryLdapServer error: %v\n", err)
+	}
+
+	// Port Mirrors
+	if pms, err := cli.QueryPortMirror(q()); err == nil {
+		for _, pm := range pms {
+			data.PortMirrors = append(data.PortMirrors, map[string]interface{}{
+				"name": pm.Name,
+				"uuid": pm.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPortMirror error: %v\n", err)
+	}
+
+	// Port Mirror Sessions
+	if pmss, err := cli.QueryPortMirrorSession(q()); err == nil {
+		for _, pms := range pmss {
+			data.PortMirrorSessions = append(data.PortMirrorSessions, map[string]interface{}{
+				"name": pms.Name,
+				"uuid": pms.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPortMirrorSession error: %v\n", err)
+	}
+
+	// Price Tables
+	if pts, err := cli.QueryPriceTable(q()); err == nil {
+		for _, pt := range pts {
+			data.PriceTables = append(data.PriceTables, map[string]interface{}{
+				"name":        pt.Name,
+				"uuid":        pt.UUID,
+				"description": pt.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QueryPriceTable error: %v\n", err)
+	}
+
+	// Scheduler Jobs
+	if sjs, err := cli.QuerySchedulerJob(q()); err == nil {
+		for _, sj := range sjs {
+			data.SchedulerJobs = append(data.SchedulerJobs, map[string]interface{}{
+				"name": sj.Name,
+				"uuid": sj.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySchedulerJob error: %v\n", err)
+	}
+
+	// Scheduler Triggers
+	if sts, err := cli.QuerySchedulerTrigger(q()); err == nil {
+		for _, st := range sts {
+			data.SchedulerTriggers = append(data.SchedulerTriggers, map[string]interface{}{
+				"name": st.Name,
+				"uuid": st.UUID,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySchedulerTrigger error: %v\n", err)
+	}
+
 	jsonBytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "JSON marshal error: %v\n", err)
@@ -824,4 +1456,36 @@ func main() {
 		len(data.GpuDevices), len(data.AutoScalingGroups))
 	fmt.Printf("  UserTags: %d, SystemTags: %d\n",
 		len(data.UserTags), len(data.SystemTags))
+	// Network (new)
+	fmt.Printf("  FlowMeters: %d, FlowCollectors: %d, VpcFirewalls: %d, VpcHaGroups: %d\n",
+		len(data.FlowMeters), len(data.FlowCollectors), len(data.VpcFirewalls), len(data.VpcHaGroups))
+	fmt.Printf("  VpcSharedQos: %d, VRouterRouteTables: %d, VRouterRouteEntries: %d\n",
+		len(data.VpcSharedQos), len(data.VRouterRouteTables), len(data.VRouterRouteEntries))
+	fmt.Printf("  PolicyRouteRuleSets: %d, PolicyRouteRules: %d, MulticastRouters: %d\n",
+		len(data.PolicyRouteRuleSets), len(data.PolicyRouteRules), len(data.MulticastRouters))
+	fmt.Printf("  AccessControlLists: %d, IPSecConnections: %d, Certificates: %d\n",
+		len(data.AccessControlLists), len(data.IPSecConnections), len(data.Certificates))
+	// Storage (new)
+	fmt.Printf("  CephPrimaryStorages: %d, CephBackupStorages: %d, CephPools: %d\n",
+		len(data.CephPrimaryStorages), len(data.CephBackupStorages), len(data.CephPools))
+	fmt.Printf("  ImageStoreBackupStorages: %d, VolumeBackups: %d, DatabaseBackups: %d\n",
+		len(data.ImageStoreBackupStorages), len(data.VolumeBackups), len(data.DatabaseBackups))
+	fmt.Printf("  NvmeServers: %d, IscsiServers: %d\n",
+		len(data.NvmeServers), len(data.IscsiServers))
+	// Compute (new)
+	fmt.Printf("  PciDeviceOfferings: %d, VCenters: %d\n",
+		len(data.PciDeviceOfferings), len(data.VCenters))
+	// IAM (new)
+	fmt.Printf("  Roles: %d, Users: %d, IAM2Organizations: %d, IAM2VirtualIDs: %d, AccessKeys: %d\n",
+		len(data.Roles), len(data.Users), len(data.IAM2Organizations), len(data.IAM2VirtualIDs), len(data.AccessKeys))
+	// Monitoring (new)
+	fmt.Printf("  Alarms: %d, MonitorGroups: %d, MonitorTemplates: %d, SnmpAgents: %d\n",
+		len(data.Alarms), len(data.MonitorGroups), len(data.MonitorTemplates), len(data.SnmpAgents))
+	fmt.Printf("  LogServers: %d, SNSTopics: %d, SNSEmailEndpoints: %d, Webhooks: %d, EmailMedia: %d\n",
+		len(data.LogServers), len(data.SNSTopics), len(data.SNSEmailEndpoints), len(data.Webhooks), len(data.EmailMedia))
+	// Automation (new)
+	fmt.Printf("  SchedulerJobs: %d, SchedulerTriggers: %d, PriceTables: %d\n",
+		len(data.SchedulerJobs), len(data.SchedulerTriggers), len(data.PriceTables))
+	fmt.Printf("  PortMirrors: %d, PortMirrorSessions: %d, LdapServers: %d\n",
+		len(data.PortMirrors), len(data.PortMirrorSessions), len(data.LdapServers))
 }

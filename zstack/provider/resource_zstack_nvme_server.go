@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -166,10 +165,10 @@ func (r *nvmeServerResource) Read(ctx context.Context, request resource.ReadRequ
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query NVMe server. It may have been deleted.: "+err.Error())
-		state = nvmeServerModel{Uuid: types.StringValue("")}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading NVMe Server",
+			"Could not read NVMe Server, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -199,10 +198,6 @@ func (r *nvmeServerResource) Delete(ctx context.Context, request resource.Delete
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "NVMe server UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteNvmeServer(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

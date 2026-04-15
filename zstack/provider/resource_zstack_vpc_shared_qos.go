@@ -184,8 +184,10 @@ func (r *vpcSharedQosResource) Read(ctx context.Context, req resource.ReadReques
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query VPC Shared QoS: "+err.Error())
-		resp.State.RemoveResource(ctx)
+		resp.Diagnostics.AddError(
+			"Error reading VPC Shared QoS",
+			"Could not read VPC shared QoS, unexpected error: "+err.Error(),
+		)
 		return
 	}
 

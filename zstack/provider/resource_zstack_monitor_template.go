@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -144,10 +143,10 @@ func (r *monitorTemplateResource) Read(ctx context.Context, req resource.ReadReq
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query monitor templates. It may have been deleted.: "+err.Error())
-		state = monitorTemplateModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.AddError(
+			"Error reading Monitor Template",
+			"Could not read Monitor Template, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -201,10 +200,6 @@ func (r *monitorTemplateResource) Delete(ctx context.Context, req resource.Delet
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Monitor template UUID is empty, skipping delete.")
-		return
-	}
 
 	if err := r.client.DeleteMonitorTemplate(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting Monitor Template", "Could not delete monitor template UUID "+state.Uuid.ValueString()+": "+err.Error())

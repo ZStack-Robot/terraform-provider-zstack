@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -274,12 +273,10 @@ func (r *ipsecConnectionResource) Read(ctx context.Context, request resource.Rea
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query IPsec connections. It may have been deleted.: "+err.Error())
-		state = ipsecConnectionResourceModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading IPsec Connection",
+			"Could not read IPsec Connection, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -371,10 +368,6 @@ func (r *ipsecConnectionResource) Delete(ctx context.Context, request resource.D
 		return
 	}
 
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "IPsec connection UUID is empty, skipping delete.")
-		return
-	}
 
 	err := r.client.DeleteIPsecConnection(state.Uuid.ValueString(), param.DeleteModePermissive)
 

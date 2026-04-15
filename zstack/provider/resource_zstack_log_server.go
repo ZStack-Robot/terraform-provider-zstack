@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
@@ -181,10 +180,10 @@ func (r *logServerResource) Read(ctx context.Context, req resource.ReadRequest, 
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query log servers. It may have been deleted.: "+err.Error())
-		state = logServerModel{Uuid: types.StringValue("")}
-		diags = resp.State.Set(ctx, &state)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.AddError(
+			"Error reading Log Server",
+			"Could not read log server, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -244,11 +243,6 @@ func (r *logServerResource) Delete(ctx context.Context, req resource.DeleteReque
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	if state.Uuid == types.StringValue("") {
-		tflog.Warn(ctx, "Log server UUID is empty, skipping delete.")
 		return
 	}
 

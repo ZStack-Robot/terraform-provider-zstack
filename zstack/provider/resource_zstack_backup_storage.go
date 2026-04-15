@@ -329,11 +329,6 @@ func (r *backupStorageResource) Read(ctx context.Context, request resource.ReadR
 		return
 	}
 
-	if state.Uuid.ValueString() == "" {
-		tflog.Warn(ctx, "Backup storage UUID is empty, skipping read.")
-		return
-	}
-
 	bs, err := findResourceByGet(r.client.GetBackupStorage, state.Uuid.ValueString())
 	if err != nil {
 		if errors.Is(err, ErrResourceNotFound) {
@@ -341,8 +336,10 @@ func (r *backupStorageResource) Read(ctx context.Context, request resource.ReadR
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Failed to read backup storage, it may have been deleted: "+err.Error())
-		response.State.RemoveResource(ctx)
+		response.Diagnostics.AddError(
+			"Error reading Backup Storage",
+			"Could not read backup storage, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
@@ -446,10 +443,6 @@ func (r *backupStorageResource) Delete(ctx context.Context, request resource.Del
 	}
 
 	uuid := state.Uuid.ValueString()
-	if uuid == "" {
-		tflog.Warn(ctx, "Backup storage UUID is empty, skipping delete.")
-		return
-	}
 
 	// Detach from all zones first
 	zoneUuids := listToStringSlice(state.AttachedZoneUuids)

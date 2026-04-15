@@ -209,12 +209,10 @@ func (r *snmpAgentResource) Read(ctx context.Context, request resource.ReadReque
 			response.State.RemoveResource(ctx)
 			return
 		}
-		tflog.Warn(ctx, "Unable to query SNMP agents. It may have been deleted.: "+err.Error())
-		state = snmpAgentModel{
-			Uuid: types.StringValue(""),
-		}
-		diags = response.State.Set(ctx, &state)
-		response.Diagnostics.Append(diags...)
+		response.Diagnostics.AddError(
+			"Error reading SNMP Agent",
+			"Could not read SNMP Agent, unexpected error: "+err.Error(),
+		)
 		return
 	}
 
