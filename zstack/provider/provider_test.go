@@ -3,12 +3,14 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 )
@@ -99,13 +101,40 @@ func testAccClient() *client.ZSClient {
 	).ReadOnly(true).Debug(false))
 }
 
+func testAccClientLoggedIn() *client.ZSClient {
+	cli := testAccClient()
+	if os.Getenv("ZSTACK_ACCESS_KEY_ID") == "" {
+		// Account/password auth requires explicit login
+		if _, err := cli.Login(context.Background()); err != nil {
+			panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
+		}
+	}
+	return cli
+}
+
+// importStateUUID returns an ImportStateIdFunc that reads the "uuid" attribute
+// from state. Use this for resources that use "uuid" instead of "id".
+func importStateUUID(resourceName string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return "", fmt.Errorf("resource %s not found in state", resourceName)
+		}
+		uuid := rs.Primary.Attributes["uuid"]
+		if uuid == "" {
+			return "", fmt.Errorf("uuid attribute is empty for %s", resourceName)
+		}
+		return uuid, nil
+	}
+}
+
 // testAccCheckResourceDestroyByGet returns a CheckDestroy function for resources
 // that can be verified via a Get<Resource>(uuid) SDK call.
 // The getFunc should attempt to fetch the resource by ID and return an error if
 // not found.
 func testAccCheckResourceDestroyByGet(resourceType string, getFunc func(cli *client.ZSClient, id string) error) func(*terraform.State) error {
 	return func(s *terraform.State) error {
-		cli := testAccClient()
+		cli := testAccClientLoggedIn()
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != resourceType {
 				continue

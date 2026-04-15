@@ -53,7 +53,9 @@ func TestAccCreateImageResource(t *testing.T) {
 			{
 				ResourceName:            "zstack_image.test",
 				ImportState:             true,
+				ImportStateIdFunc:       importStateUUID("zstack_image.test"),
 				ImportStateVerify:       true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"description", "guest_os_type", "platform", "format", "media_type", "backup_storage_uuids", "architecture", "virtio", "boot_mode", "expunge", "system", "last_updated"},
 			},
 		},

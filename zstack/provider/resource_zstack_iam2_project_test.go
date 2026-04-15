@@ -82,7 +82,9 @@ resource "zstack_iam2_project" "test" {
 			{
 				ResourceName:      "zstack_iam2_project.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_iam2_project.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

@@ -97,7 +97,9 @@ resource "zstack_port_forwarding_rule" "test" {
 			{
 				ResourceName:      "zstack_port_forwarding_rule.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_port_forwarding_rule.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

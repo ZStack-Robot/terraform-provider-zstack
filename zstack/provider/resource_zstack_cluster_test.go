@@ -82,7 +82,9 @@ resource "zstack_cluster" "test" {
 			{
 				ResourceName:      "zstack_cluster.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_cluster.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

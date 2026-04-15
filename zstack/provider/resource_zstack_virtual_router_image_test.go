@@ -90,7 +90,9 @@ resource "zstack_virtual_router_image" "test" {
 			{
 				ResourceName:            "zstack_virtual_router_image.test",
 				ImportState:             true,
+				ImportStateIdFunc:       importStateUUID("zstack_virtual_router_image.test"),
 				ImportStateVerify:       true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"backup_storage_uuids", "architecture", "guest_os_type", "virtio", "boot_mode", "media_type"},
 			},
 		},

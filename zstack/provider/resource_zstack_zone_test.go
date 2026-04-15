@@ -76,7 +76,9 @@ resource "zstack_zone" "test" {
 			{
 				ResourceName:      "zstack_zone.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_zone.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})
