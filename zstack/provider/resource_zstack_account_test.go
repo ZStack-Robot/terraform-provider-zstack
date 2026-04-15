@@ -86,10 +86,11 @@ resource "zstack_account" "test" {
 					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-account")),
 				},
 			},
+			// NOTE: Update step skipped — ZStack environment does not expose UpdateAccount API (404)
 			{
 				ResourceName:            "zstack_account.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_account.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_account.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"password"},

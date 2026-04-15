@@ -91,7 +91,7 @@ resource "zstack_load_balancer" "test" {
 			{
 				ResourceName:      "zstack_load_balancer.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_load_balancer.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_load_balancer.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

@@ -83,7 +83,7 @@ func TestAccReservedIpResource(t *testing.T) {
 			{
 				ResourceName:      "zstack_reserved_ip.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_reserved_ip.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_reserved_ip.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

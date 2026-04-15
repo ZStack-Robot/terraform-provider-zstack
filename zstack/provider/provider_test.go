@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -92,13 +93,17 @@ func testAccClient() *client.ZSClient {
 	akSecret := os.Getenv("ZSTACK_ACCESS_KEY_SECRET")
 
 	if akID != "" && akSecret != "" {
-		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
+		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(false).Debug(false))
 	}
 
-	return client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
+	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
 		getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "admin"),
 		getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "password"),
-	).ReadOnly(true).Debug(false))
+	).ReadOnly(false).Debug(false))
+	if _, err := cli.Login(context.Background()); err != nil {
+		log.Fatalf("testAccClient: login failed: %v", err)
+	}
+	return cli
 }
 
 func testAccClientLoggedIn() *client.ZSClient {
@@ -112,9 +117,9 @@ func testAccClientLoggedIn() *client.ZSClient {
 	return cli
 }
 
-// importStateUUID returns an ImportStateIdFunc that reads the "uuid" attribute
+// importStateIdFromUUID returns an ImportStateIdFunc that reads the "uuid" attribute
 // from state. Use this for resources that use "uuid" instead of "id".
-func importStateUUID(resourceName string) resource.ImportStateIdFunc {
+func importStateIdFromUUID(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]
 		if !ok {
