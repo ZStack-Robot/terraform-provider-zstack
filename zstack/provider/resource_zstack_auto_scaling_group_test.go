@@ -89,7 +89,9 @@ resource "zstack_auto_scaling_group" "test" {
 			{
 				ResourceName:      "zstack_auto_scaling_group.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_auto_scaling_group.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

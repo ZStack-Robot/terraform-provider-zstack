@@ -83,7 +83,9 @@ resource "zstack_affinity_group" "test" {
 			{
 				ResourceName:      "zstack_affinity_group.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_affinity_group.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})

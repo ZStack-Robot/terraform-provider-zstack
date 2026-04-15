@@ -89,7 +89,9 @@ resource "zstack_vip" "test" {
 			{
 				ResourceName:      "zstack_vip.test",
 				ImportState:       true,
+				ImportStateIdFunc:       importStateUUID("zstack_vip.test"),
 				ImportStateVerify: true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
 	})
