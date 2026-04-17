@@ -281,7 +281,7 @@ func (r *alarmResource) Update(ctx context.Context, request resource.UpdateReque
 		p.Params.RepeatInterval = &val
 	}
 
-	result, err := r.client.UpdateAlarm(state.Uuid.ValueString(), p)
+	_, err := r.client.UpdateAlarm(state.Uuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Error updating Alarm",
@@ -290,17 +290,24 @@ func (r *alarmResource) Update(ctx context.Context, request resource.UpdateReque
 		return
 	}
 
-	plan.Uuid = types.StringValue(result.UUID)
-	plan.Name = types.StringValue(result.Name)
-	plan.Description = stringValueOrNull(result.Description)
-	plan.ComparisonOperator = types.StringValue(result.ComparisonOperator)
-	plan.Namespace = types.StringValue(result.Namespace)
-	plan.MetricName = types.StringValue(result.MetricName)
-	plan.Threshold = types.Float64Value(result.Threshold)
-	plan.Period = types.Int64Value(int64(result.Period))
-	plan.RepeatInterval = types.Int64Value(int64(result.RepeatInterval))
-	plan.Status = types.StringValue(result.Status)
-	plan.State = types.StringValue(result.State)
+	// Re-read to get complete state (Update response may have incomplete fields)
+	alarm, err := findResourceByQuery(r.client.QueryAlarm, state.Uuid.ValueString())
+	if err != nil {
+		response.Diagnostics.AddError("Error reading alarm after update", err.Error())
+		return
+	}
+
+	plan.Uuid = types.StringValue(alarm.UUID)
+	plan.Name = types.StringValue(alarm.Name)
+	plan.Description = stringValueOrNull(alarm.Description)
+	plan.ComparisonOperator = types.StringValue(alarm.ComparisonOperator)
+	plan.Namespace = types.StringValue(alarm.Namespace)
+	plan.MetricName = types.StringValue(alarm.MetricName)
+	plan.Threshold = types.Float64Value(alarm.Threshold)
+	plan.Period = types.Int64Value(int64(alarm.Period))
+	plan.RepeatInterval = types.Int64Value(int64(alarm.RepeatInterval))
+	plan.Status = types.StringValue(alarm.Status)
+	plan.State = types.StringValue(alarm.State)
 
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)

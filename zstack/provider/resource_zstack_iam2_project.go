@@ -195,11 +195,20 @@ func (r *iam2ProjectResource) Update(ctx context.Context, req resource.UpdateReq
 		},
 	}
 
-	project, err := r.client.UpdateIAM2Project(state.Uuid.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateIAM2Project(state.Uuid.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating IAM2 Project",
 			"Could not update IAM2 project, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the updated resource to get the full state
+	project, err := r.client.GetIAM2Project(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading IAM2 Project",
+			"Could not read IAM2 project after update, unexpected error: "+err.Error(),
 		)
 		return
 	}

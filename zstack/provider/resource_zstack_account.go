@@ -207,10 +207,18 @@ func (r *accountResource) Update(ctx context.Context, req resource.UpdateRequest
 		updateParam.Params.Password = stringPtr(plan.Password.ValueString())
 	}
 
-	account, err := r.client.UpdateAccount(state.Uuid.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateAccount(state.Uuid.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Account", "Could not update account, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the updated resource to get the full state
+	account, err := r.client.GetAccount(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading Account", "Could not read account after update, unexpected error: "+err.Error(),
 		)
 		return
 	}
