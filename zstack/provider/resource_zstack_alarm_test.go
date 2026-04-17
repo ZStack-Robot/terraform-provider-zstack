@@ -53,6 +53,35 @@ func TestAlarmResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccAlarmResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAlarmDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_alarm" "test" {
+  name                = "acc-test-alarm-disappears"
+  comparison_operator = "GreaterThanOrEqualTo"
+  namespace           = "ZStack/VM"
+  metric_name         = "CPUAverageUsedUtilization"
+  threshold           = 90
+  period              = 60
+  repeat_interval     = 600
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_alarm.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					stateCheckAlarmDisappears("zstack_alarm.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccAlarmResource(t *testing.T) {
 	_ = loadEnvData(t)
 
@@ -66,7 +95,7 @@ resource "zstack_alarm" "test" {
   name                = "acc-test-alarm"
   comparison_operator = "GreaterThanOrEqualTo"
   namespace           = "ZStack/VM"
-  metric_name         = "CPUAverageUtilization"
+  metric_name         = "CPUAverageUsedUtilization"
   threshold           = 90
   period              = 60
   repeat_interval     = 600
@@ -85,7 +114,7 @@ resource "zstack_alarm" "test" {
   description         = "Updated acceptance test alarm"
   comparison_operator = "GreaterThanOrEqualTo"
   namespace           = "ZStack/VM"
-  metric_name         = "CPUAverageUtilization"
+  metric_name         = "CPUAverageUsedUtilization"
   threshold           = 90
   period              = 60
   repeat_interval     = 600
