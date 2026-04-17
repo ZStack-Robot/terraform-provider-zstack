@@ -95,3 +95,9 @@ func stateCheckIAM2ProjectDisappears(resourceAddress string) statecheck.StateChe
 		return cli.DeleteIAM2Project(id, param.DeleteModePermissive)
 	})
 }
+
+func stateCheckAlarmDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteAlarm(id, param.DeleteModePermissive)
+	})
+}
