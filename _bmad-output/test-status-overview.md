@@ -158,26 +158,65 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 
 ### Phase 0: 代码质量加固（13 个 Story）
 
-| Story | 描述 | 状态 | 分支 |
-|-------|------|------|------|
-| 01 | Update read-after-write | **已合入 master** | `refactor/read-error-handling` |
-| 02 | alarm Disappears + SDK Bug | **已合入 master** | `fix/alarm-update-and-test` |
-| 03 | port_forwarding_rule Unknown | 待审查 | `fix/port-forwarding-rule` |
-| 04 | iam2_project Expunge | 待审查 | `refactor/provider-quality-hardening` |
-| 05 | policy Create Bug | **OPEN** | 未创建 |
-| 06 | scheduler_job/global_config Import | 待创建 | — |
-| 07 | RequiresReplace + l2vxlan Update | 待创建 | — |
-| 08 | reserved_ip/secgroup Import + VR Destroy | 未开始 | — |
-| 09 | 批量 Disappears (~26 个) | **已完成** (33个) | 已合入 master |
+| Story | 描述 | 状态 | P | 分支 | 合入序 |
+|-------|------|------|---|------|--------|
+| 01 | Update read-after-write | **已合入** | P0 | `refactor/read-error-handling` | — |
+| 02 | alarm Disappears + SDK Bug | **已合入** | P1 | `fix/alarm-update-and-test` | — |
+| 03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立 |
+| 04 | iam2_project Expunge | 待审查 | P1 | `refactor/provider-quality-hardening` | 依赖01✅ |
+| 05 | policy Create Bug | OPEN | P0 | 未创建 | 独立 |
+| 06 | scheduler_job/global_config Import | OPEN | P1 | 未创建 | 独立 |
+| 07 | RequiresReplace + l2vxlan Update | OPEN | P1 | 未创建 | 独立 |
+| 08 | reserved_ip/secgroup Import + VR Destroy | 未开始 | P1 | — | 独立 |
+| 09 | 批量 Disappears (~26 个) | **已完成** (33个) | P2 | 已合入 master | — |
 
 ### Phase 1 Sprint A: 核心资源验收测试
 
-| Story | 描述 | 状态 | 目标资源数 |
-|-------|------|------|-----------|
-| 10 | 自包含资源 | 未开始 | 8 |
-| 11 | 计算+存储 | 未开始 | 7 |
-| 12 | 网络+基础设施 | 未开始 | 6 |
-| 13 | 监控运维+备份 | 未开始 | 3 |
+| Story | 描述 | 状态 | P | 资源数 | 合入序 |
+|-------|------|------|---|--------|--------|
+| 10 | 自包含资源 | 未开始 | P1 | 8 | 依赖07 |
+| 11 | 计算+存储 | 未开始 | P1 | 7 | 独立 |
+| 12 | 网络+基础设施 | 未开始 | P1 | 6 | 依赖07(l2vxlan) |
+| 13 | 监控运维+备份 | 未开始 | P1 | 3 | 依赖10(monitor_template) |
+
+### 依赖图
+
+```
+Phase 0.4 (代码质量)                    Phase 0.3      Phase 0.2
+┌──────────────────────┐              ┌─────────┐    ┌─────────┐
+│ story-01 ✅ (read-after-write)──┐   │ story-08 │───→│ story-09 ✅│
+│   ├→ story-02 ✅ (alarm dis)   │   │ (Import/ │    │ (批量      │
+│   └→ story-04 (iam2 expunge)   │   │  Destroy)│    │ Disappears) │
+├──────────────────────┤         │   └─────────┘    └───────────┘
+│ story-03 (port-fwd)  │ 独立    │
+│ story-05 (policy)    │ 独立    │
+│ story-06 (import)    │ 独立    │
+│ story-07 (RR+l2vxlan)│─────────┼────────────────────┐
+└──────────────────────┘         │                    │
+                                 │  Phase 1 Sprint A   │
+                                 │  ┌──────────────────┘
+                                 │  │
+                                 ▼  ▼
+                           ┌───────────┐
+                           │ story-10   │──→ story-13
+                           │ (自包含 8个)│   (监控运维)
+                           └───────────┘
+                           ┌───────────┐
+                           │ story-11   │ 独立
+                           │ (计算存储)  │
+                           └───────────┘
+                           ┌───────────┐
+                           │ story-12   │ 依赖 story-07
+                           │ (网络基础)  │ (l2vxlan Update)
+                           └───────────┘
+```
+
+### 推荐执行顺序
+
+**第一批（并行）**: story-03, 05, 06 — 独立且小
+**第二批（顺序）**: story-04, 07 — 依赖 01 已完成，可直接开始
+**第三批**: story-08 — Phase 0 收尾
+**第四批（并行）**: story-10, 11, 12, 13 — Phase 1 Sprint A
 
 ### 里程碑目标
 
@@ -202,9 +241,8 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 
 | 文件 | 用途 |
 |------|------|
-| **本文档** `_bmad-output/test-status-overview.md` | 测试全貌（权威文档） |
+| **本文档** `_bmad-output/test-status-overview.md` | 测试全貌（唯一权威文档） |
 | `_bmad-output/review-results.md` | 分支审查详细结果 & Bug 修复方案 |
-| `_bmad-output/sprint-overview.md` | Sprint Story 拆解 & 依赖图（已被本文档覆盖） |
 | `_bmad-output/story-01~13.md` | 各 Story 详细描述和验收标准 |
 | `_bmad-output/workflow-git-push.md` | Git 推送工作流 |
 | `.github/ISSUE_TEMPLATE/bug_report.md` | Bug 报告模板 |
