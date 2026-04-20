@@ -61,6 +61,36 @@ func TestLoadBalancerResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccLoadBalancerResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3_networks in env.json, skipping load balancer acceptance test")
+	}
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLoadBalancerDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+data "zstack_vips" "test" {
+}
+
+resource "zstack_load_balancer" "test" {
+  name     = "acc-test-lb"
+  vip_uuid = data.zstack_vips.test.vips.0.uuid
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckLoadBalancerDisappears("zstack_load_balancer.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccLoadBalancerResource(t *testing.T) {
 	env := loadEnvData(t)
 

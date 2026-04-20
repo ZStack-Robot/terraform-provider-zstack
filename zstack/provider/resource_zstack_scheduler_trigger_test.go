@@ -53,6 +53,30 @@ func TestSchedulerTriggerResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccSchedulerTriggerResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSchedulerTriggerDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_scheduler_trigger" "test" {
+  name           = "acc-test-trigger"
+  scheduler_type = "cron"
+  cron           = "0 0 0 * * ?"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckSchedulerTriggerDisappears("zstack_scheduler_trigger.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccSchedulerTriggerResource(t *testing.T) {
 	_ = loadEnvData(t)
 

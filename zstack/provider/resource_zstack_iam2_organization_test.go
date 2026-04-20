@@ -53,6 +53,30 @@ func TestIam2OrganizationResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccIAM2OrganizationResource_disappears(t *testing.T) {
+	// Requires project-management addon license
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckIAM2OrganizationDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_iam2_organization" "test" {
+  name = "acc-test-organization"
+  type = "Company"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckIAM2OrganizationDisappears("zstack_iam2_organization.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccIAM2OrganizationResource(t *testing.T) {
 	// Requires project-management addon license
 	_ = loadEnvData(t)

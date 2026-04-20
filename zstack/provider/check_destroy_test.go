@@ -537,3 +537,28 @@ func testAccCheckTagAttachmentDestroy(s *terraform.State) error {
 	// No direct destroy check needed.
 	return nil
 }
+
+func testAccCheckVirtualRouterInstanceDestroy(s *terraform.State) error {
+	cli := testAccClientLoggedIn()
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "zstack_virtual_router_instance" {
+			continue
+		}
+		id := rs.Primary.Attributes["uuid"]
+		if id == "" {
+			id = rs.Primary.ID
+		}
+		if id == "" {
+			continue
+		}
+		_, err := cli.GetVirtualRouterVm(id)
+		if err != nil {
+			if isZStackNotFoundError(err) {
+				continue
+			}
+			return fmt.Errorf("error checking zstack_virtual_router_instance %s destroyed: %w", id, err)
+		}
+		return fmt.Errorf("zstack_virtual_router_instance %s still exists", id)
+	}
+	return nil
+}

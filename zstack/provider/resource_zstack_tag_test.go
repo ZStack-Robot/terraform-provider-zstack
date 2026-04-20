@@ -54,6 +54,31 @@ func TestTagResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccTagResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckTagDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_tag" "test" {
+  name  = "acc-test-tag"
+  value = "test-value"
+  type  = "simple"
+  color = "#FF0000"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckTagDisappears("zstack_tag.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccTagResource(t *testing.T) {
 	_ = loadEnvData(t)
 

@@ -60,6 +60,42 @@ func TestSecurityGroupRuleResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccSecurityGroupRuleResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSecurityGroupRuleDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_networking_secgroup" "test_for_rule" {
+  name       = "acc-test-secgroup-for-rule"
+  ip_version = 4
+}
+
+resource "zstack_networking_secgroup_rule" "test" {
+  name                    = "acc-test-secgroup-rule"
+  security_group_uuid     = zstack_networking_secgroup.test_for_rule.uuid
+  priority                = 1
+  direction               = "Ingress"
+  action                  = "ACCEPT"
+  state                   = "Enabled"
+  ip_version              = 4
+  protocol                = "TCP"
+  ip_ranges               = "10.0.0.0/8"
+  destination_port_ranges = "80"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckSecurityGroupRuleDisappears("zstack_networking_secgroup_rule.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccSecurityGroupRuleResource(t *testing.T) {
 	_ = loadEnvData(t)
 

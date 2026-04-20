@@ -54,6 +54,29 @@ func TestDiskOfferingResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccDiskOfferingResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckDiskOfferingDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_disk_offer" "test" {
+  name      = "acc-test-disk-offer"
+  disk_size = 10
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckDiskOfferingDisappears("zstack_disk_offer.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 // Note: Update Step not applicable — all user-settable attributes have RequiresReplace.
 func TestAccDiskOfferingResource(t *testing.T) {
 	_ = loadEnvData(t)

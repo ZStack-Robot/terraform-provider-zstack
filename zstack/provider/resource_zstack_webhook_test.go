@@ -53,6 +53,30 @@ func TestWebhookResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccWebhookResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckWebhookDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_webhook" "test" {
+  name = "acc-test-webhook"
+  url  = "http://example.com/webhook"
+  type = "custom"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckWebhookDisappears("zstack_webhook.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccWebhookResource(t *testing.T) {
 	_ = loadEnvData(t)
 

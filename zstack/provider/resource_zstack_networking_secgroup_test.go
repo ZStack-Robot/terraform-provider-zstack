@@ -53,6 +53,29 @@ func TestNetworkingSecgroupResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccSecurityGroupResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSecurityGroupDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_networking_secgroup" "test" {
+  name       = "acc-test-secgroup"
+  ip_version = 4
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckSecurityGroupDisappears("zstack_networking_secgroup.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccSecurityGroupResource(t *testing.T) {
 	_ = loadEnvData(t)
 

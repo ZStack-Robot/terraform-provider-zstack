@@ -60,6 +60,37 @@ func TestL2VlanNetworkResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccL2VlanNetworkResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env.json, skipping L2 VLAN network acceptance test")
+	}
+
+	zoneUuid := envStr(env.Zones[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckL2VlanNetworkDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_l2vlan_network" "test" {
+  name              = "acc-test-l2vlan"
+  vlan              = 3999
+  zone_uuid         = "` + zoneUuid + `"
+  physical_interface = "eth0"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckL2VlanNetworkDisappears("zstack_l2vlan_network.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccL2VlanNetworkResource(t *testing.T) {
 	env := loadEnvData(t)
 

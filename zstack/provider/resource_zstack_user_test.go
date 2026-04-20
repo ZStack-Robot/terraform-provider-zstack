@@ -53,6 +53,29 @@ func TestUserResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccUserResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckUserDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_user" "test" {
+  name     = "acc-test-user"
+  password = "Test@12345"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckUserDisappears("zstack_user.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccUserResource(t *testing.T) {
 	_ = loadEnvData(t)
 

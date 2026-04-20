@@ -53,6 +53,28 @@ func TestSnsTopicResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccSNSTopicResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSNSTopicDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_sns_topic" "test" {
+  name = "acc-test-sns-topic"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckSNSTopicDisappears("zstack_sns_topic.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccSNSTopicResource(t *testing.T) {
 	_ = loadEnvData(t)
 

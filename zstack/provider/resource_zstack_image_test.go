@@ -12,6 +12,40 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
+func TestAccImageResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.BackupStorages) == 0 {
+		t.Skip("no backup storages in env data")
+	}
+	bsUUID := envStr(env.BackupStorages[0], "uuid")
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckImageDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+				resource "zstack_image" "test" {
+					name        = "example-image"
+					description = "A test image for creation"
+					url         = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+					guest_os_type = "Centos 7"
+					platform    = "Linux"
+					format      = "qcow2"
+					media_type  = "RootVolumeTemplate"
+					architecture = "x86_64"
+					backup_storage_uuids = [%q]
+					boot_mode   = "Legacy"
+				}`, bsUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckImageDisappears("zstack_image.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccCreateImageResource(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.BackupStorages) == 0 {

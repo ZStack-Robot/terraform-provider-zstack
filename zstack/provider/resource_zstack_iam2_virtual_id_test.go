@@ -53,6 +53,30 @@ func TestIam2VirtualIDResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccIAM2VirtualIDResource_disappears(t *testing.T) {
+	// Requires project-management addon license
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckIAM2VirtualIDDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_iam2_virtual_id" "test" {
+  name     = "acc-test-virtual-id"
+  password = "Test@12345"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckIAM2VirtualIDDisappears("zstack_iam2_virtual_id.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccIAM2VirtualIDResource(t *testing.T) {
 	// Requires project-management addon license
 	_ = loadEnvData(t)

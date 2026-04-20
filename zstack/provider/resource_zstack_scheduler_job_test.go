@@ -54,6 +54,34 @@ func TestSchedulerJobResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccSchedulerJobResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.VmInstances) == 0 {
+		t.Skip("no vm_instances in env data, required for scheduler job")
+	}
+	vmUUID := envStr(env.VmInstances[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckSchedulerJobDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_scheduler_job" "test" {
+  name                 = "acc-test-scheduler-job"
+  target_resource_uuid = %q
+  type                 = "stopVm"
+}
+`, vmUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckSchedulerJobDisappears("zstack_scheduler_job.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccSchedulerJobResource(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.VmInstances) == 0 {

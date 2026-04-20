@@ -60,6 +60,44 @@ func TestLoadBalancerListenerResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccLoadBalancerListenerResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3_networks in env.json, skipping load balancer listener acceptance test")
+	}
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLoadBalancerListenerDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+data "zstack_vips" "test" {
+}
+
+resource "zstack_load_balancer" "test" {
+  name     = "acc-test-lb-for-listener"
+  vip_uuid = data.zstack_vips.test.vips.0.uuid
+}
+
+resource "zstack_load_balancer_listener" "test" {
+  name               = "acc-test-lb-listener"
+  load_balancer_uuid = zstack_load_balancer.test.uuid
+  protocol           = "tcp"
+  load_balancer_port = 80
+  instance_port      = 8080
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckLoadBalancerListenerDisappears("zstack_load_balancer_listener.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccLoadBalancerListenerResource(t *testing.T) {
 	env := loadEnvData(t)
 

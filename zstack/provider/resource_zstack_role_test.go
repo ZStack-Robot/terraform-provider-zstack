@@ -53,6 +53,28 @@ func TestRoleResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccRoleResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckRoleDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_role" "test" {
+  name = "acc-test-role"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckRoleDisappears("zstack_role.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccRoleResource(t *testing.T) {
 	_ = loadEnvData(t)
 

@@ -53,6 +53,29 @@ func TestCertificateResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccCertificateResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckCertificateDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_certificate" "test" {
+  name        = "acc-test-certificate"
+  certificate = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIUEh8m0yZ4X1GbWOKQoSqxVh7gkfUwDQYJKoZIhvcNAQELBQAwEjEQ\nMA4GA1UEAwwHdGVzdC1jYTAeFw0yNDA0MTMwMDAwMDBaFw0zNDA0MTMwMDAwMDBa\nMBIxEDAOBgNVBAMMB3Rlc3QtY2EwXDANBgkqhkiG9w0BAQEFAANLADBIAkEA0Z3V\nS3MwRXfHOVMnz0pHRvPqNsLffO9DeXSGPnkHMWVFnkFPnAGI+ZhouBnfZMwBY0Mj\nJmpRGsXSlYMsqDMNFwIDAQABoyMwITAfBgNVHREEGDAWhwR/AAABhwTAqAEBhwQK\nAAEBMA0GCSqGSIb4DQEBCQUAA0EAkcPGWFv43IkajKMmp/CjTOrLEMFSiHBr7hIK\nBGVEkVDqMe/dIYMe+bpFZ23LalFa4p27iE1uchIMjjkE2adkJQ==\n-----END CERTIFICATE-----"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckCertificateDisappears("zstack_certificate.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccCertificateResource(t *testing.T) {
 	_ = loadEnvData(t)
 

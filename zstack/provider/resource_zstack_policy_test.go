@@ -53,6 +53,29 @@ func TestPolicyResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccPolicyResource_disappears(t *testing.T) {
+	t.Skip("KNOWN BUG: resource_zstack_policy.go sends empty statements array, but ZStack API requires non-empty statements field")
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckPolicyDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_policy" "test" {
+  name = "acc-test-policy"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckPolicyDisappears("zstack_policy.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccPolicyResource(t *testing.T) {
 	t.Skip("KNOWN BUG: resource_zstack_policy.go sends empty statements array, but ZStack API requires non-empty statements field")
 	_ = loadEnvData(t)

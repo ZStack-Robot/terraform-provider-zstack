@@ -32,6 +32,33 @@ func TestVolumeResource_Schema(t *testing.T) {
 	}
 }
 
+func TestAccVolumeResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.DiskOfferings) == 0 {
+		t.Skip("no disk offerings in env data")
+	}
+	doUUID := envStr(env.DiskOfferings[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVolumeDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_volume" "test" {
+  name               = "acc-test-volume"
+  disk_offering_uuid = %q
+}
+`, doUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVolumeDisappears("zstack_volume.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccVolumeResource(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.DiskOfferings) == 0 {

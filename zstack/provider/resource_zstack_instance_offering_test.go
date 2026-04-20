@@ -54,6 +54,30 @@ func TestInstanceOfferingResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccInstanceOfferingResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckInstanceOfferingDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_instance_offer" "test" {
+  name        = "acc-test-instance-offer"
+  cpu_num     = 1
+  memory_size = 1073741824
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckInstanceOfferingDisappears("zstack_instance_offer.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 // Note: Update Step not applicable — all user-settable attributes have RequiresReplace.
 func TestAccInstanceOfferingResource(t *testing.T) {
 	_ = loadEnvData(t)
