@@ -83,9 +83,11 @@
 <a id="bug-5"></a>
 **BUG-5 [MEDIUM] Optional+Computed IsNull guard 不完整**
 
-- **资源**: `l3network`（IpVersion, System）、`instance_scripts`（ScriptTimeout）
-- **现象**: 只检查 `IsNull()` 未检查 `IsUnknown()`，与 port_forwarding_rule 修复模式不一致
-- **处置**: 后续创建 `fix/optional-computed-isnull-guard` 分支统一修复
+- **关联**: [Story-03](#story-03) | **同类 bug，跨多个资源**
+- **已修复**: `port_forwarding_rule`（3 个 Int64 字段）— 分支 `fix/port-forwarding-rule` 待合入，详见 [Story-03](#story-03)
+- **未修复**: `l3network`（IpVersion, System）、`instance_scripts`（ScriptTimeout）
+- **现象**: Optional+Computed 字段只检查 `IsNull()` 未检查 `IsUnknown()`，偶然安全但与已修复模式不一致
+- **处置**: port_forwarding_rule 随 Story-03 合入；其余后续创建 `fix/optional-computed-isnull-guard` 分支统一修复
 
 <a id="bug-6"></a>
 **BUG-6 [MEDIUM] global_config — 验收测试 inconsistent result**
@@ -229,7 +231,7 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 |-------|------|------|---|------|--------|
 | 01 | Update read-after-write | **已合入** | P0 | `refactor/read-error-handling` | — |
 | 02 | alarm Disappears + SDK Bug | **已合入** | P1 | `fix/alarm-update-and-test` | — |
-| 03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立 |
+| <a id="story-03"></a>03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立; [BUG-5](#bug-5) |
 | 04 | iam2_project Expunge | 待审查 | P1 | `refactor/provider-quality-hardening` | 依赖01✅ |
 | 05 | policy Create Bug | OPEN | P0 | 未创建 | 独立 |
 | 06 | scheduler_job/global_config Import | OPEN | P1 | 未创建 | 独立 |
