@@ -26,86 +26,19 @@
 
 ---
 
-## 二、Bug 跟踪
+## 二、Bug 概况
 
-### 待修复 — 阻塞或有数据风险
+> 详细跟踪见 [bug-tracker.md](bug-tracker.md)
 
-<a id="bug-1"></a>
-**BUG-1 [CRITICAL] policy — Create 后 description 为 Unknown**
-
-- **关联**: Story-05 | **位置**: `resource_zstack_policy.go` Create 方法
-- **现象**: 用户省略 description 时，Create 成功但 Terraform 报错 "provider still indicated an unknown value"
-- **根因**: description 为 `Optional+Computed` + `UseStateForUnknown()`，API 不返回 description，Create 未设置具体值
-- **修复** (1 行):
-  ```go
-  if plan.Description.IsUnknown() || plan.Description.IsNull() {
-      plan.Description = types.StringValue("")
-  }
-  ```
-
-<a id="bug-2"></a>
-**BUG-2 [CRITICAL] l2vxlan_network — vni 缺少 RequiresReplace**
-
-- **关联**: Story-07 | **位置**: `resource_zstack_l2vxlan_network.go:90-94`
-- **现象**: 用户修改 vni 后 Terraform 显示成功，但实际 vni 未变更（静默数据丢失）
-- **根因**: vni 为 `Optional+Computed` 但无 RequiresReplace，Update 只发送 name/description。对比 `l2vlan_network.vlan` 已正确标记
-- **修复** (5 行):
-  ```go
-  "vni": schema.Int64Attribute{
-      Optional: true, Computed: true,
-      Description: "The VXLAN Network Identifier (VNI).",
-      PlanModifiers: []planmodifier.Int64{int64planmodifier.RequiresReplace()},
-  },
-  ```
-
-<a id="bug-3"></a>
-**BUG-3 [CRITICAL] iam2_project — Expunge 逻辑缺失**
-
-- **关联**: Story-04 | **位置**: `resource_zstack_iam2_project.go` Delete 方法
-- **现象**: Delete 成功后 name 无法复用（ZStack 要求 Expunge 后才释放 name）
-- **根因**: Delete 仅调用 DeleteIAM2Project，未调用 ExpungeIAM2Project
-- **修复** (5 行): Delete 成功后调用 Expunge，失败时 AddWarning 而非 return（不阻止 state 清理）
-  ```go
-  if err := r.client.ExpungeIAM2Project(state.Uuid.ValueString()); err != nil {
-      resp.Diagnostics.AddWarning("Warning expunging IAM2 Project",
-          "Delete succeeded but expunge failed: "+err.Error())
-  }
-  ```
-
-### 待修复 — 低优先级
-
-<a id="bug-4"></a>
-**BUG-4 [HIGH] policy — 默认 statement 为全权限 god-mode**
-
-- **位置**: `resource_zstack_policy.go:120-126`
-- **现象**: 每个 policy 都获得 `Effect: "Allow", Actions: ["**"]`，用户无法控制
-- **处置**: 最低要求在 schema Description 中文档化此行为（1 行），完整修复需支持 statements 作为属性
-
-<a id="bug-5"></a>
-**BUG-5 [MEDIUM] Optional+Computed IsNull guard 不完整**
-
-- **关联**: [Story-03](#story-03) | **同类 bug，跨多个资源**
-- **已修复**: `port_forwarding_rule`（3 个 Int64 字段）— 分支 `fix/port-forwarding-rule` 待合入，详见 [Story-03](#story-03)
-- **未修复**: `l3network`（IpVersion, System）、`instance_scripts`（ScriptTimeout）
-- **现象**: Optional+Computed 字段只检查 `IsNull()` 未检查 `IsUnknown()`，偶然安全但与已修复模式不一致
-- **处置**: port_forwarding_rule 随 Story-03 合入；其余后续创建 `fix/optional-computed-isnull-guard` 分支统一修复
-
-<a id="bug-6"></a>
-**BUG-6 [MEDIUM] global_config — 验收测试 inconsistent result**
-
-- **现象**: TestAccGlobalConfigResource "Provider produced inconsistent result after apply"
-- **状态**: 预存 bug，master 上同样失败，需排查 Read 返回值与 plan 不一致点
-
-### 已修复
-
-| ID | 资源 | 问题 | 修复于 |
-|----|------|------|--------|
-| ~~BUG-7~~ | alarm | stateCheckAlarmDisappears 未定义致编译失败 | master @ `86dd7b3` (Story-02) |
-
-### 基础设施问题（非代码 bug）
-
-- **ZStack API 503 间歇性不可达** — 影响 TestAccPortForwardingRuleResource, TestAccIAM2ProjectResource。环境: 172.24.248.129:8080
-- **部分资源 Update API 返回 404** — ZStack 不支持，已在测试中标注跳过（非 provider bug）
+| ID | 严重度 | 资源 | 一句话描述 | 状态 |
+|----|--------|------|-----------|------|
+| [BUG-1](bug-tracker.md#bug-1) | **CRITICAL** | policy | Create 后 description 为 Unknown | OPEN |
+| [BUG-2](bug-tracker.md#bug-2) | **CRITICAL** | l2vxlan_network | vni 缺少 RequiresReplace，静默数据丢失 | OPEN |
+| [BUG-3](bug-tracker.md#bug-3) | **CRITICAL** | iam2_project | Expunge 逻辑缺失，name 不可复用 | OPEN |
+| [BUG-4](bug-tracker.md#bug-4) | HIGH | policy | 默认 statement 为全权限 god-mode | OPEN |
+| [BUG-5](bug-tracker.md#bug-5) | MEDIUM | 多资源 | Optional+Computed IsNull guard 不完整 | OPEN |
+| [BUG-6](bug-tracker.md#bug-6) | MEDIUM | global_config | 验收测试 inconsistent result | OPEN |
+| ~~BUG-7~~ | ~~CRITICAL~~ | alarm | stateCheckAlarmDisappears 未定义 | FIXED |
 
 ---
 
@@ -116,7 +49,7 @@
 | 资源 | Create | Update | Import | Disappears | 备注 |
 |------|--------|--------|--------|------------|------|
 | alarm | Y | Y | Y | Y | |
-| iam2_project | Y | Y | Y | Y | [BUG-3](#bug-3) Expunge 缺失 |
+| iam2_project | Y | Y | Y | Y | [BUG-3](bug-tracker.md#bug-3) Expunge 缺失 |
 | image | Y | Y | Y | Y | |
 | networking_secgroup | Y | Y | Y | Y | |
 | networking_secgroup_rule | Y | Y | Y | Y | |
@@ -138,7 +71,7 @@
 | l2vlan_network | Y | Y | Y | |
 | load_balancer | Y | Y | Y | |
 | load_balancer_listener | Y | Y | Y | |
-| policy | Y | Y | Y | [BUG-1](#bug-1) description Unknown |
+| policy | Y | Y | Y | [BUG-1](bug-tracker.md#bug-1) description Unknown |
 | port_forwarding_rule | Y | Y | Y | |
 | reserved_ip | Y | Y | Y | |
 | role | Y | Y | Y | |
@@ -159,7 +92,7 @@
 |------|--------|--------|--------|------------|--------|
 | access_control_list | Y | - | - | - | Import, Disappears |
 | access_key | Y | - | - | - | Import, Disappears |
-| global_config | Y | - | - | - | 按设计无 Destroy/Import; [BUG-6](#bug-6) |
+| global_config | Y | - | - | - | 按设计无 Destroy/Import; [BUG-6](bug-tracker.md#bug-6) |
 | networking_secgroup_attachment | Y | - | Y | - | Disappears |
 | scheduler_job | Y | - | - | Y | Import |
 | sns_email_endpoint | Y | - | Y | - | Disappears |
@@ -182,7 +115,7 @@
 - image_store_backup_storage, primary_storage, database_backup
 - volume_backup, volume_snapshot, zbox_backup, dataset
 
-**网络 (17)**
+**网络 (19)**
 - l2vxlan_network, l3network, eip, subnet_ip_range, ipsec_connection
 - multicast_router, port_mirror, port_mirror_session
 - policy_route_rule, policy_route_rule_set, lb_server_group
@@ -204,7 +137,7 @@
 **脚本与自动化 (4)**
 - instance_scripts, instance_scripts_execution, resource_stack, stack_template
 
-**其他 (5)**
+**其他 (10)**
 - cdp_policy, cdp_task, directory, flow_collector, flow_meter
 - iscsi_server, ldap_server, license, nvme_server, pci_device_offering
 
@@ -232,7 +165,7 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 |-------|------|------|---|------|--------|
 | 01 | Update read-after-write | **已合入** | P0 | `refactor/read-error-handling` | — |
 | 02 | alarm Disappears + SDK Bug | **已合入** | P1 | `fix/alarm-update-and-test` | — |
-| <a id="story-03"></a>03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立; [BUG-5](#bug-5) |
+| <a id="story-03"></a>03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立; [BUG-5](bug-tracker.md#bug-5) |
 | 04 | iam2_project Expunge | 待审查 | P1 | `refactor/provider-quality-hardening` | 依赖01✅ |
 | 05 | policy Create Bug | OPEN | P0 | 未创建 | 独立 |
 | 06 | scheduler_job/global_config Import | OPEN | P1 | 未创建 | 独立 |
@@ -303,8 +236,9 @@ Phase 0.4 (代码质量)                    Phase 0.3      Phase 0.2
 
 | 文件 | 用途 |
 |------|------|
-| **本文档** `_bmad-output/test-status-overview.md` | 测试全貌（唯一权威文档） |
-| `_bmad-output/review-results.md` | 分支审查详细结果 & Bug 修复方案 |
-| `_bmad-output/story-01~13.md` | 各 Story 详细描述和验收标准 |
-| `_bmad-output/workflow-git-push.md` | Git 推送工作流 |
+| **本文档** `test-status-overview.md` | 测试全貌 — 覆盖率、矩阵、Sprint 进度 |
+| [`bug-tracker.md`](bug-tracker.md) | **Bug 唯一跟踪源** — 详情、根因、修复思路、进度 |
+| `review-results.md` | 分支审查历史存档（2026-04-17） |
+| `story-01~13.md` | 各 Story 详细描述和验收标准 |
+| `workflow-git-push.md` | Git 推送工作流 |
 | `.github/ISSUE_TEMPLATE/bug_report.md` | Bug 报告模板 |
