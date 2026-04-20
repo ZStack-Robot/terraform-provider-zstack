@@ -3,6 +3,7 @@
 > **日期**: 2026-04-20
 > **基准**: master @ `86dd7b3`
 > **总资源数**: 111 resources + 42 data sources
+> **说明**：针对Terraform Provider 对接zstack sdkv2 的全量测试
 
 ---
 
