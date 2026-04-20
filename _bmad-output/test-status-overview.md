@@ -34,11 +34,12 @@
 |----|--------|------|-----------|------|
 | [BUG-1](bug-tracker.md#bug-1) | **CRITICAL** | policy | Create 后 description 为 Unknown | OPEN |
 | [BUG-2](bug-tracker.md#bug-2) | **CRITICAL** | l2vxlan_network | vni 缺少 RequiresReplace，静默数据丢失 | OPEN |
-| [BUG-3](bug-tracker.md#bug-3) | **CRITICAL** | iam2_project | Expunge 逻辑缺失，name 不可复用 | OPEN |
-| [BUG-4](bug-tracker.md#bug-4) | HIGH | policy | 默认 statement 为全权限 god-mode | OPEN |
-| [BUG-5](bug-tracker.md#bug-5) | MEDIUM | 多资源 | Optional+Computed IsNull guard 不完整 | OPEN |
+| [BUG-3](bug-tracker.md#bug-3) | **CRITICAL** | iam2_project | Expunge 逻辑缺失，name 不可复用 | FIXING |
+| [BUG-4](bug-tracker.md#bug-4) | HIGH | policy | Statements 空数组 + 修复引入 god-mode | FIXING |
+| [BUG-5](bug-tracker.md#bug-5) | MEDIUM | 多资源 | Optional+Computed IsNull guard 不完整 | FIXING |
 | [BUG-6](bug-tracker.md#bug-6) | MEDIUM | global_config | 验收测试 inconsistent result | OPEN |
 | ~~BUG-7~~ | ~~CRITICAL~~ | alarm | stateCheckAlarmDisappears 未定义 | FIXED |
+| ~~[BUG-8](bug-tracker.md#bug-8)~~ | ~~MEDIUM~~ | 4 资源 | 错误的 RequiresReplace 导致不必要 destroy | FIXED |
 
 ---
 
@@ -167,7 +168,7 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 | 02 | alarm Disappears + SDK Bug | **已合入** | P1 | `fix/alarm-update-and-test` | — |
 | <a id="story-03"></a>03 | port_forwarding_rule Unknown | 待审查 | P0 | `fix/port-forwarding-rule` | 独立; [BUG-5](bug-tracker.md#bug-5) |
 | 04 | iam2_project Expunge | 待审查 | P1 | `refactor/provider-quality-hardening` | 依赖01✅ |
-| 05 | policy Create Bug | OPEN | P0 | 未创建 | 独立 |
+| 05 | policy Create Bug | 待审查 | P0 | `fix/policy-empty-statements` | 独立 |
 | 06 | scheduler_job/global_config Import | OPEN | P1 | 未创建 | 独立 |
 | 07 | RequiresReplace + l2vxlan Update | OPEN | P1 | 未创建 | 独立 |
 | 08 | reserved_ip/secgroup Import + VR Destroy | 未开始 | P1 | — | 独立 |
@@ -228,7 +229,7 @@ Phase 0.4 (代码质量)                    Phase 0.3      Phase 0.2
 | 验收覆盖率 | 36.9% (41/111) | ~37% | **56.8%** (63/111) |
 | 完整级 (CUID+Dis) | 6 | 6+ | 6+ |
 | 标准级 (CID) | 26 | 27+ | ~35 |
-| 已知 Bug | 6 | ~3 | ~3 |
+| 已知 Bug (OPEN+FIXING) | 6 | ~3 | ~3 |
 
 ---
 
