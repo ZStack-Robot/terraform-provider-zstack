@@ -121,7 +121,7 @@ go build ./...
 | **发现日期** | 2026-04-17 |
 | **负责人** | 未分配 |
 | **关联 Story** | Story-04 |
-| **关联分支** | `refactor/provider-quality-hardening` @ `153cb74`（本地未推送） |
+| **关联分支** | `refactor/provider-quality-hardening` @ `9c30736`（已推送 myorigin） |
 | **阻塞项** | 重复 apply/destroy 测试会因 name 冲突失败 |
 
 **现象**
@@ -170,7 +170,7 @@ TF_ACC=1 go test ./zstack/provider/ -run TestAccIAM2ProjectResource -v -timeout 
 | **发现日期** | 2026-04-17 |
 | **负责人** | 未分配 |
 | **关联 Story** | Story-05 |
-| **关联分支** | `fix/policy-empty-statements` @ `bfb4b9a`（本地未推送） |
+| **关联分支** | `fix/policy-empty-statements` @ `bfb4b9a`（已推送 myorigin） |
 | **阻塞项** | 分支存在审查缺陷，需修正后方可合入 |
 
 **现象**
@@ -220,7 +220,7 @@ TF_ACC=1 go test ./zstack/provider/ -run TestAccPolicyResource -v -timeout 30m
 | **发现日期** | 2026-04-17 |
 | **负责人** | 未分配 |
 | **关联 Story** | [Story-03](test-status-overview.md#story-03) |
-| **关联分支** | `fix/port-forwarding-rule` @ `cfe1d76`（本地未推送） |
+| **关联分支** | `fix/port-forwarding-rule` @ `cfe1d76`（已推送 myorigin） |
 | **阻塞项** | 无（偶然安全，Unknown 时 ValueXxx() 返回零值） |
 
 **现象**
@@ -361,7 +361,7 @@ name/description 等可 in-place update 的字段被错误标记 `RequiresReplac
 | `fix/preconfiguration-template-requires-replace` @ `8b54d6d` | preconfiguration_template | name, description, distribution, type, content |
 | `fix/price-table-requires-replace` @ `0a888c7` | price_table | name, description |
 
-> 以上 4 个分支均为本地未推送，待合入 master。
+> 以上 4 个分支均已推送 myorigin，待合入 master。
 
 **待补充测试项**
 
