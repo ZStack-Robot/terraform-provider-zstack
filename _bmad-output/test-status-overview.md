@@ -25,17 +25,84 @@
 
 ---
 
-## 二、已知 Bug
+## 二、Bug 跟踪
 
-| # | 严重度 | 资源 | 问题 | 状态 | 修复工作量 |
-|---|--------|------|------|------|-----------|
-| 1 | **CRITICAL** | policy | Create 后 description 仍为 Unknown，Terraform 报错 | OPEN | 1 行 |
-| 2 | **CRITICAL** | l2vxlan_network | vni 缺少 RequiresReplace，修改 vni 静默丢失 | OPEN | 5 行 |
-| 3 | **CRITICAL** | iam2_project | Expunge 逻辑缺失，name 不可复用 | OPEN | 5 行 |
-| 4 | ~~CRITICAL~~ | alarm | stateCheckAlarmDisappears 未定义导致编译失败 | **FIXED** | — |
-| 5 | HIGH | policy | 默认 statement `Allow/**` 为 god-mode 全权限 | OPEN | 文档 1 行 |
-| 6 | MEDIUM | l3network, instance_scripts | Optional+Computed 字段仅检查 IsNull() 未检查 IsUnknown() | OPEN | 新分支 |
-| 7 | MEDIUM | global_config | "Provider produced inconsistent result after apply" | OPEN (预存) | 待排查 |
+### 待修复 — 阻塞或有数据风险
+
+<a id="bug-1"></a>
+**BUG-1 [CRITICAL] policy — Create 后 description 为 Unknown**
+
+- **关联**: Story-05 | **位置**: `resource_zstack_policy.go` Create 方法
+- **现象**: 用户省略 description 时，Create 成功但 Terraform 报错 "provider still indicated an unknown value"
+- **根因**: description 为 `Optional+Computed` + `UseStateForUnknown()`，API 不返回 description，Create 未设置具体值
+- **修复** (1 行):
+  ```go
+  if plan.Description.IsUnknown() || plan.Description.IsNull() {
+      plan.Description = types.StringValue("")
+  }
+  ```
+
+<a id="bug-2"></a>
+**BUG-2 [CRITICAL] l2vxlan_network — vni 缺少 RequiresReplace**
+
+- **关联**: Story-07 | **位置**: `resource_zstack_l2vxlan_network.go:90-94`
+- **现象**: 用户修改 vni 后 Terraform 显示成功，但实际 vni 未变更（静默数据丢失）
+- **根因**: vni 为 `Optional+Computed` 但无 RequiresReplace，Update 只发送 name/description。对比 `l2vlan_network.vlan` 已正确标记
+- **修复** (5 行):
+  ```go
+  "vni": schema.Int64Attribute{
+      Optional: true, Computed: true,
+      Description: "The VXLAN Network Identifier (VNI).",
+      PlanModifiers: []planmodifier.Int64{int64planmodifier.RequiresReplace()},
+  },
+  ```
+
+<a id="bug-3"></a>
+**BUG-3 [CRITICAL] iam2_project — Expunge 逻辑缺失**
+
+- **关联**: Story-04 | **位置**: `resource_zstack_iam2_project.go` Delete 方法
+- **现象**: Delete 成功后 name 无法复用（ZStack 要求 Expunge 后才释放 name）
+- **根因**: Delete 仅调用 DeleteIAM2Project，未调用 ExpungeIAM2Project
+- **修复** (5 行): Delete 成功后调用 Expunge，失败时 AddWarning 而非 return（不阻止 state 清理）
+  ```go
+  if err := r.client.ExpungeIAM2Project(state.Uuid.ValueString()); err != nil {
+      resp.Diagnostics.AddWarning("Warning expunging IAM2 Project",
+          "Delete succeeded but expunge failed: "+err.Error())
+  }
+  ```
+
+### 待修复 — 低优先级
+
+<a id="bug-4"></a>
+**BUG-4 [HIGH] policy — 默认 statement 为全权限 god-mode**
+
+- **位置**: `resource_zstack_policy.go:120-126`
+- **现象**: 每个 policy 都获得 `Effect: "Allow", Actions: ["**"]`，用户无法控制
+- **处置**: 最低要求在 schema Description 中文档化此行为（1 行），完整修复需支持 statements 作为属性
+
+<a id="bug-5"></a>
+**BUG-5 [MEDIUM] Optional+Computed IsNull guard 不完整**
+
+- **资源**: `l3network`（IpVersion, System）、`instance_scripts`（ScriptTimeout）
+- **现象**: 只检查 `IsNull()` 未检查 `IsUnknown()`，与 port_forwarding_rule 修复模式不一致
+- **处置**: 后续创建 `fix/optional-computed-isnull-guard` 分支统一修复
+
+<a id="bug-6"></a>
+**BUG-6 [MEDIUM] global_config — 验收测试 inconsistent result**
+
+- **现象**: TestAccGlobalConfigResource "Provider produced inconsistent result after apply"
+- **状态**: 预存 bug，master 上同样失败，需排查 Read 返回值与 plan 不一致点
+
+### 已修复
+
+| ID | 资源 | 问题 | 修复于 |
+|----|------|------|--------|
+| ~~BUG-7~~ | alarm | stateCheckAlarmDisappears 未定义致编译失败 | master @ `86dd7b3` (Story-02) |
+
+### 基础设施问题（非代码 bug）
+
+- **ZStack API 503 间歇性不可达** — 影响 TestAccPortForwardingRuleResource, TestAccIAM2ProjectResource。环境: 172.24.248.129:8080
+- **部分资源 Update API 返回 404** — ZStack 不支持，已在测试中标注跳过（非 provider bug）
 
 ---
 
@@ -45,8 +112,8 @@
 
 | 资源 | Create | Update | Import | Disappears | 备注 |
 |------|--------|--------|--------|------------|------|
-| alarm | Y | Y | Y | Y | metric_name 已修正 |
-| iam2_project | Y | Y | Y | Y | Expunge bug 未修 |
+| alarm | Y | Y | Y | Y | |
+| iam2_project | Y | Y | Y | Y | [BUG-3](#bug-3) Expunge 缺失 |
 | image | Y | Y | Y | Y | |
 | networking_secgroup | Y | Y | Y | Y | |
 | networking_secgroup_rule | Y | Y | Y | Y | |
@@ -68,7 +135,7 @@
 | l2vlan_network | Y | Y | Y | |
 | load_balancer | Y | Y | Y | |
 | load_balancer_listener | Y | Y | Y | |
-| policy | Y | Y | Y | Create description bug |
+| policy | Y | Y | Y | [BUG-1](#bug-1) description Unknown |
 | port_forwarding_rule | Y | Y | Y | |
 | reserved_ip | Y | Y | Y | |
 | role | Y | Y | Y | |
@@ -89,7 +156,7 @@
 |------|--------|--------|--------|------------|--------|
 | access_control_list | Y | - | - | - | Import, Disappears |
 | access_key | Y | - | - | - | Import, Disappears |
-| global_config | Y | - | - | - | 按设计无 Destroy/Import |
+| global_config | Y | - | - | - | 按设计无 Destroy/Import; [BUG-6](#bug-6) |
 | networking_secgroup_attachment | Y | - | Y | - | Disappears |
 | scheduler_job | Y | - | - | Y | Import |
 | sns_email_endpoint | Y | - | Y | - | Disappears |
@@ -229,15 +296,7 @@ Phase 0.4 (代码质量)                    Phase 0.3      Phase 0.2
 
 ---
 
-## 七、基础设施问题
-
-- ZStack API 503 间歇性不可达，影响以下测试：TestAccPortForwardingRuleResource, TestAccIAM2ProjectResource
-- TestAccGlobalConfigResource "inconsistent result after apply" 为预存 bug
-- 部分资源 Update API 返回 404（ZStack 不支持），已在测试中标注跳过
-
----
-
-## 八、文件索引
+## 七、文件索引
 
 | 文件 | 用途 |
 |------|------|
