@@ -41,7 +41,7 @@ type hookScriptsModel struct {
 	HookScript types.String `tfsdk:"hook_script"`
 }
 
-// todo modify mapping tools
+// TODO: refactor to use utils.GetFieldMapping for consistent filter field resolution
 // Configure implements datasource.DataSourceWithConfigure.
 func (d *hookScriptsDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {

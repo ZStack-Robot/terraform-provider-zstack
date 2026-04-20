@@ -7,10 +7,11 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func FilterResource[T any](
@@ -35,7 +36,8 @@ func FilterResource[T any](
 				apiFieldName = key
 			}
 
-			fieldName := strings.Title(apiFieldName)
+			caser := cases.Title(language.Und)
+			fieldName := caser.String(apiFieldName)
 			field := resourceValue.FieldByName(fieldName)
 
 			if !field.IsValid() {
@@ -62,13 +64,12 @@ func FilterResource[T any](
 			case reflect.String:
 				fieldValue = field.String()
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				if key == "memory_size" {
+				switch key {
+				case "memory_size":
 					fieldValue = fmt.Sprintf("%d", BytesToMB(field.Int()))
-				} else if key == "disk_size" {
+				case "disk_size", "volume_size":
 					fieldValue = fmt.Sprintf("%d", BytesToGB(field.Int()))
-				} else if key == "volume_size" {
-					fieldValue = fmt.Sprintf("%d", BytesToGB(field.Int()))
-				} else {
+				default:
 					fieldValue = fmt.Sprintf("%d", field.Int())
 				}
 			case reflect.Bool:

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -25,7 +26,9 @@ import (
 //	response.Diagnostics.AddError(...)
 //	return
 func TestNoEmptyUUIDStateCorruption(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
+	_, thisFile, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(thisFile)
+	files, err := filepath.Glob(filepath.Join(dir, "resource_zstack_*.go"))
 	if err != nil {
 		t.Fatalf("failed to glob resource files: %v", err)
 	}
@@ -59,7 +62,7 @@ func scanForEmptyIDPattern(t *testing.T, filename string) []violation {
 	if err != nil {
 		t.Fatalf("failed to open %s: %v", filename, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var violations []violation
 	scanner := bufio.NewScanner(f)
@@ -117,7 +120,9 @@ func scanForEmptyIDPattern(t *testing.T, filename string) []violation {
 //	    return
 //	}
 func TestNoReadRemoveResourceOnTransientError(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
+	_, thisFile, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(thisFile)
+	files, err := filepath.Glob(filepath.Join(dir, "resource_zstack_*.go"))
 	if err != nil {
 		t.Fatalf("failed to glob resource files: %v", err)
 	}
@@ -206,7 +211,9 @@ func scanForReadRemoveResourceOnError(t *testing.T, filename string) []violation
 // anti-pattern above. Once Read properly returns errors, this guard becomes
 // dead code that masks bugs.
 func TestNoDeleteEmptyUUIDGuard(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
+	_, thisFile, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(thisFile)
+	files, err := filepath.Glob(filepath.Join(dir, "resource_zstack_*.go"))
 	if err != nil {
 		t.Fatalf("failed to glob resource files: %v", err)
 	}
@@ -230,7 +237,7 @@ func scanForDeleteEmptyUUIDGuard(t *testing.T, filename string) []violation {
 	if err != nil {
 		t.Fatalf("failed to open %s: %v", filename, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var violations []violation
 	scanner := bufio.NewScanner(f)

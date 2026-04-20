@@ -202,11 +202,6 @@ func (r *tagAttachmentResource) Delete(ctx context.Context, request resource.Del
 		return
 	}
 
-	resourceUuids := make([]string, 0, len(state.ResourceUuids.Elements()))
-	for _, v := range state.ResourceUuids.Elements() {
-		resourceUuids = append(resourceUuids, v.(types.String).ValueString())
-	}
-
 	err := r.client.DetachTagFromResources(state.TagUuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError("Error detaching tag", err.Error())
