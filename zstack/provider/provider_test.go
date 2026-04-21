@@ -4,10 +4,13 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -74,6 +77,14 @@ func providerConfig() string {
 		getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "admin"),
 		getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "password"),
 	)
+}
+
+func testAccName(base string) string {
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return fmt.Sprintf("acc-test-%s-%d", base, time.Now().UnixNano())
+	}
+	return fmt.Sprintf("acc-test-%s-%s", base, hex.EncodeToString(randomBytes))
 }
 
 var (
