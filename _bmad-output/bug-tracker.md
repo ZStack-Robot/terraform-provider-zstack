@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-04-20  
+> Updated: 2026-04-21  
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning
 
@@ -18,7 +18,7 @@
 | `golangci-lint run ./...` | 13 issues | ✅ 0 issues |
 | `go test ./... -short` | 53 pass, 1 fail | ✅ 53 pass, 0 fail |
 
-### Fixed (17 bugs)
+### Fixed (21 bugs)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
@@ -37,19 +37,19 @@
 | BUG-013 | P2 | ✅ Fixed | Fix typo BackupStorges → BackupStorages |
 | BUG-014 | P2 | ✅ Fixed | Fix typo gpuDeviceTyp → gpuDeviceType |
 | BUG-015 | P2 | ✅ Fixed | Fix truncated description in clusters data source |
+| BUG-016 | P2 | ✅ Fixed | Standardize factory function naming in provider.go |
+| BUG-017 | P3 | ✅ Fixed | Align vmResource/InstanceResource naming |
 | BUG-020 | P2 | ✅ Fixed | Convert vague TODO to actionable comment |
 | BUG-021 | P1 | ✅ Fixed | Fix antipattern test glob to use absolute path |
+| BUG-022 | P2 | ✅ Fixed | Replace string scanning with AST in antipattern tests |
+| BUG-023 | P2 | ✅ Fixed | Randomize test resource names |
 
-### Remaining (16 bugs — deferred / lower priority)
+### Remaining (12 bugs — deferred / lower priority)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
-| BUG-016 | P2 | 🔲 Open | Standardize factory function naming in provider.go |
-| BUG-017 | P3 | 🔲 Open | Align vmResource/InstanceResource naming |
 | BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
 | BUG-019 | P2 | 🔲 Open | Move disk state logic to Read() per TODO |
-| BUG-022 | P2 | 🔲 Open | Replace string scanning with AST in antipattern tests |
-| BUG-023 | P2 | 🔲 Open | Randomize test resource names |
 | BUG-024 | P3 | 🔲 Open | Add update steps to acceptance tests |
 | BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
 | BUG-026–033 | P2–P3 | 🔲 Open | Various naming consistency and test improvements |
@@ -386,6 +386,8 @@ Description: "ype of the cluster",
 
 ## BUG-016 — Inconsistent factory/type naming in provider registration (Naming)
 
+- **Status**: ✅ Fixed (2026-04-21)
+
 - **Severity**: Medium
 - **File**: `zstack/provider/provider.go:221-265`
 - **Category**: Naming Consistency
@@ -404,13 +406,15 @@ ZStackVirtualRouterImageDataSource  // correct
 ZStackAutoScalingGroupDataSource    // correct
 ```
 
-**Problem**: Exported factory function names have inconsistent capitalization of acronyms and abbreviations.
+**Problem**: Exported factory function names had inconsistent capitalization of acronyms and abbreviations.
 
-**Fix**: Standardize to consistent PascalCase: `ZStackVMsDataSource`, `ZStackL3NetworkDataSource`, `ZStackMNNodeDataSource`, `ZStackVRouterDataSource`.
+**Current fix**: Standardized to consistent PascalCase in both declarations and provider registration: `ZStackVMsDataSource`, `ZStackL3NetworkDataSource`, `ZStackMNNodeDataSource`, `ZStackVRouterDataSource`.
 
 ---
 
 ## BUG-017 — Type/factory name mismatch: `vmResource` vs `InstanceResource()` (Naming)
+
+- **Status**: ✅ Fixed (2026-04-21)
 
 - **Severity**: Low
 - **File**: `zstack/provider/resource_zstack_instance.go:32,73`
@@ -421,9 +425,9 @@ type vmResource struct { ... }           // internal type name
 func InstanceResource() resource.Resource { return &vmResource{} }  // factory name
 ```
 
-**Problem**: Factory returns `&vmResource{}` but is called `InstanceResource()`. Other resources are consistent (e.g., `imageResource` → `ImageResource()`). This makes it harder to navigate the codebase.
+**Problem**: Factory returned `&vmResource{}` but was called `InstanceResource()`. Other resources are consistent (e.g., `imageResource` → `ImageResource()`). This made it harder to navigate the codebase.
 
-**Fix**: Rename `vmResource` → `instanceResource` to match the factory name pattern.
+**Current fix**: Renamed `vmResource` → `instanceResource` so the internal type now matches the exported factory naming pattern.
 
 ---
 
@@ -509,19 +513,23 @@ files, err := filepath.Glob(filepath.Join(dir, "resource_zstack_*.go"))
 
 ## BUG-022 — Antipattern test uses naive string scanning (Test Infrastructure)
 
+- **Status**: ✅ Fixed (2026-04-21)
+
 - **Severity**: Medium
 - **File**: `zstack/provider/resource_antipattern_test.go`
 - **Category**: Test Infrastructure
 
-**Problem**: The antipattern scanner searches for code patterns using simple substring matching (`strings.Contains`) on raw source text. This approach:
+**Problem**: The antipattern scanner searched for code patterns using simple substring matching (`strings.Contains`) on raw source text. This approach:
 - Produces **false positives** from comments, string literals, or multiline formatting
 - Produces **false negatives** when code is formatted differently than expected
 
-**Fix**: Replace with AST-based scanning using `go/ast` and `go/parser` for reliable detection of patterns like empty-UUID assignments and missing guards.
+**Current fix**: Replaced string scanning with AST-based scanning using `go/ast` and `go/parser`, plus regression tests covering commented code vs real violations.
 
 ---
 
 ## BUG-023 — Hardcoded test resource names (Test Infrastructure)
+
+- **Status**: ✅ Fixed (2026-04-21)
 
 - **Severity**: Medium
 - **File**: Multiple acceptance test files (e.g., `resource_zstack_volume_test.go:48`)
@@ -533,7 +541,9 @@ name = "acc-test-volume"
 
 **Problem**: Fixed resource names can cause collisions when tests run concurrently or in shared environments.
 
-**Fix**: Use randomized suffixes:
+**Current fix**: Added shared `testAccName()` helper in `provider_test.go` and switched the affected acceptance tests to randomized `acc-test-<name>-<suffix>` resource names.
+
+Example helper pattern:
 ```go
 name := fmt.Sprintf("acc-test-volume-%s", acctest.RandString(8))
 ```
