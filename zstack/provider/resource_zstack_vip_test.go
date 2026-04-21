@@ -56,6 +56,7 @@ func TestVipResource_Metadata(t *testing.T) {
 
 func TestAccVipResource(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("vip")
 
 	// Find a Public L3 network
 	var l3UUID string
@@ -76,13 +77,13 @@ func TestAccVipResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_vip" "test" {
-  name            = "acc-test-vip"
+  name            = %q
   l3_network_uuid = %q
 }
-`, l3UUID),
+`, name, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vip")),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
 				},
 			},

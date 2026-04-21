@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,6 +63,7 @@ func TestPortForwardingRuleResource_Metadata(t *testing.T) {
 
 func TestAccPortForwardingRuleResource(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("pf-rule")
 
 	// Port forwarding requires a VIP. Try to find one from env.json.
 	// If VIPs are not available, we create a minimal config that references a VIP data source.
@@ -75,21 +77,21 @@ func TestAccPortForwardingRuleResource(t *testing.T) {
 		CheckDestroy:             testAccCheckPortForwardingRuleDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_vips" "test" {
 }
 
 resource "zstack_port_forwarding_rule" "test" {
-  name           = "acc-test-pf-rule"
+  name           = %q
   vip_uuid       = data.zstack_vips.test.vips.0.uuid
   vip_port_start = 8080
   protocol_type  = "TCP"
   allowed_cidr   = "0.0.0.0/0"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-pf-rule")),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("protocol_type"), knownvalue.StringExact("TCP")),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("vip_port_start"), knownvalue.StringExact("8080")),
 				},
