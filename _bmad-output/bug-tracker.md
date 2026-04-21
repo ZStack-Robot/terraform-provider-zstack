@@ -50,7 +50,7 @@
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
 | BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
-| BUG-024 | P3 | 🔲 Open | Add update steps to acceptance tests |
+| BUG-024 | P3 | 🟡 In Progress | Add update steps to acceptance tests |
 | BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
 | BUG-026–033 | P2–P3 | 🔲 Open | Various naming consistency and test improvements |
 
@@ -554,13 +554,15 @@ name := fmt.Sprintf("acc-test-volume-%s", acctest.RandString(8))
 
 ## BUG-024 — Acceptance tests lack update steps (Test Infrastructure)
 
+- **Status**: 🟡 In Progress (2026-04-21)
+
 - **Severity**: Low
 - **File**: All acceptance tests
 - **Category**: Test Coverage Gap
 
 **Problem**: All existing acceptance tests only exercise Create → (optional Import) → Destroy. None test attribute updates. If Update logic has bugs, they go undetected.
 
-**Fix**: Add TestStep with modified attributes to acceptance tests (start with high-value resources: instance, disk_offering, image).
+**Current progress**: Added explicit create → update → import coverage to `TestAccZoneResource`, including assertions for updated `name`, `description`, and `state`. This establishes a concrete update-step pattern in the suite, but additional high-value resources still need the same coverage before BUG-024 can be considered fully closed.
 
 ---
 
