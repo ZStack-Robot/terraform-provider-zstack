@@ -905,6 +905,17 @@ grep 'state\.\w* = ' resource_zstack_xxx.go
 
 ---
 
+## 跨仓同步记录
+
+> 记录主 provider 仓库中已完成、但不直接映射到本 QA tracker 编号体系的修复状态。
+
+| 日期 | 来源 | 状态 | 说明 |
+|------|------|------|------|
+| 2026-04-21 | 主仓库 `_bmad-output/bug-tracker.md` / BUG-019 | FIXED | `resource_zstack_instance` 已将 `data_disks` 的 data volume UUID 持久化到 state，Delete 不再重新查询 VM，而是直接使用 state 中的磁盘 UUID 执行删除。由于本 QA tracker 当前 BUG-1~BUG-8 无对应编号项，此处以同步记录方式标注。 |
+
+
+---
+
 ## 附录
 
 ### 严重度定义
