@@ -27,7 +27,7 @@ import (
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
-type gpuDeviceTyp string
+type gpuDeviceType string
 
 type vmResource struct {
 	client *client.ZSClient
@@ -47,8 +47,8 @@ var networkModelAttrTypes = map[string]attr.Type{
 }
 
 const (
-	mdevDevice gpuDeviceTyp = "mdevDevice"
-	pciDevice  gpuDeviceTyp = "pciDevice"
+	mdevDevice gpuDeviceType = "mdevDevice"
+	pciDevice  gpuDeviceType = "pciDevice"
 )
 
 type diskModel struct {
@@ -1125,7 +1125,6 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 	}
 
 	dataDiskPrimaryStorageUuid := model.PrimaryStorageUuid.ValueString()
-	dataDiskCephPoolName := model.CephPoolName.ValueString()
 
 	qparam := param.NewQueryParam()
 	qparam.AddQ("uuid=" + dataDiskPrimaryStorageUuid)
@@ -1140,10 +1139,6 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 		return fmt.Errorf("unable to find primary storage %s, err: %v", dataDiskPrimaryStorageUuid, err)
 	}
 
-	if dataDiskCephPoolName != "" {
-		// Note: Pools field no longer available in PrimaryStorageInventoryView in SDK v2
-		// Pool name validation is skipped; the API will validate on the server side
-	}
 	return nil
 }
 

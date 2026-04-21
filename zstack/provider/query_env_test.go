@@ -26,7 +26,7 @@ func TestQueryEnvironment(t *testing.T) {
 	akSecret := getEnvOrDefault("ZSTACK_ACCESS_KEY_SECRET", "")
 
 	if akID == "" || akSecret == "" {
-		t.Fatal("ZSTACK_ACCESS_KEY_ID and ZSTACK_ACCESS_KEY_SECRET must be set")
+		t.Skip("ZSTACK_ACCESS_KEY_ID and ZSTACK_ACCESS_KEY_SECRET must be set")
 	}
 
 	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))

@@ -49,16 +49,6 @@ func findResourceByQuery[T any](queryFunc func(params *param.QueryParam) ([]T, e
 	return &results[0], nil
 }
 
-func copyStringValues(values []types.String) []types.String {
-	if len(values) == 0 {
-		return nil
-	}
-
-	copied := make([]types.String, len(values))
-	copy(copied, values)
-	return copied
-}
-
 func stringValueOrNull(value string) types.String {
 	if value == "" {
 		return types.StringNull()

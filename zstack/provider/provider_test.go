@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -96,8 +97,8 @@ func testAccClient() *client.ZSClient {
 	}
 
 	return client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
-		getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "admin"),
-		getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "password"),
+		os.Getenv("ZSTACK_ACCOUNT_NAME"),
+		os.Getenv("ZSTACK_ACCOUNT_PASSWORD"),
 	).ReadOnly(true).Debug(false))
 }
 
@@ -106,7 +107,7 @@ func testAccClientLoggedIn() *client.ZSClient {
 	if os.Getenv("ZSTACK_ACCESS_KEY_ID") == "" {
 		// Account/password auth requires explicit login
 		if _, err := cli.Login(context.Background()); err != nil {
-			panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
+			log.Fatalf("testAccClientLoggedIn: login failed: %v", err)
 		}
 	}
 	return cli
