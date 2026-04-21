@@ -57,7 +57,7 @@ type vrouterNicsModel struct {
 	Gateway types.String `tfsdk:"gateway"`
 }
 
-func ZStackvrouterDataSource() datasource.DataSource {
+func ZStackVRouterDataSource() datasource.DataSource {
 	return &vrouterDataSource{}
 }
 
