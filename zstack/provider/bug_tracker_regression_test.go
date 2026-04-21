@@ -113,3 +113,19 @@ func (r *resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 		t.Fatal("expected a real empty UUID violation to be detected")
 	}
 }
+
+func TestBugTrackerZoneAcceptanceCoversUpdateStep(t *testing.T) {
+	zoneTestPath := filepath.Join("resource_zstack_zone_test.go")
+	data, err := os.ReadFile(zoneTestPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", zoneTestPath, err)
+	}
+
+	text := string(data)
+	if !strings.Contains(text, `description = "Updated acceptance test zone"`) {
+		t.Fatal("resource_zstack_zone_test.go should include an explicit update step for BUG-024 coverage")
+	}
+	if !strings.Contains(text, `knownvalue.StringExact("Disabled")`) {
+		t.Fatal("resource_zstack_zone_test.go should verify updated zone state in the update step")
+	}
+}

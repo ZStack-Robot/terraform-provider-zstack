@@ -57,6 +57,7 @@ func TestZoneResource_Metadata(t *testing.T) {
 func TestAccZoneResource(t *testing.T) {
 	_ = loadEnvData(t)
 	name := testAccName("zone")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -73,6 +74,21 @@ resource "zstack_zone" "test" {
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("state"), knownvalue.StringExact("Enabled")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_zone" "test" {
+  name        = %q
+  description = "Updated acceptance test zone"
+  state       = "Disabled"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("description"), knownvalue.StringExact("Updated acceptance test zone")),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("state"), knownvalue.StringExact("Disabled")),
 				},
 			},
 			{
