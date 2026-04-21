@@ -58,6 +58,32 @@ var testAccCheckL2VlanNetworkDestroy = testAccCheckResourceDestroyByGet("zstack_
 	return err
 })
 
+var testAccCheckL3NetworkDestroy = testAccCheckResourceDestroyByQuery("zstack_l3network", func(cli *client.ZSClient, q *param.QueryParam) ([]view.L3NetworkInventoryView, error) {
+	return cli.QueryL3Network(q)
+})
+
+var testAccCheckSubnetIpRangeDestroy = testAccCheckResourceDestroyByQuery("zstack_subnet_ip_range", func(cli *client.ZSClient, q *param.QueryParam) ([]view.IpRangeInventoryView, error) {
+	return cli.QueryIpRange(q)
+})
+
+var testAccCheckL2VxlanNetworkDestroy = testAccCheckResourceDestroyByQuery("zstack_l2vxlan_network", func(cli *client.ZSClient, q *param.QueryParam) ([]view.L2VxlanNetworkInventoryView, error) {
+	return cli.QueryL2VxlanNetwork(q)
+})
+
+var testAccCheckEipDestroy = testAccCheckResourceDestroyByQuery("zstack_eip", func(cli *client.ZSClient, q *param.QueryParam) ([]view.EipInventoryView, error) {
+	return cli.QueryEip(q)
+})
+
+var testAccCheckHostDestroy = testAccCheckResourceDestroyByGet("zstack_host", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetHost(id)
+	return err
+})
+
+var testAccCheckPrimaryStorageDestroy = testAccCheckResourceDestroyByGet("zstack_primary_storage", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetPrimaryStorage(id)
+	return err
+})
+
 var testAccCheckLoadBalancerDestroy = testAccCheckResourceDestroyByGet("zstack_load_balancer", func(cli *client.ZSClient, id string) error {
 	_, err := cli.GetLoadBalancer(id)
 	return err
@@ -562,3 +588,114 @@ func testAccCheckVirtualRouterInstanceDestroy(s *terraform.State) error {
 	}
 	return nil
 }
+
+// Story-10: Self-contained resources destroy check functions
+
+var testAccCheckAccessKeyDestroy = testAccCheckResourceDestroyByQuery("zstack_access_key", func(cli *client.ZSClient, q *param.QueryParam) ([]view.AccessKeyInventoryView, error) {
+	return cli.QueryAccessKey(q)
+})
+
+var testAccCheckMonitorTemplateDestroy = testAccCheckResourceDestroyByQuery("zstack_monitor_template", func(cli *client.ZSClient, q *param.QueryParam) ([]view.MonitorTemplateInventoryView, error) {
+	return cli.QueryMonitorTemplate(q)
+})
+
+var testAccCheckLogServerDestroy = testAccCheckResourceDestroyByQuery("zstack_log_server", func(cli *client.ZSClient, q *param.QueryParam) ([]view.LogServerInventoryView, error) {
+	return cli.QueryLogServer(q)
+})
+
+var testAccCheckCdpPolicyDestroy = testAccCheckResourceDestroyByQuery("zstack_cdp_policy", func(cli *client.ZSClient, q *param.QueryParam) ([]view.CdpPolicyInventoryView, error) {
+	return cli.QueryCdpPolicy(q)
+})
+
+var testAccCheckPriceTableDestroy = testAccCheckResourceDestroyByQuery("zstack_price_table", func(cli *client.ZSClient, q *param.QueryParam) ([]view.PriceTableInventoryView, error) {
+	return cli.QueryPriceTable(q)
+})
+
+var testAccCheckStackTemplateDestroy = testAccCheckResourceDestroyByQuery("zstack_stack_template", func(cli *client.ZSClient, q *param.QueryParam) ([]view.StackTemplateInventoryView, error) {
+	return cli.QueryStackTemplate(q)
+})
+
+var testAccCheckPreconfigurationTemplateDestroy = testAccCheckResourceDestroyByQuery("zstack_preconfiguration_template", func(cli *client.ZSClient, q *param.QueryParam) ([]view.PreconfigurationTemplateInventoryView, error) {
+	return cli.QueryPreconfigurationTemplate(q)
+})
+
+// Story-11: Compute & Storage destroy check functions
+
+var testAccCheckScriptDestroy = testAccCheckResourceDestroyByGet("zstack_script", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetGuestVmScript(id)
+	return err
+})
+
+func testAccCheckInstanceDestroy(s *terraform.State) error {
+	cli := testAccClientLoggedIn()
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "zstack_instance" {
+			continue
+		}
+		id := rs.Primary.Attributes["uuid"]
+		if id == "" {
+			id = rs.Primary.ID
+		}
+		if id == "" {
+			continue
+		}
+		vm, err := cli.GetVmInstance(id)
+		if err != nil {
+			if isZStackNotFoundError(err) {
+				continue
+			}
+			return fmt.Errorf("error checking zstack_instance %s destroyed: %w", id, err)
+		}
+		// VM may be in "Destroyed" state in recycle bin — that counts as destroyed.
+		if vm.State == "Destroyed" {
+			continue
+		}
+		return fmt.Errorf("zstack_instance %s still exists with state %s", id, vm.State)
+	}
+	return nil
+}
+
+var testAccCheckVmCdRomDestroy = testAccCheckResourceDestroyByQuery("zstack_vm_cdrom", func(cli *client.ZSClient, q *param.QueryParam) ([]view.VmCdRomInventoryView, error) {
+	return cli.QueryVmCdRom(q)
+})
+
+var testAccCheckVmNicDestroy = testAccCheckResourceDestroyByQuery("zstack_vm_nic", func(cli *client.ZSClient, q *param.QueryParam) ([]view.VmNicInventoryView, error) {
+	return cli.QueryVmNic(q)
+})
+
+func testAccCheckGuestToolsAttachmentDestroy(s *terraform.State) error {
+	// Delete is a no-op for guest_tools_attachment — the ISO remains attached.
+	// There is no "destroyed" state to check.
+	return nil
+}
+
+func testAccCheckScriptExecutionDestroy(s *terraform.State) error {
+	// Delete only removes the record from Terraform state; no API call is made.
+	// Nothing to verify on the ZStack side.
+	return nil
+}
+
+var testAccCheckVolumeSnapshotDestroy = testAccCheckResourceDestroyByGet("zstack_volume_snapshot", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetVolumeSnapshot(id)
+	return err
+})
+
+var testAccCheckVolumeBackupDestroy = testAccCheckResourceDestroyByGet("zstack_volume_backup", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetVolumeBackup(id)
+	return err
+})
+
+// Story-13: Monitoring & Ops destroy check functions
+
+var testAccCheckMonitorGroupDestroy = testAccCheckResourceDestroyByQuery("zstack_monitor_group", func(cli *client.ZSClient, q *param.QueryParam) ([]view.MonitorGroupInventoryView, error) {
+	return cli.QueryMonitorGroup(q)
+})
+
+var testAccCheckCdpTaskDestroy = testAccCheckResourceDestroyByQuery("zstack_cdp_task", func(cli *client.ZSClient, q *param.QueryParam) ([]view.CdpTaskInventoryView, error) {
+	return cli.QueryCdpTask(q)
+})
+
+var testAccCheckBackupStorageDestroy = testAccCheckResourceDestroyByGet("zstack_backup_storage", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetBackupStorage(id)
+	return err
+})

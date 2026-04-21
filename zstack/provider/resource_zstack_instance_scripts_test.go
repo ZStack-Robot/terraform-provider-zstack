@@ -7,6 +7,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestScriptResource_Schema(t *testing.T) {
@@ -48,4 +52,54 @@ func TestScriptResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_script" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccScriptResource(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckScriptDestroy,
+		Steps: []tfresource.TestStep{
+			// Step 1: Create
+			{
+				Config: providerConfig() + `
+resource "zstack_script" "test" {
+  name           = "acc-test-script"
+  script_content = "echo hello"
+  script_type    = "Shell"
+  encoding_type  = "PlainText"
+  platform       = "Linux"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script")),
+				},
+			},
+			// Step 2: Update name (encoding_type is RequiresReplace, name is not)
+			{
+				Config: providerConfig() + `
+resource "zstack_script" "test" {
+  name           = "acc-test-script-updated"
+  script_content = "echo hello"
+  script_type    = "Shell"
+  encoding_type  = "PlainText"
+  platform       = "Linux"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script-updated")),
+				},
+			},
+			// Step 3: Import
+			{
+				ResourceName:                         "zstack_script.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_script.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+			},
+		},
+	})
 }

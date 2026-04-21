@@ -7,6 +7,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestMonitorGroupResource_Schema(t *testing.T) {
@@ -47,4 +51,46 @@ func TestMonitorGroupResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_monitor_group" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccMonitorGroupResource(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckMonitorGroupDestroy,
+		Steps: []tfresource.TestStep{
+			// Step 1: Create
+			{
+				Config: providerConfig() + `
+resource "zstack_monitor_group" "test" {
+  name = "acc-test-monitor-group"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_monitor_group.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_monitor_group.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-monitor-group")),
+				},
+			},
+			// Step 2: Update name (RequiresReplace — triggers destroy+recreate)
+			{
+				Config: providerConfig() + `
+resource "zstack_monitor_group" "test" {
+  name = "acc-test-monitor-group-updated"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_monitor_group.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-monitor-group-updated")),
+				},
+			},
+			// Step 3: Import
+			{
+				ResourceName:                         "zstack_monitor_group.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_monitor_group.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+			},
+		},
+	})
 }

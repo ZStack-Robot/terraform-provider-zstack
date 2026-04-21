@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 // Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
@@ -157,6 +158,39 @@ func testAccCheckResourceDestroyByGet(resourceType string, getFunc func(cli *cli
 			}
 			if !isZStackNotFoundError(err) {
 				return fmt.Errorf("error checking %s %s destroyed: %w", resourceType, id, err)
+			}
+		}
+		return nil
+	}
+}
+
+// testAccCheckResourceDestroyByQuery returns a CheckDestroy function for resources
+// that can be verified via a Query<Resource>(params) SDK call.
+func testAccCheckResourceDestroyByQuery[T any](resourceType string, queryFunc func(cli *client.ZSClient, q *param.QueryParam) ([]T, error)) func(*terraform.State) error {
+	return func(s *terraform.State) error {
+		cli := testAccClientLoggedIn()
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != resourceType {
+				continue
+			}
+			id := rs.Primary.Attributes["uuid"]
+			if id == "" {
+				id = rs.Primary.ID
+			}
+			if id == "" {
+				continue
+			}
+			q := param.NewQueryParam()
+			q.AddQ(fmt.Sprintf("uuid=%s", id))
+			items, err := queryFunc(cli, &q)
+			if err != nil {
+				if isZStackNotFoundError(err) {
+					continue
+				}
+				return fmt.Errorf("error checking %s %s destroyed: %w", resourceType, id, err)
+			}
+			if len(items) > 0 {
+				return fmt.Errorf("%s %s still exists", resourceType, id)
 			}
 		}
 		return nil

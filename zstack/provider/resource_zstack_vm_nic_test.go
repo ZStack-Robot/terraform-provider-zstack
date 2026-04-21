@@ -4,9 +4,14 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestVmNicResource_Schema(t *testing.T) {
@@ -47,4 +52,40 @@ func TestVmNicResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_vm_nic" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccVmNicResource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.L3Networks) == 0 {
+		t.Skip("no l3_networks in env data")
+	}
+
+	l3UUID := envStr(env.L3Networks[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVmNicDestroy,
+		Steps: []tfresource.TestStep{
+			// Step 1: Create
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_vm_nic" "test" {
+  l3_network_uuid = %q
+}
+`, l3UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_vm_nic.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_vm_nic.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
+				},
+			},
+			// Step 2: Import (no Update supported)
+			{
+				ResourceName:                         "zstack_vm_nic.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_vm_nic.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+			},
+		},
+	})
 }
