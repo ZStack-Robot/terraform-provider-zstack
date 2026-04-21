@@ -18,7 +18,7 @@
 | `golangci-lint run ./...` | 13 issues | ✅ 0 issues |
 | `go test ./... -short` | 53 pass, 1 fail | ✅ 53 pass, 0 fail |
 
-### Fixed (21 bugs)
+### Fixed (22 bugs)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
@@ -43,13 +43,13 @@
 | BUG-021 | P1 | ✅ Fixed | Fix antipattern test glob to use absolute path |
 | BUG-022 | P2 | ✅ Fixed | Replace string scanning with AST in antipattern tests |
 | BUG-023 | P2 | ✅ Fixed | Randomize test resource names |
+| BUG-019 | P2 | ✅ Fixed | Move disk state logic to Read() per TODO |
 
-### Remaining (12 bugs — deferred / lower priority)
+### Remaining (11 bugs — deferred / lower priority)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
 | BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
-| BUG-019 | P2 | 🔲 Open | Move disk state logic to Read() per TODO |
 | BUG-024 | P3 | 🔲 Open | Add update steps to acceptance tests |
 | BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
 | BUG-026–033 | P2–P3 | 🔲 Open | Various naming consistency and test improvements |
@@ -453,6 +453,8 @@ AttachedClusterUuids  // "Uuids" not "UUIDs"
 
 ## BUG-019 — TODO: Delete re-queries VM instance (Tech Debt)
 
+- **Status**: ✅ Fixed (2026-04-21)
+
 - **Severity**: High
 - **File**: `zstack/provider/resource_zstack_instance.go:1053`
 - **Category**: TODO / Design Debt
@@ -462,9 +464,9 @@ AttachedClusterUuids  // "Uuids" not "UUIDs"
 // Update vm instance's data disk state in read function is a better way
 ```
 
-**Problem**: The Delete function re-queries the VM to get data disk state. This is acknowledged as suboptimal — data disk state should be populated in Read() so Delete() can use the state directly.
+**Problem**: The Delete function re-queried the VM to get data disk state. This was acknowledged as suboptimal — data disk state should be populated in Read() so Delete() can use the state directly.
 
-**Fix**: Move data-disk state population to Read(). Create a tracked issue for this work.
+**Current fix**: `data_disks` state now persists the data volume UUIDs during Create/Read, and Delete uses those persisted state values instead of issuing a fresh `GetVmInstance()` call.
 
 ---
 
