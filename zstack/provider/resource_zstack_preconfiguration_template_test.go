@@ -7,6 +7,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestPreconfigurationTemplateResource_Schema(t *testing.T) {
@@ -47,4 +51,52 @@ func TestPreconfigurationTemplateResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_preconfiguration_template" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccPreconfigurationTemplateResource(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckPreconfigurationTemplateDestroy,
+		Steps: []tfresource.TestStep{
+			// Step 1: Create
+			{
+				Config: providerConfig() + `
+resource "zstack_preconfiguration_template" "test" {
+  name         = "acc-test-preconfig-template"
+  distribution = "CentOS7"
+  type         = "kickstart"
+  content      = "install\ntext\n"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-preconfig-template")),
+				},
+			},
+			// Step 2: Update name (note: RequiresReplace pending story-07, triggers destroy+recreate)
+			{
+				Config: providerConfig() + `
+resource "zstack_preconfiguration_template" "test" {
+  name         = "acc-test-preconfig-template-updated"
+  distribution = "CentOS7"
+  type         = "kickstart"
+  content      = "install\ntext\n"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-preconfig-template-updated")),
+				},
+			},
+			// Step 3: Import
+			{
+				ResourceName:                         "zstack_preconfiguration_template.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_preconfiguration_template.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+			},
+		},
+	})
 }

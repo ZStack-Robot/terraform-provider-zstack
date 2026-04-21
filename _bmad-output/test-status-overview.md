@@ -1,7 +1,8 @@
 # Terraform Provider ZStack — 测试全貌
 
-> **日期**: 2026-04-20
-> **基准**: master @ `86dd7b3`
+> **日期**: 2026-04-21 (更新)
+> **基准**: 分支 `test/progress` 工作目录 (含 Sprint A Story 10-13)
+> **master 基准**: `86dd7b3` (39 个验收测试)
 > **总资源数**: 111 resources + 42 data sources
 > **说明**：针对Terraform Provider 对接zstack sdkv2 的全量测试
 
@@ -9,17 +10,19 @@
 
 ## 一、总体指标
 
-| 维度 | 覆盖数 | 总数 | 覆盖率 | 详见 |
-|------|--------|------|--------|------|
-| Resource 测试文件 | 111 | 111 | **100%** | — |
-| Resource Schema 单元测试 | 107 | 111 | 96.4% | — |
-| Resource Metadata 单元测试 | 106 | 111 | 95.5% | — |
-| Resource 验收测试 (Create) | 39 <sup>*1</sup> | 111 | **35.1%** | [§三、验收测试覆盖矩阵](#三验收测试覆盖矩阵39-个有验收测试的资源) |
-| Resource Update 测试 | 3 <sup>*2</sup> | 79 <sup>*3</sup> | 3.8% | [§三、验收测试覆盖矩阵](#完整级create--update--import--disappears) |
-| Resource Import 测试 | 35 | 107 <sup>*4</sup> | 32.7% | [§三、验收测试覆盖矩阵](#三验收测试覆盖矩阵39-个有验收测试的资源) |
-| Resource Disappears 测试 | 33 | 104 <sup>*5</sup> | 31.7% | [§三、验收测试覆盖矩阵](#三验收测试覆盖矩阵39-个有验收测试的资源) |
-| Data Source 测试文件 | 42 | 42 | **100%** | [§五](#五data-source-测试覆盖) |
-| Data Source 验收测试 | 42 | 42 | **100%** | [§五](#五data-source-测试覆盖) |
+| 维度 | master | test/progress | 总数 | 覆盖率 | 详见 |
+|------|--------|--------------|------|--------|------|
+| Resource 测试文件 | 111 | 111 | 111 | **100%** | — |
+| Resource Schema 单元测试 | 107 | 107 | 111 | 96.4% | — |
+| Resource Metadata 单元测试 | 106 | 106 | 111 | 95.5% | — |
+| Resource 验收测试 (Create) | 39 | **63** (+24) | 111 | **56.8%** | [§三](#三验收测试覆盖矩阵39-个有验收测试的资源) + [§三b](#三b-sprint-a-新增验收测试24-个) |
+| Resource Update 测试 | 3 | **17** (+14) | 79 <sup>*3</sup> | 21.5% | — |
+| Resource Import 测试 | 35 | **56** (+21) | 107 <sup>*4</sup> | 52.3% | — |
+| Resource Disappears 测试 | 33 | 33 | 104 <sup>*5</sup> | 31.7% | — |
+| Data Source 测试文件 | 42 | 42 | 42 | **100%** | [§五](#五data-source-测试覆盖) |
+| Data Source 验收测试 | 42 | 42 | 42 | **100%** | [§五](#五data-source-测试覆盖) |
+
+> **Sprint A 新增说明**: 24 个资源验收测试代码已就绪 (Story 10-13)。其中 3 个已在真实环境 PASS (access_key, monitor_template, monitor_group)，5 个因环境 503 阻塞，13 个 (Story 11/12) 待用户跑。测试过程中发现 8 个新 bug (BUG-9~16)，含 3 个系统性模式，Provider 源码未做修改，bug 已记录待评估后统一修复。
 
 > ***1 验收测试 (Create) 数量说明**：原始审计计为 41，实际代码中含 `resource.Test` / `resource.ParallelTest`
 > 调用的资源为 **39 个**。差异来自 `access_control_list` 和 `access_key`——二者测试文件存在且有
@@ -59,7 +62,7 @@
 
 ## 二、Bug 概况
 
-> 详细跟踪见 [bug-tracker.md](bug-tracker.md)
+> 详细跟踪见 [bug-tracker.md](bug-tracker.md)。3 个系统性模式见 bug-tracker §系统性模式问题。
 
 | ID | 严重度 | 资源 | 一句话描述 | 状态 |
 |----|--------|------|-----------|------|
@@ -67,10 +70,18 @@
 | [BUG-2](bug-tracker.md#bug-2) | **CRITICAL** | l2vxlan_network | vni 缺少 RequiresReplace，静默数据丢失 | OPEN |
 | [BUG-3](bug-tracker.md#bug-3) | **CRITICAL** | iam2_project | Expunge 逻辑缺失，name 不可复用 | FIXING |
 | [BUG-4](bug-tracker.md#bug-4) | HIGH | policy | Statements 空数组 + 修复引入 god-mode | FIXING |
-| [BUG-5](bug-tracker.md#bug-5) | MEDIUM | 多资源 | Optional+Computed IsNull guard 不完整 | FIXING |
-| [BUG-6](bug-tracker.md#bug-6) | MEDIUM | global_config | 验收测试 inconsistent result | OPEN |
+| [BUG-5](bug-tracker.md#bug-5) | MEDIUM | 多资源 (30+) | Optional+Computed IsNull guard 不完整 (119处) | FIXING |
+| [BUG-6](bug-tracker.md#bug-6) | MEDIUM | global_config | SDK PutWithSpec responseKey="" 返回空 struct | OPEN |
 | ~~BUG-7~~ | ~~CRITICAL~~ | alarm | stateCheckAlarmDisappears 未定义 | FIXED |
 | ~~[BUG-8](bug-tracker.md#bug-8)~~ | ~~MEDIUM~~ | 4 资源 | 错误的 RequiresReplace 导致不必要 destroy | FIXED |
+| [BUG-9](bug-tracker.md#bug-9) | **CRITICAL** | instance | Update 后 SDK 返回空 struct，state 清零 | OPEN |
+| [BUG-10](bug-tracker.md#bug-10) | HIGH | instance | defaultL3 空字符串导致 API 拒绝 | OPEN |
+| [BUG-11](bug-tracker.md#bug-11) | **CRITICAL** | vm_cdrom | Update 后 SDK 返回空 struct (同 BUG-9) | OPEN |
+| [BUG-12](bug-tracker.md#bug-12) | HIGH | instance_scripts | 3 个子缺陷: IsNull guard + Read 字段遗漏 | OPEN |
+| [BUG-13](bug-tracker.md#bug-13) | HIGH | l3network | ipVersion=0 被 API 拒绝 (IsUnknown 未检查) | OPEN |
+| [BUG-14](bug-tracker.md#bug-14) | **CRITICAL** | l3network | Update 后 SDK 返回空 struct (同 BUG-9) | OPEN |
+| [BUG-15](bug-tracker.md#bug-15) | MEDIUM | l3network | SDK DeleteL3Network URL 拼接 bug | OPEN |
+| [BUG-16](bug-tracker.md#bug-16) | MEDIUM | subnet_ip_range | ip_range_type Read 后丢失 | OPEN |
 
 ---
 
@@ -132,47 +143,84 @@
 
 ---
 
-## 四、无验收测试的资源（72 个，仅有 Schema/Metadata 单元测试）
+## 三b. Sprint A 新增验收测试（24 个）
+
+> **新增**: 2026-04-21，分支 `test/progress`。详细矩阵见 [E2E-TEST-PLAN.md §2.2b](../docs/E2E-TEST-PLAN.md)。
+
+| Story | 资源 | C | U | I | D | 环境状态 |
+|-------|------|:-:|:-:|:-:|:-:|:--------:|
+| 10 | access_key | Y | N/A | Y | Y | ✅ PASS |
+| 10 | monitor_template | Y | Y* | Y | Y | ✅ PASS |
+| 10 | log_server | Y | Y | Y | Y | 503 |
+| 10 | cdp_policy | Y | Y | Y | Y | 503 |
+| 10 | price_table | Y | Y* | Y | Y | 503 |
+| 10 | stack_template | Y | Y | Y | Y | 503 |
+| 10 | preconfiguration_template | Y | Y* | Y | Y | 503 |
+| 10 | instance_scripts | Y | Y | Y | Y | 503 |
+| 11 | instance | Y | -† | Y | Y | 待跑 |
+| 11 | vm_cdrom | Y | -† | Y | Y | 待跑 |
+| 11 | vm_nic | Y | N/A | Y | Y | 待跑 |
+| 11 | guest_tool_attachment | Y | N/A | - | Y | 待跑 |
+| 11 | instance_scripts_execution | Y | N/A | - | Y | 待跑 |
+| 11 | volume_snapshot | Y | Y | Y | Y | 待跑 |
+| 11 | volume_backup | Y | N/A | - | Y | 待跑 |
+| 12 | l3network | Y | Y | Y | Y | 待跑 |
+| 12 | subnet_ip_range | Y | N/A | Y | Y | 待跑 |
+| 12 | l2vxlan_network | Y | N/A | Y | Y | 待跑 |
+| 12 | eip | Y | N/A | Y | Y | 待跑 |
+| 12 | host | Y | Y | Y | Y | 待跑 |
+| 12 | primary_storage | Y | Y | Y | Y | 待跑 |
+| 13 | monitor_group | Y | Y* | Y | Y | ✅ PASS |
+| 13 | cdp_task | Y | Y | Y | Y | 503 |
+| 13 | backup_storage | Y | Y | Y | Y | 503 |
+
+> *Y\** = Update 因 RequiresReplace 走 destroy+recreate (待 story-07 清理)
+> *†* = Update 跳过 (SDK PutWithRespKey 返回空 struct: BUG-9 instance, BUG-11 vm_cdrom)
+
+---
+
+## 四、无验收测试的资源（48 个，仅有 Schema/Metadata 单元测试）
+
+> **更新**: 2026-04-21。Sprint A 覆盖 24 个资源后，从 72 个降至 48 个。
 
 ### 按功能域分类
 
-**计算与实例 (8)**
-- instance, host, baremetal_instance, baremetal_chassis, baremetal_pxe_server
-- guest_tool_attachment, vm_cdrom, vm_nic
+**计算与裸金属 (3)**
+- baremetal_instance, baremetal_chassis, baremetal_pxe_server
 
-**认证与访问控制 (2)** †1
-- access_control_list, access_key
+**认证与访问控制 (1)**
+- access_control_list
 
-**存储 (11)**
-- backup_storage, ceph_backup_storage, ceph_pool, ceph_primary_storage
-- image_store_backup_storage, primary_storage, database_backup
-- volume_backup, volume_snapshot, zbox_backup, dataset
+**存储 (6)**
+- ceph_backup_storage, ceph_pool, ceph_primary_storage
+- image_store_backup_storage, database_backup, zbox_backup, dataset
 
-**网络 (19)**
-- l2vxlan_network, l3network, eip, subnet_ip_range, ipsec_connection
-- multicast_router, port_mirror, port_mirror_session
+**网络高级功能 (13)** — Sprint B 目标
+- ipsec_connection, vpc, vpc_firewall, vpc_ha_group, vpc_shared_qos
+- vrouter_route_table, vrouter_route_entry, vip_qos
 - policy_route_rule, policy_route_rule_set, lb_server_group
-- sdn_controller, vpc, vpc_firewall, vpc_ha_group, vpc_shared_qos
-- vrouter_route_entry, vrouter_route_table, vip_qos
+- multicast_router, sdn_controller
+
+**端口镜像与流量 (4)** — Sprint B 目标
+- port_mirror, port_mirror_session, flow_meter, flow_collector
 
 **安全设备 (5)**
 - fi_sec_security_machine, flk_sec_security_machine, info_sec_security_machine
 - jit_security_machine, san_sec_security_machine
 
-**监控与运维 (7)**
-- monitor_group, monitor_template, preconfiguration_template, price_table
-- email_media, log_server, snmp_agent
+**监控与运维 (2)**
+- email_media, snmp_agent
 
 **混合云 & 第三方 (6)**
 - aliyun_nas_access_group, aliyun_proxy_vpc, aliyun_proxy_vswitch
 - v2v_conversion_host, vcenter, container_management_endpoint
 
-**脚本与自动化 (4)**
-- instance_scripts, instance_scripts_execution, resource_stack, stack_template
+**编排 (1)**
+- resource_stack
 
-**其他 (10)**
-- cdp_policy, cdp_task, directory, flow_collector, flow_meter
-- iscsi_server, ldap_server, license, nvme_server, pci_device_offering
+**其他 (7)**
+- directory, iscsi_server, ldap_server, license, nvme_server, pci_device_offering
+- dataset
 
 ---
 
@@ -209,12 +257,14 @@ auto_scaling_groups, gpu_devices, l2vlan_networks, load_balancer_listeners, load
 
 ### Phase 1 Sprint A: 核心资源验收测试
 
-| Story | 描述 | 状态 | P | 资源数 | 合入序 |
-|-------|------|------|---|--------|--------|
-| 10 | 自包含资源 | 未开始 | P1 | 8 | 依赖07 |
-| 11 | 计算+存储 | 未开始 | P1 | 7 | 独立 |
-| 12 | 网络+基础设施 | 未开始 | P1 | 6 | 依赖07(l2vxlan) |
-| 13 | 监控运维+备份 | 未开始 | P1 | 3 | 依赖10(monitor_template) |
+> **更新**: 2026-04-21。全部 24 个资源验收测试代码已就绪 (分支 `test/progress`)。
+
+| Story | 描述 | 状态 | P | 资源数 | 环境 PASS | 阻塞 | 发现 Bug |
+|-------|------|------|---|--------|:---------:|------|----------|
+| 10 | 自包含资源 | **部分完成** | P1 | 8 | 3/8 | 5 个 503 | — |
+| 11 | 计算+存储 | **代码就绪** | P1 | 7 | 0/7 | 待用户跑 | BUG-9/10/11/12 |
+| 12 | 网络+基础设施 | **代码就绪** | P1 | 6 | 0/6 | 待用户跑 | BUG-13/14/15/16 |
+| 13 | 监控运维+备份 | **部分完成** | P1 | 3 | 1/3 | 2 个 503 | — |
 
 ### 依赖图
 
@@ -259,10 +309,10 @@ Phase 0.4 (代码质量)                    Phase 0.3      Phase 0.2
 
 | 指标 | 当前 | Phase 0 完成后 | Sprint A 完成后 |
 |------|------|---------------|----------------|
-| 验收覆盖率 | 35.1% (39/111) | ~36% | **55.0%** (61/111) |
+| 验收覆盖率 | 35.1% (39/111) | ~36% | **56.8%** (63/111) |
 | 完整级 (CUID+Dis) | 3 | 3+ | 3+ |
 | 标准级 (CID) | 29 | 30+ | ~38 |
-| 已知 Bug (OPEN+FIXING) | 6 | ~3 | ~3 |
+| 已知 Bug (OPEN+FIXING) | **14** (8 OPEN + 3 FIXING + 3 系统性) | ~8 | ~5 |
 
 ---
 

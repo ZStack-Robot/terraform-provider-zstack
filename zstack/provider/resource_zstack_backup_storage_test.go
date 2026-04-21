@@ -57,11 +57,8 @@ func TestBackupStorageResource_Metadata(t *testing.T) {
 func TestAccBackupStorageResource(t *testing.T) {
 	env := loadEnvData(t)
 
-	if len(env.ImageStoreBackupStorages) == 0 {
-		t.Fatal("env.json has no image_store_backup_storages — cannot determine server credentials")
-	}
-	isbs := env.ImageStoreBackupStorages[0]
-	hostname := isbs["hostname"].(string)
+	// Use a dedicated test host to avoid "duplicate ImageStore IP" error
+	hostname := "172.24.189.211"
 
 	// Zone UUID for attach test
 	if len(env.Zones) == 0 {

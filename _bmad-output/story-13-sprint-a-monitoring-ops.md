@@ -48,7 +48,7 @@
 - 测试环境：`.env.test` 中配置的 ZStack 实例 (当前: 172.24.248.129:8080)
 - 运行方式：`source .env.test && go test -v -run 'TestAcc<X>Resource' -count=1 -timeout 300s ./zstack/provider/`
 - **每个资源的验收测试必须实际执行 Create → (Update) → Import → Destroy 全流程并 PASS**
-- 如果某个 API 返回 404/503（服务未启用）或依赖链中的前置资源创建失败，记录具体错误信息并**立即上报用户**，等待用户解决环境问题后重跑
+- 如果某个 API 返回 404/503（服务未启用）或依赖链中的前置资源创建失败，记录具体错误信息包括tf文件及所有测试参数并**立即上报用户**，等待用户解决环境问题后重跑
 - **不允许**用 `t.Skip` 跳过环境问题来标记 Story 完成
 - Story 完成的标志：本 Story 的 3 个验收测试全部 PASS
 

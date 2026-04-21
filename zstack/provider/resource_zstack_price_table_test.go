@@ -7,6 +7,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestPriceTableResource_Schema(t *testing.T) {
@@ -47,4 +51,46 @@ func TestPriceTableResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_price_table" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccPriceTableResource(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckPriceTableDestroy,
+		Steps: []tfresource.TestStep{
+			// Step 1: Create
+			{
+				Config: providerConfig() + `
+resource "zstack_price_table" "test" {
+  name = "acc-test-price-table"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-price-table")),
+				},
+			},
+			// Step 2: Update name (note: RequiresReplace pending story-07, triggers destroy+recreate)
+			{
+				Config: providerConfig() + `
+resource "zstack_price_table" "test" {
+  name = "acc-test-price-table-updated"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-price-table-updated")),
+				},
+			},
+			// Step 3: Import
+			{
+				ResourceName:                         "zstack_price_table.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_price_table.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+			},
+		},
+	})
 }
