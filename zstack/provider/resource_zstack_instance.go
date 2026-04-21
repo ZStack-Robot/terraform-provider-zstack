@@ -29,14 +29,14 @@ import (
 
 type gpuDeviceType string
 
-type vmResource struct {
+type instanceResource struct {
 	client *client.ZSClient
 }
 
 var (
-	_ resource.Resource                = &vmResource{}
-	_ resource.ResourceWithConfigure   = &vmResource{}
-	_ resource.ResourceWithImportState = &vmResource{}
+	_ resource.Resource                = &instanceResource{}
+	_ resource.ResourceWithConfigure   = &instanceResource{}
+	_ resource.ResourceWithImportState = &instanceResource{}
 )
 
 var networkModelAttrTypes = map[string]attr.Type{
@@ -109,11 +109,11 @@ type NetworkInterfaceModel struct {
 }
 
 func InstanceResource() resource.Resource {
-	return &vmResource{}
+	return &instanceResource{}
 }
 
 // Configure implements resource.ResourceWithConfigure.
-func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *instanceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -132,12 +132,12 @@ func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest,
 }
 
 // Metadata implements resource.Resource.
-func (r *vmResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *instanceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_instance"
 }
 
 // Schema implements resource.Resource.
-func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *instanceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "This resource allows you to manage virtual machine (VM) instances in ZStack. " +
 			"A VM instance represents a virtualized compute resource that can be created, updated, and deleted. " +
@@ -435,7 +435,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 }
 
 // Create implements resource.Resource.
-func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *instanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan vmInstanceDataSourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -852,7 +852,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 }
 
 // Read implements resource.Resource.
-func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *instanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state vmInstanceDataSourceModel
 
 	diags := req.State.Get(ctx, &state)
@@ -943,7 +943,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 
 }
 
-func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *instanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state vmInstanceDataSourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
@@ -1041,7 +1041,7 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 }
 
 // Delete implements resource.Resource.
-func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state vmInstanceDataSourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -1119,7 +1119,7 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 
 }
 
-func isDiskParamValid(r *vmResource, model diskModel) error {
+func isDiskParamValid(r *instanceResource, model diskModel) error {
 	if model.PrimaryStorageUuid.IsNull() || model.PrimaryStorageUuid.ValueString() == "" {
 		return nil
 	}
@@ -1142,6 +1142,6 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 	return nil
 }
 
-func (r *vmResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *instanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
