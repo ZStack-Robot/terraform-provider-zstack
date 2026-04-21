@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,21 +63,22 @@ func TestSshKeyPairResource_Metadata(t *testing.T) {
 
 func TestAccSshKeyPairResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("ssh-key-pair")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSshKeyPairDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_ssh_key_pair" "test" {
-  name       = "acc-test-ssh-key-pair"
+  name       = %q
   public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7 test@example.com"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-ssh-key-pair")),
+					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{
@@ -92,17 +94,18 @@ resource "zstack_ssh_key_pair" "test" {
 
 func TestAccSshKeyPairResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("ssh-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSshKeyPairDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_ssh_key_pair" "test_disappears" {
-  name = "acc-test-ssh-disappears"
+  name = %q
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_ssh_key_pair.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckSshKeyPairDisappears("zstack_ssh_key_pair.test_disappears"),
