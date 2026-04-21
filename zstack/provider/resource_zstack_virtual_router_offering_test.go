@@ -78,6 +78,7 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 	}
 
 	zoneUUID := envStr(env.Zones[0], "uuid")
+	name := testAccName("vr-offering")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -86,17 +87,17 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_virtual_router_offer" "test" {
-  name                    = "acc-test-vr-offering"
+  name                    = %q
   cpu_num                 = 1
   memory_size             = 512
   zone_uuid               = %q
   management_network_uuid = %q
   image_uuid              = %q
 }
-`, zoneUUID, mgmtNetUUID, imageUUID),
+`, name, zoneUUID, mgmtNetUUID, imageUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vr-offering")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{
