@@ -63,22 +63,23 @@ func TestAutoScalingGroupResource_Metadata(t *testing.T) {
 
 func TestAccAutoScalingGroupResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("scaling-group-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckAutoScalingGroupDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_auto_scaling_group" "test" {
-  name                  = "acc-test-scaling-group"
+  name                  = %q
   scaling_resource_type = "VmInstance"
   default_cooldown      = 60
   min_resource_size     = 0
   max_resource_size     = 5
   removal_policy        = "OldestInstance"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckAutoScalingGroupDisappears("zstack_auto_scaling_group.test"),
 				},

@@ -15,7 +15,7 @@ import (
 )
 
 func TestVMResource_Schema(t *testing.T) {
-	var r vmResource
+	var r instanceResource
 	resp := &resource.SchemaResponse{}
 	r.Schema(context.Background(), resource.SchemaRequest{}, resp)
 
@@ -47,7 +47,7 @@ func TestVMResource_Schema(t *testing.T) {
 }
 
 func TestVMResource_Metadata(t *testing.T) {
-	var r vmResource
+	var r instanceResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
 	if resp.TypeName != "zstack_instance" {

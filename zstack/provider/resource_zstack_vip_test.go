@@ -56,6 +56,7 @@ func TestVipResource_Metadata(t *testing.T) {
 
 func TestAccVipResource_disappears(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("vip-disappears")
 
 	var l3UUID string
 	for _, l3 := range env.L3Networks {
@@ -75,10 +76,10 @@ func TestAccVipResource_disappears(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_vip" "test" {
-  name            = "acc-test-vip"
+  name            = %q
   l3_network_uuid = %q
 }
-`, l3UUID),
+`, name, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckVipDisappears("zstack_vip.test"),
 				},

@@ -69,20 +69,21 @@ func TestAccL2VlanNetworkResource_disappears(t *testing.T) {
 	}
 
 	zoneUuid := envStr(env.Zones[0], "uuid")
+	name := testAccName("l2vlan-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckL2VlanNetworkDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vlan_network" "test" {
-  name              = "acc-test-l2vlan"
+  name              = %q
   vlan              = 3999
-  zone_uuid         = "` + zoneUuid + `"
+  zone_uuid         = %q
   physical_interface = "eth0"
 }
-`,
+`, name, zoneUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckL2VlanNetworkDisappears("zstack_l2vlan_network.test"),
 				},

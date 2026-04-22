@@ -118,7 +118,7 @@ func testAccClientLoggedIn() *client.ZSClient {
 	if os.Getenv("ZSTACK_ACCESS_KEY_ID") == "" {
 		// Account/password auth requires explicit login
 		if _, err := cli.Login(context.Background()); err != nil {
-			log.Fatalf("testAccClientLoggedIn: login failed: %v", err)
+			panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
 		}
 	}
 	return cli

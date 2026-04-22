@@ -67,6 +67,7 @@ func TestAccVirtualRouterImageResource_disappears(t *testing.T) {
 		t.Skip("no backup storages in env data")
 	}
 	bsUUID := envStr(env.BackupStorages[0], "uuid")
+	name := testAccName("vr-image-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -75,13 +76,13 @@ func TestAccVirtualRouterImageResource_disappears(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_virtual_router_image" "test" {
-  name                 = "acc-test-vr-image"
-  url                  = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
-  platform             = "Linux"
-  architecture         = "x86_64"
-  backup_storage_uuids = [%q]
+	  name                 = %q
+	  url                  = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+	  platform             = "Linux"
+	  architecture         = "x86_64"
+	  backup_storage_uuids = [%q]
 }
-`, bsUUID),
+	`, name, bsUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckVirtualRouterImageDisappears("zstack_virtual_router_image.test"),
 				},
