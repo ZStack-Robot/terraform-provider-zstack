@@ -38,6 +38,7 @@ func TestAccVolumeResource_disappears(t *testing.T) {
 		t.Skip("no disk offerings in env data")
 	}
 	doUUID := envStr(env.DiskOfferings[0], "uuid")
+	name := testAccName("volume-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -46,10 +47,10 @@ func TestAccVolumeResource_disappears(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_volume" "test" {
-  name               = "acc-test-volume"
+  name               = %q
   disk_offering_uuid = %q
 }
-`, doUUID),
+`, name, doUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckVolumeDisappears("zstack_volume.test"),
 				},
@@ -65,6 +66,7 @@ func TestAccVolumeResource(t *testing.T) {
 		t.Skip("no disk offerings in env data")
 	}
 	doUUID := envStr(env.DiskOfferings[0], "uuid")
+	name := testAccName("volume")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -73,13 +75,13 @@ func TestAccVolumeResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_volume" "test" {
-  name               = "acc-test-volume"
+  name               = %q
   disk_offering_uuid = %q
 }
-`, doUUID),
+`, name, doUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-volume")),
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{

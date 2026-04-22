@@ -37,7 +37,7 @@ type backupStorageDataSourceModel struct {
 	NamePattern types.String `tfsdk:"name_pattern"`
 	//Filter        types.Map       `tfsdk:"filter"`
 	Filter        []Filter        `tfsdk:"filter"`
-	BackupStorges []backupStorage `tfsdk:"backup_storages"`
+	BackupStorages []backupStorage `tfsdk:"backup_storages"`
 }
 
 type backupStorageDataSource struct {
@@ -141,7 +141,7 @@ func (d *backupStorageDataSource) Read(ctx context.Context, req datasource.ReadR
 			Name:              types.StringValue(backupstorage.Name),
 		}
 
-		state.BackupStorges = append(state.BackupStorges, backupStorageState)
+		state.BackupStorages = append(state.BackupStorages, backupStorageState)
 	}
 
 	diags = resp.State.Set(ctx, &state)

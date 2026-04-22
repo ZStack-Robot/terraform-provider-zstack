@@ -19,6 +19,7 @@ test-reports/
 .agent/
 .claude/
 bmad/
+_bmad-output/
 /coverage.out
 # Ignore docs 下除 resources 和 data-sources 目录外的内容
 docs/*

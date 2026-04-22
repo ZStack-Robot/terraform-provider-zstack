@@ -107,7 +107,7 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 						},
 						"type": schema.StringAttribute{
 							Computed:    true,
-							Description: "ype of the cluster",
+							Description: "Type of the cluster",
 						},
 						"state": schema.StringAttribute{
 							Computed:    true,

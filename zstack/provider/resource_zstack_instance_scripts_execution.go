@@ -276,11 +276,22 @@ func (r *scriptExecutionResource) Read(ctx context.Context, request resource.Rea
 	record, err := r.client.GetGuestVmScriptExecutedRecord(state.Uuid.ValueString())
 
 	if err != nil {
+		if isZStackNotFoundError(err) {
+			tflog.Warn(ctx, "Unable to retrieve VM instance script execution record. It may have been deleted.", map[string]interface{}{
+				"id":    state.Uuid.ValueString(),
+				"error": err.Error(),
+			})
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to retrieve VM instance script execution record. It may have been deleted.", map[string]interface{}{
 			"id":    state.Uuid.ValueString(),
 			"error": err.Error(),
 		})
-		response.State.RemoveResource(ctx)
+		response.Diagnostics.AddError(
+			"Error reading Script Execution",
+			"Could not read script execution record ID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 

@@ -4,10 +4,12 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -77,6 +79,14 @@ func providerConfig() string {
 	)
 }
 
+func testAccName(base string) string {
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return fmt.Sprintf("acc-test-%s-%d", base, time.Now().UnixNano())
+	}
+	return fmt.Sprintf("acc-test-%s-%s", base, hex.EncodeToString(randomBytes))
+}
+
 var (
 	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 		"zstack": providerserver.NewProtocol6WithError(New("test")()),
@@ -97,14 +107,10 @@ func testAccClient() *client.ZSClient {
 		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(false).Debug(false))
 	}
 
-	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
-		getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "admin"),
-		getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "password"),
-	).ReadOnly(false).Debug(false))
-	if _, err := cli.Login(context.Background()); err != nil {
-		log.Fatalf("testAccClient: login failed: %v", err)
-	}
-	return cli
+	return client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
+		os.Getenv("ZSTACK_ACCOUNT_NAME"),
+		os.Getenv("ZSTACK_ACCOUNT_PASSWORD"),
+	).ReadOnly(true).Debug(false))
 }
 
 func testAccClientLoggedIn() *client.ZSClient {

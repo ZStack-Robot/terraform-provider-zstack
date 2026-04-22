@@ -31,7 +31,7 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 				"uuid": "mock-session-uuid-123",
 			},
 		}
-		json.NewEncoder(w).Encode(res)
+		_ = json.NewEncoder(w).Encode(res)
 	})
 
 	// Setup mock route for creating Virtual Router Instance
@@ -47,7 +47,7 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 				"status":               "Connected",
 			},
 		}
-		json.NewEncoder(w).Encode(res)
+		_ = json.NewEncoder(w).Encode(res)
 	})
 
 	// Setup GET Virtual Router Instance (read path) — returns empty after DELETE
@@ -75,7 +75,7 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(res)
+		_ = json.NewEncoder(w).Encode(res)
 	})
 
 	// Setup DELETE Virtual Router Instance — sets deleted state
@@ -86,7 +86,7 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 			mu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{}`))
+			_, _ = w.Write([]byte(`{}`))
 		}
 	})
 

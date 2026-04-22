@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,6 +63,8 @@ func TestLoadBalancerListenerResource_Metadata(t *testing.T) {
 
 func TestAccLoadBalancerListenerResource_disappears(t *testing.T) {
 	env := loadEnvData(t)
+	lbName := testAccName("lb-for-listener-disappears")
+	listenerName := testAccName("lb-listener-disappears")
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer listener acceptance test")
@@ -72,23 +75,23 @@ func TestAccLoadBalancerListenerResource_disappears(t *testing.T) {
 		CheckDestroy:             testAccCheckLoadBalancerListenerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_vips" "test" {
 }
 
 resource "zstack_load_balancer" "test" {
-  name     = "acc-test-lb-for-listener"
+  name     = %q
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
 
 resource "zstack_load_balancer_listener" "test" {
-  name               = "acc-test-lb-listener"
+  name               = %q
   load_balancer_uuid = zstack_load_balancer.test.uuid
   protocol           = "tcp"
   load_balancer_port = 80
   instance_port      = 8080
 }
-`,
+`, lbName, listenerName),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckLoadBalancerListenerDisappears("zstack_load_balancer_listener.test"),
 				},
@@ -100,6 +103,8 @@ resource "zstack_load_balancer_listener" "test" {
 
 func TestAccLoadBalancerListenerResource(t *testing.T) {
 	env := loadEnvData(t)
+	lbName := testAccName("lb-for-listener")
+	listenerName := testAccName("lb-listener")
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer listener acceptance test")
@@ -110,26 +115,26 @@ func TestAccLoadBalancerListenerResource(t *testing.T) {
 		CheckDestroy:             testAccCheckLoadBalancerListenerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_vips" "test" {
 }
 
 resource "zstack_load_balancer" "test" {
-  name     = "acc-test-lb-for-listener"
+  name     = %q
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
 
 resource "zstack_load_balancer_listener" "test" {
-  name               = "acc-test-lb-listener"
+  name               = %q
   load_balancer_uuid = zstack_load_balancer.test.uuid
   protocol           = "tcp"
   load_balancer_port = 80
   instance_port      = 8080
 }
-`,
+`, lbName, listenerName),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-lb-listener")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("name"), knownvalue.StringExact(listenerName)),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("protocol"), knownvalue.StringExact("tcp")),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("load_balancer_port"), knownvalue.StringExact("80")),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("instance_port"), knownvalue.StringExact("8080")),

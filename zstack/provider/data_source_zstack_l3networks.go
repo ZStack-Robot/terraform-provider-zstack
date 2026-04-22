@@ -57,7 +57,7 @@ type freeIpModel struct {
 	Gateway     string `tfsdk:"gateway"`
 }
 
-func ZStackl3NetworkDataSource() datasource.DataSource {
+func ZStackL3NetworkDataSource() datasource.DataSource {
 	return &l3NetworkDataSource{}
 }
 

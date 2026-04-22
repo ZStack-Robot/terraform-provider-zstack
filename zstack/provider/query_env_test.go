@@ -37,7 +37,7 @@ func TestQueryEnvironment(t *testing.T) {
 			t.Fatalf("Login failed: %v", err)
 		}
 	} else {
-		t.Fatal("Either ZSTACK_ACCESS_KEY_ID/ZSTACK_ACCESS_KEY_SECRET or ZSTACK_ACCOUNT_NAME/ZSTACK_ACCOUNT_PASSWORD must be set")
+		t.Skip("Either ZSTACK_ACCESS_KEY_ID/ZSTACK_ACCESS_KEY_SECRET or ZSTACK_ACCOUNT_NAME/ZSTACK_ACCOUNT_PASSWORD must be set")
 	}
 
 	fmt.Println("\n========================================")

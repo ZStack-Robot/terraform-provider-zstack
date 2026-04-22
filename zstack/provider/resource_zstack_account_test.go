@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -69,21 +70,22 @@ func TestAccountResource_Metadata(t *testing.T) {
 
 func TestAccAccountResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("account")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckAccountDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_account" "test" {
-  name     = "acc-test-account"
+  name     = %q
   password = "Test@12345"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-account")),
+					statecheck.ExpectKnownValue("zstack_account.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			// NOTE: Update step skipped — ZStack environment does not expose UpdateAccount API (404)
@@ -101,18 +103,19 @@ resource "zstack_account" "test" {
 
 func TestAccAccountResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("acct-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckAccountDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_account" "test_disappears" {
-  name     = "acc-test-acct-disappears"
+  name     = %q
   password = "Test@12345"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_account.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckAccountDisappears("zstack_account.test_disappears"),

@@ -3,9 +3,11 @@
 package provider
 
 import (
-	"bufio"
-	"os"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,29 +17,8 @@ import (
 // errors. This pattern causes state corruption: a transient API failure turns
 // the resource into a zombie, and the subsequent Delete sees the empty UUID and
 // skips remote deletion — orphaning the real resource in ZStack.
-//
-// The correct pattern is:
-//
-//	if errors.Is(err, ErrResourceNotFound) {
-//	    response.State.RemoveResource(ctx)
-//	    return
-//	}
-//	response.Diagnostics.AddError(...)
-//	return
 func TestNoEmptyUUIDStateCorruption(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
-	if err != nil {
-		t.Fatalf("failed to glob resource files: %v", err)
-	}
-	if len(files) == 0 {
-		t.Fatal("no resource files found — test may be running from wrong directory")
-	}
-
-	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
-
+	for _, file := range resourceFiles(t) {
 		violations := scanForEmptyIDPattern(t, file)
 		for _, v := range violations {
 			t.Errorf("%s:%d: %s", file, v.line, v.msg)
@@ -50,83 +31,101 @@ type violation struct {
 	msg  string
 }
 
-// scanForEmptyIDPattern looks for lines that assign Uuid or ID to an empty
-// StringValue inside a Read function's error branch.
-func scanForEmptyIDPattern(t *testing.T, filename string) []violation {
+func resourceFiles(t *testing.T) []string {
 	t.Helper()
-
-	f, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open %s: %v", filename, err)
-	}
-	defer f.Close()
-
-	var violations []violation
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	inReadFunc := false
-
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if strings.Contains(line, "func (") && strings.Contains(line, ") Read(") {
-			inReadFunc = true
-		}
-		if inReadFunc && lineNum > 1 && strings.HasPrefix(trimmed, "func ") && !strings.Contains(line, ") Read(") {
-			inReadFunc = false
-		}
-
-		if !inReadFunc {
-			continue
-		}
-
-		// Detect empty UUID/ID state rewrite:
-		//   Uuid: types.StringValue("")
-		//   ID: types.StringValue("")
-		if strings.Contains(trimmed, `types.StringValue("")`) &&
-			(strings.Contains(trimmed, `Uuid:`) || strings.Contains(trimmed, `ID:`)) {
-			violations = append(violations, violation{
-				line: lineNum,
-				msg:  "Read function rewrites state with empty UUID/ID — transient errors will corrupt state and orphan remote resources",
-			})
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("error scanning %s: %v", filename, err)
-	}
-
-	return violations
-}
-
-// TestNoReadRemoveResourceOnTransientError scans Read functions for the
-// anti-pattern where RemoveResource is called in a non-not-found error branch.
-// This incorrectly removes the resource from state on transient failures.
-//
-// The pattern looks like:
-//
-//	if err != nil {
-//	    if errors.Is(err, ErrResourceNotFound) {
-//	        resp.State.RemoveResource(ctx) // correct
-//	        return
-//	    }
-//	    tflog.Warn(...)
-//	    resp.State.RemoveResource(ctx)     // BUG: transient error removes state
-//	    return
-//	}
-func TestNoReadRemoveResourceOnTransientError(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
+	_, thisFile, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(thisFile)
+	files, err := filepath.Glob(filepath.Join(dir, "resource_zstack_*.go"))
 	if err != nil {
 		t.Fatalf("failed to glob resource files: %v", err)
 	}
+	if len(files) == 0 {
+		t.Fatal("no resource files found — test may be running from wrong directory")
+	}
 
+	filtered := files[:0]
 	for _, file := range files {
 		if strings.HasSuffix(file, "_test.go") {
 			continue
 		}
+		filtered = append(filtered, file)
+	}
+	return filtered
+}
 
+func parseGoFile(t *testing.T, filename string) (*token.FileSet, *ast.File) {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filename, nil, 0)
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", filename, err)
+	}
+	return fset, file
+}
+
+func scanForEmptyIDPattern(t *testing.T, filename string) []violation {
+	t.Helper()
+	fset, file := parseGoFile(t, filename)
+
+	var violations []violation
+	ast.Inspect(file, func(node ast.Node) bool {
+		fn, ok := node.(*ast.FuncDecl)
+		if !ok || fn.Name == nil || fn.Name.Name != "Read" || fn.Body == nil {
+			return true
+		}
+
+		ast.Inspect(fn.Body, func(inner ast.Node) bool {
+			lit, ok := inner.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+
+			for _, elt := range lit.Elts {
+				kv, ok := elt.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				key, ok := kv.Key.(*ast.Ident)
+				if !ok || (key.Name != "Uuid" && key.Name != "ID") {
+					continue
+				}
+				if isTypesStringValueEmpty(kv.Value) {
+					violations = append(violations, violation{
+						line: fset.Position(kv.Pos()).Line,
+						msg:  "Read function rewrites state with empty UUID/ID — transient errors will corrupt state and orphan remote resources",
+					})
+				}
+			}
+			return true
+		})
+
+		return false
+	})
+
+	return violations
+}
+
+func isTypesStringValueEmpty(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || selector.Sel == nil || selector.Sel.Name != "StringValue" {
+		return false
+	}
+	x, ok := selector.X.(*ast.Ident)
+	if !ok || x.Name != "types" {
+		return false
+	}
+	arg, ok := call.Args[0].(*ast.BasicLit)
+	return ok && arg.Kind == token.STRING && arg.Value == `""`
+}
+
+// TestNoReadRemoveResourceOnTransientError scans Read functions for the
+// anti-pattern where RemoveResource is called in a non-not-found error branch.
+func TestNoReadRemoveResourceOnTransientError(t *testing.T) {
+	for _, file := range resourceFiles(t) {
 		violations := scanForReadRemoveResourceOnError(t, file)
 		for _, v := range violations {
 			t.Errorf("%s:%d: %s", file, v.line, v.msg)
@@ -134,88 +133,144 @@ func TestNoReadRemoveResourceOnTransientError(t *testing.T) {
 	}
 }
 
-// scanForReadRemoveResourceOnError detects RemoveResource calls in Read
-// that follow a tflog.Warn outside of the ErrResourceNotFound / isZStackNotFoundError branch.
 func scanForReadRemoveResourceOnError(t *testing.T, filename string) []violation {
 	t.Helper()
+	fset, file := parseGoFile(t, filename)
 
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		t.Fatalf("failed to read %s: %v", filename, err)
-	}
-
-	lines := strings.Split(string(data), "\n")
 	var violations []violation
-	inReadFunc := false
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if strings.Contains(line, "func (") && strings.Contains(line, ") Read(") {
-			inReadFunc = true
-		}
-		if inReadFunc && i > 0 && strings.HasPrefix(trimmed, "func ") && !strings.Contains(line, ") Read(") {
-			inReadFunc = false
+	ast.Inspect(file, func(node ast.Node) bool {
+		fn, ok := node.(*ast.FuncDecl)
+		if !ok || fn.Name == nil || fn.Name.Name != "Read" || fn.Body == nil {
+			return true
 		}
 
-		if !inReadFunc {
-			continue
-		}
-
-		// Look for tflog.Warn followed within 3 lines by RemoveResource,
-		// but ONLY if the warn is NOT inside a not-found check.
-		if strings.Contains(trimmed, "tflog.Warn(") {
-			// Check if this Warn is inside a not-found branch by looking
-			// at the preceding 5 lines for ErrResourceNotFound or isZStackNotFoundError
-			inNotFoundBranch := false
-			for j := max(0, i-5); j < i; j++ {
-				prevLine := lines[j]
-				if strings.Contains(prevLine, "ErrResourceNotFound") ||
-					strings.Contains(prevLine, "isZStackNotFoundError") ||
-					strings.Contains(prevLine, "len(") {
-					inNotFoundBranch = true
-					break
-				}
+		ast.Inspect(fn.Body, func(inner ast.Node) bool {
+			ifStmt, ok := inner.(*ast.IfStmt)
+			if !ok || ifStmt.Body == nil {
+				return true
 			}
-			if inNotFoundBranch {
-				continue
+			if !blockDirectlyContainsCall(ifStmt.Body, "tflog", "Warn") {
+				return true
 			}
+			if conditionMentionsNotFound(ifStmt.Cond) {
+				return true
+			}
+			if isLenZeroNotFoundCheck(ifStmt.Cond) {
+				return true
+			}
+			if blockDirectlyContainsSelectorName(ifStmt.Body, "RemoveResource") {
+				violations = append(violations, violation{
+					line: fset.Position(ifStmt.Pos()).Line,
+					msg:  "Read function calls RemoveResource after tflog.Warn on non-not-found error — transient failures will incorrectly remove state",
+				})
+			}
+			return true
+		})
 
-			for j := i + 1; j < len(lines) && j <= i+3; j++ {
-				nextTrimmed := strings.TrimSpace(lines[j])
-				if strings.Contains(nextTrimmed, "RemoveResource(") {
-					violations = append(violations, violation{
-						line: j + 1,
-						msg:  "Read function calls RemoveResource after tflog.Warn on non-not-found error — transient failures will incorrectly remove state",
-					})
-					break
-				}
-				if strings.Contains(nextTrimmed, "AddError(") || nextTrimmed == "}" {
-					break
-				}
-			}
-		}
-	}
+		return false
+	})
 
 	return violations
 }
 
-// TestNoDeleteEmptyUUIDGuard scans all resource files for the anti-pattern
-// where a Delete function checks for empty UUID and silently skips deletion.
-// This guard only exists to handle the corrupted state from the Read
-// anti-pattern above. Once Read properly returns errors, this guard becomes
-// dead code that masks bugs.
-func TestNoDeleteEmptyUUIDGuard(t *testing.T) {
-	files, err := filepath.Glob("resource_zstack_*.go")
-	if err != nil {
-		t.Fatalf("failed to glob resource files: %v", err)
-	}
+func conditionMentionsNotFound(expr ast.Expr) bool {
+	found := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.Ident:
+			if n.Name == "ErrResourceNotFound" {
+				found = true
+				return false
+			}
+		case *ast.SelectorExpr:
+			if n.Sel != nil && n.Sel.Name == "ErrResourceNotFound" {
+				found = true
+				return false
+			}
+		case *ast.CallExpr:
+			if isSelectorCall(node, "", "isZStackNotFoundError") || isIdentCall(node, "isZStackNotFoundError") {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
 
-	for _, file := range files {
-		if strings.HasSuffix(file, "_test.go") {
+func isLenZeroNotFoundCheck(expr ast.Expr) bool {
+	binaryExpr, ok := expr.(*ast.BinaryExpr)
+	if !ok || binaryExpr.Op != token.EQL {
+		return false
+	}
+	call, ok := binaryExpr.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "len" || len(call.Args) != 1 {
+		return false
+	}
+	right, ok := binaryExpr.Y.(*ast.BasicLit)
+	return ok && right.Kind == token.INT && right.Value == "0"
+}
+
+func blockDirectlyContainsCall(block *ast.BlockStmt, receiver, method string) bool {
+	for _, stmt := range block.List {
+		if exprStmt, ok := stmt.(*ast.ExprStmt); ok && isSelectorCall(exprStmt.X, receiver, method) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSelectorCall(node ast.Node, receiver, method string) bool {
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || selector.Sel == nil || selector.Sel.Name != method {
+		return false
+	}
+	if receiver == "" {
+		return true
+	}
+	x, ok := selector.X.(*ast.Ident)
+	return ok && x.Name == receiver
+}
+
+func isIdentCall(node ast.Node, name string) bool {
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := call.Fun.(*ast.Ident)
+	return ok && ident.Name == name
+}
+
+func blockDirectlyContainsSelectorName(block *ast.BlockStmt, method string) bool {
+	for _, stmt := range block.List {
+		exprStmt, ok := stmt.(*ast.ExprStmt)
+		if !ok {
 			continue
 		}
+		call, ok := exprStmt.X.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && selector.Sel != nil && selector.Sel.Name == method {
+			return true
+		}
+	}
+	return false
+}
 
+// TestNoDeleteEmptyUUIDGuard scans all resource files for the anti-pattern
+// where a Delete function checks for empty UUID and silently skips deletion.
+func TestNoDeleteEmptyUUIDGuard(t *testing.T) {
+	for _, file := range resourceFiles(t) {
 		violations := scanForDeleteEmptyUUIDGuard(t, file)
 		for _, v := range violations {
 			t.Errorf("%s:%d: %s", file, v.line, v.msg)
@@ -225,48 +280,51 @@ func TestNoDeleteEmptyUUIDGuard(t *testing.T) {
 
 func scanForDeleteEmptyUUIDGuard(t *testing.T, filename string) []violation {
 	t.Helper()
-
-	f, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("failed to open %s: %v", filename, err)
-	}
-	defer f.Close()
+	fset, file := parseGoFile(t, filename)
 
 	var violations []violation
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	inDeleteFunc := false
-
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if strings.Contains(line, "func (") && strings.Contains(line, ") Delete(") {
-			inDeleteFunc = true
-		}
-		if inDeleteFunc && lineNum > 1 && strings.HasPrefix(trimmed, "func ") && !strings.Contains(line, ") Delete(") {
-			inDeleteFunc = false
+	ast.Inspect(file, func(node ast.Node) bool {
+		fn, ok := node.(*ast.FuncDecl)
+		if !ok || fn.Name == nil || fn.Name.Name != "Delete" || fn.Body == nil {
+			return true
 		}
 
-		if !inDeleteFunc {
-			continue
-		}
+		ast.Inspect(fn.Body, func(inner ast.Node) bool {
+			ifStmt, ok := inner.(*ast.IfStmt)
+			if !ok {
+				return true
+			}
+			if containsTypesStringValueEmpty(ifStmt.Cond) {
+				violations = append(violations, violation{
+					line: fset.Position(ifStmt.Pos()).Line,
+					msg:  "Delete function has empty-UUID guard (types.StringValue variant) — masks state corruption bugs",
+				})
+			}
+			return true
+		})
 
-		// Detect both variants:
-		//   if state.Uuid == types.StringValue("")
-		//   if uuid == ""  /  if state.Uuid.ValueString() == ""
-		if strings.Contains(trimmed, `state.Uuid == types.StringValue("")`) {
-			violations = append(violations, violation{
-				line: lineNum,
-				msg:  "Delete function has empty-UUID guard (types.StringValue variant) — masks state corruption bugs",
-			})
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("error scanning %s: %v", filename, err)
-	}
+		return false
+	})
 
 	return violations
+}
+
+func containsTypesStringValueEmpty(expr ast.Expr) bool {
+	found := false
+	ast.Inspect(expr, func(node ast.Node) bool {
+		if isTypesStringValueEmptyExpr(node) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func isTypesStringValueEmptyExpr(node ast.Node) bool {
+	expr, ok := node.(ast.Expr)
+	if !ok {
+		return false
+	}
+	return isTypesStringValueEmpty(expr)
 }

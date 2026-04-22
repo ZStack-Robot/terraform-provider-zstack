@@ -25,18 +25,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
-type gpuDeviceTyp string
+type gpuDeviceType string
 
-type vmResource struct {
+type instanceResource struct {
 	client *client.ZSClient
 }
 
 var (
-	_ resource.Resource                = &vmResource{}
-	_ resource.ResourceWithConfigure   = &vmResource{}
-	_ resource.ResourceWithImportState = &vmResource{}
+	_ resource.Resource                = &instanceResource{}
+	_ resource.ResourceWithConfigure   = &instanceResource{}
+	_ resource.ResourceWithImportState = &instanceResource{}
 )
 
 var networkModelAttrTypes = map[string]attr.Type{
@@ -47,11 +48,12 @@ var networkModelAttrTypes = map[string]attr.Type{
 }
 
 const (
-	mdevDevice gpuDeviceTyp = "mdevDevice"
-	pciDevice  gpuDeviceTyp = "pciDevice"
+	mdevDevice gpuDeviceType = "mdevDevice"
+	pciDevice  gpuDeviceType = "pciDevice"
 )
 
 type diskModel struct {
+	VolumeUuid         types.String `tfsdk:"volume_uuid"`
 	Size               types.Int64  `tfsdk:"size"`
 	OfferingUuid       types.String `tfsdk:"offering_uuid"`
 	VirtioSCSI         types.Bool   `tfsdk:"virtio_scsi"`
@@ -109,11 +111,11 @@ type NetworkInterfaceModel struct {
 }
 
 func InstanceResource() resource.Resource {
-	return &vmResource{}
+	return &instanceResource{}
 }
 
 // Configure implements resource.ResourceWithConfigure.
-func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *instanceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -132,12 +134,12 @@ func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest,
 }
 
 // Metadata implements resource.Resource.
-func (r *vmResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *instanceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_instance"
 }
 
 // Schema implements resource.Resource.
-func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *instanceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "This resource allows you to manage virtual machine (VM) instances in ZStack. " +
 			"A VM instance represents a virtualized compute resource that can be created, updated, and deleted. " +
@@ -435,7 +437,7 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 }
 
 // Create implements resource.Resource.
-func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *instanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan vmInstanceDataSourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -802,6 +804,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.NetworkInterfaces = networkInterfacesList
 
 	var diskModelAttrTypes = map[string]attr.Type{
+		"volume_uuid":          types.StringType,
 		"offering_uuid":        types.StringType,
 		"size":                 types.Int64Type,
 		"primary_storage_uuid": types.StringType,
@@ -815,6 +818,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 		for i, disk := range instance.AllVolumes {
 			if i < len(dataDisksPlan) {
+				dataDisksPlan[i].VolumeUuid = types.StringValue(disk.UUID)
 				dataDisksPlan[i].PrimaryStorageUuid = types.StringValue(disk.PrimaryStorageUuid)
 			}
 		}
@@ -852,7 +856,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 }
 
 // Read implements resource.Resource.
-func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *instanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state vmInstanceDataSourceModel
 
 	diags := req.State.Get(ctx, &state)
@@ -883,6 +887,16 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.ImageUuid = types.StringValue(vm.ImageUuid)
 	state.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
 	state.CPUNum = types.Int64Value(int64(vm.CpuNum))
+
+	updatedDataDisks, err := syncInstanceDataDisksFromVM(ctx, state, vm)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading VM Instance",
+			"Could not sync VM data disk state: "+err.Error(),
+		)
+		return
+	}
+	state.DataDisks = updatedDataDisks.DataDisks
 
 	var vmNics []NicsModel
 	for _, nic := range vm.VmNics {
@@ -943,7 +957,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 
 }
 
-func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *instanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state vmInstanceDataSourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
@@ -1041,7 +1055,7 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 }
 
 // Delete implements resource.Resource.
-func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state vmInstanceDataSourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -1050,21 +1064,12 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
-	//TODO: query vm instance again in delete function is not smart. Update vm instance's data disk state in read function is a better way
-	vm, err := r.client.GetVmInstance(state.Uuid.ValueString())
+	volumeUuids, err := instanceDataVolumeUUIDsFromState(ctx, state)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error reading VM Instance", "Could not read vm instance UUID "+state.Uuid.ValueString()+" before delete: "+err.Error(),
+			"Error deleting VM Instance", "Could not determine VM data volume UUIDs from state: "+err.Error(),
 		)
 		return
-	}
-
-	var volumeUuids []string
-	for _, volume := range vm.AllVolumes {
-		if volume.Type != "Data" {
-			continue
-		}
-		volumeUuids = append(volumeUuids, volume.UUID)
 	}
 
 	tflog.Info(ctx, "Deleting vm instance "+state.Uuid.String())
@@ -1119,13 +1124,76 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 
 }
 
-func isDiskParamValid(r *vmResource, model diskModel) error {
+func instanceDiskModelAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"volume_uuid":          types.StringType,
+		"offering_uuid":        types.StringType,
+		"size":                 types.Int64Type,
+		"primary_storage_uuid": types.StringType,
+		"ceph_pool_name":       types.StringType,
+		"virtio_scsi":          types.BoolType,
+	}
+}
+
+func syncInstanceDataDisksFromVM(ctx context.Context, state vmInstanceDataSourceModel, vm *view.VmInstanceInventoryView) (vmInstanceDataSourceModel, error) {
+	if state.DataDisks.IsNull() || state.DataDisks.IsUnknown() || len(state.DataDisks.Elements()) == 0 {
+		return state, nil
+	}
+
+	var dataDisks []diskModel
+	if diags := state.DataDisks.ElementsAs(ctx, &dataDisks, false); diags.HasError() {
+		return state, fmt.Errorf("failed decoding data_disks state: %v", diags)
+	}
+
+	dataVolumes := make([]view.VolumeInventoryView, 0, len(vm.AllVolumes))
+	for _, volume := range vm.AllVolumes {
+		if volume.Type == "Data" {
+				dataVolumes = append(dataVolumes, volume)
+		}
+	}
+
+	for i := range dataDisks {
+		if i >= len(dataVolumes) {
+			break
+		}
+		dataDisks[i].VolumeUuid = types.StringValue(dataVolumes[i].UUID)
+		dataDisks[i].PrimaryStorageUuid = types.StringValue(dataVolumes[i].PrimaryStorageUuid)
+	}
+
+	listValue, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: instanceDiskModelAttrTypes()}, dataDisks)
+	if diags.HasError() {
+		return state, fmt.Errorf("failed encoding data_disks state: %v", diags)
+	}
+	state.DataDisks = listValue
+	return state, nil
+}
+
+func instanceDataVolumeUUIDsFromState(ctx context.Context, state vmInstanceDataSourceModel) ([]string, error) {
+	if state.DataDisks.IsNull() || state.DataDisks.IsUnknown() || len(state.DataDisks.Elements()) == 0 {
+		return nil, nil
+	}
+
+	var dataDisks []diskModel
+	if diags := state.DataDisks.ElementsAs(ctx, &dataDisks, false); diags.HasError() {
+		return nil, fmt.Errorf("failed decoding data_disks state: %v", diags)
+	}
+
+	volumeUUIDs := make([]string, 0, len(dataDisks))
+	for _, disk := range dataDisks {
+		if disk.VolumeUuid.IsNull() || disk.VolumeUuid.IsUnknown() || disk.VolumeUuid.ValueString() == "" {
+			continue
+		}
+		volumeUUIDs = append(volumeUUIDs, disk.VolumeUuid.ValueString())
+	}
+	return volumeUUIDs, nil
+}
+
+func isDiskParamValid(r *instanceResource, model diskModel) error {
 	if model.PrimaryStorageUuid.IsNull() || model.PrimaryStorageUuid.ValueString() == "" {
 		return nil
 	}
 
 	dataDiskPrimaryStorageUuid := model.PrimaryStorageUuid.ValueString()
-	dataDiskCephPoolName := model.CephPoolName.ValueString()
 
 	qparam := param.NewQueryParam()
 	qparam.AddQ("uuid=" + dataDiskPrimaryStorageUuid)
@@ -1140,13 +1208,9 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 		return fmt.Errorf("unable to find primary storage %s, err: %v", dataDiskPrimaryStorageUuid, err)
 	}
 
-	if dataDiskCephPoolName != "" {
-		// Note: Pools field no longer available in PrimaryStorageInventoryView in SDK v2
-		// Pool name validation is skipped; the API will validate on the server side
-	}
 	return nil
 }
 
-func (r *vmResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *instanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }

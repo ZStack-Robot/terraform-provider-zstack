@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"testing"
 
@@ -63,6 +64,7 @@ func TestLoadBalancerResource_Metadata(t *testing.T) {
 
 func TestAccLoadBalancerResource_disappears(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("lb-disappears")
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer acceptance test")
@@ -73,15 +75,15 @@ func TestAccLoadBalancerResource_disappears(t *testing.T) {
 		CheckDestroy:             testAccCheckLoadBalancerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_vips" "test" {
 }
 
 resource "zstack_load_balancer" "test" {
-  name     = "acc-test-lb"
+  name     = %q
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckLoadBalancerDisappears("zstack_load_balancer.test"),
 				},
@@ -93,6 +95,7 @@ resource "zstack_load_balancer" "test" {
 
 func TestAccLoadBalancerResource(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("lb")
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer acceptance test")
@@ -103,18 +106,18 @@ func TestAccLoadBalancerResource(t *testing.T) {
 		CheckDestroy:             testAccCheckLoadBalancerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 data "zstack_vips" "test" {
 }
 
 resource "zstack_load_balancer" "test" {
-  name     = "acc-test-lb"
+  name     = %q
   vip_uuid = data.zstack_vips.test.vips.0.uuid
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-lb")),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("vip_uuid"), knownvalue.NotNull()),
 				},
 			},

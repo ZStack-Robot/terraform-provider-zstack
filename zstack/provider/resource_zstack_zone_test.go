@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -55,22 +56,39 @@ func TestZoneResource_Metadata(t *testing.T) {
 
 func TestAccZoneResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("zone")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckZoneDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_zone" "test" {
-  name        = "acc-test-zone"
+  name        = %q
   description = "Acceptance test zone"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-zone")),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("state"), knownvalue.StringExact("Enabled")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_zone" "test" {
+  name        = %q
+  description = "Updated acceptance test zone"
+  state       = "Disabled"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("description"), knownvalue.StringExact("Updated acceptance test zone")),
+					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("state"), knownvalue.StringExact("Disabled")),
 				},
 			},
 			{
@@ -86,18 +104,19 @@ resource "zstack_zone" "test" {
 
 func TestAccZoneResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("zone-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckZoneDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_zone" "test" {
-  name        = "acc-test-zone-disappears"
+  name        = %q
   description = "Disappears test zone"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_zone.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckZoneDisappears("zstack_zone.test"),

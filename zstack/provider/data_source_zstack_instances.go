@@ -63,7 +63,7 @@ type allVolumesModel struct {
 	VolumeStatus      types.String `tfsdk:"volume_status"`
 }
 
-func ZStackvmsDataSource() datasource.DataSource {
+func ZStackVMsDataSource() datasource.DataSource {
 	return &vmsDataSource{}
 }
 

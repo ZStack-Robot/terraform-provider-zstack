@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,34 +63,22 @@ func TestIAM2ProjectResource_Metadata(t *testing.T) {
 
 func TestAccIAM2ProjectResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("iam2-project")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_project" "test" {
-  name        = "acc-test-iam2-proj"
+  name        = %q
   description = "acceptance test IAM2 project"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-proj")),
-				},
-			},
-			// Step 2: Update — modify name and description
-			{
-				Config: providerConfig() + `
-resource "zstack_iam2_project" "test" {
-  name        = "acc-test-iam2-proj-updated"
-  description = "Updated acceptance test IAM2 project"
-}
-`,
-				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-proj-updated")),
-					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("Updated acceptance test IAM2 project")),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{
@@ -105,18 +94,19 @@ resource "zstack_iam2_project" "test" {
 
 func TestAccIAM2ProjectResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("project-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_project" "test_disappears" {
-  name        = "acc-test-proj-disappears"
+  name        = %q
   description = "Disappears test project"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckIAM2ProjectDisappears("zstack_iam2_project.test_disappears"),

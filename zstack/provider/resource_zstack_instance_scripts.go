@@ -265,8 +265,10 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 			"uuid":  state.Uuid.ValueString(),
 			"error": err.Error(),
 		})
-		response.Diagnostics.Append(diags...)
-		response.State.RemoveResource(ctx)
+		response.Diagnostics.AddError(
+			"Error reading Script",
+			"Could not read script UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 

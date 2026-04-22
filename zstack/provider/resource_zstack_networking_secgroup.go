@@ -164,7 +164,7 @@ func (r *securityGroupResource) Create(ctx context.Context, request resource.Cre
 			)
 			return
 		}
-		p.BaseParam.SystemTags = []string{"SdnControllerUuid::" + u}
+		p.SystemTags = []string{"SdnControllerUuid::" + u}
 	}
 
 	secGroup, err := r.client.CreateSecurityGroup(p)

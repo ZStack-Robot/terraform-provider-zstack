@@ -18,7 +18,7 @@ var (
 	_ datasource.DataSourceWithConfigure = &mnNodeDataSource{}
 )
 
-func ZStackmnNodeDataSource() datasource.DataSource {
+func ZStackMNNodeDataSource() datasource.DataSource {
 	return &mnNodeDataSource{}
 }
 
