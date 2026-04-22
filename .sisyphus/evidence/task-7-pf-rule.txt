@@ -1,0 +1,10 @@
+=== RUN   TestPortForwardingRuleUpdateGuardsUnknownValues
+=== RUN   TestPortForwardingRuleUpdateGuardsUnknownValues/VipPortEnd_Unknown_should_be_omitted
+=== RUN   TestPortForwardingRuleUpdateGuardsUnknownValues/PrivatePortStart_Unknown_should_be_omitted
+=== RUN   TestPortForwardingRuleUpdateGuardsUnknownValues/PrivatePortEnd_Unknown_should_be_omitted
+--- PASS: TestPortForwardingRuleUpdateGuardsUnknownValues (0.00s)
+    --- PASS: TestPortForwardingRuleUpdateGuardsUnknownValues/VipPortEnd_Unknown_should_be_omitted (0.00s)
+    --- PASS: TestPortForwardingRuleUpdateGuardsUnknownValues/PrivatePortStart_Unknown_should_be_omitted (0.00s)
+    --- PASS: TestPortForwardingRuleUpdateGuardsUnknownValues/PrivatePortEnd_Unknown_should_be_omitted (0.00s)
+PASS
+ok  	terraform-provider-zstack/zstack/provider	(cached)

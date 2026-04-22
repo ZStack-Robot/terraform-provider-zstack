@@ -1,0 +1,36 @@
+=== BUG-17 Entry Added to Bug Tracker ===
+
+Task: Add new entry to _bmad-output/bug-tracker.md for BUG-001 (tag_attachment Delete ignores ResourceUuids)
+
+COMPLETION EVIDENCE:
+
+1. Entry ID: BUG-17 (next free local ID after BUG-16)
+
+2. Entry Details:
+   - ID: BUG-17
+   - Severity: HIGH
+   - Resource: zstack_tag_attachment
+   - Lifecycle: Delete
+   - Status: PLANNED
+   - File:Line: zstack/provider/resource_zstack_tag_attachment.go:197-211
+   - Root Cause: Delete method ignores state.ResourceUuids parameter
+   - Planned Fix: Pass ResourceUuids as 3rd argument to DeleteTag call
+   - Story: Story-15
+
+3. Overview Table Updated:
+   - Statistics updated: OPEN 11 | FIXING 3 | FIXED 2 | WONTFIX 0 (was OPEN 10)
+   - Last updated: 2026-04-22 (was 2026-04-21)
+   - BUG-17 row added to table
+
+4. Git Status:
+   - File staged with: git add -f _bmad-output/bug-tracker.md
+   - Status: Changes to be committed (modified: _bmad-output/bug-tracker.md)
+   - File is gitignored but successfully staged with -f flag
+
+5. Entry Content Verification:
+   - Includes all required fields (ID, peer ref, title, file:line, root cause, fix, status)
+   - Root cause mentions: "Delete method ignores state.ResourceUuids"
+   - Planned fix mentions: "Pass ResourceUuids as 3rd argument"
+   - File path and line range: zstack/provider/resource_zstack_tag_attachment.go:197-211
+   - Status: PLANNED (as required)
+

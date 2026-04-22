@@ -1,0 +1,5 @@
+# terraform-provider-zstack/zstack/provider [terraform-provider-zstack/zstack/provider.test]
+zstack/provider/provider.go:254:3: undefined: ZStackPortForwardingRuleDataSource
+zstack/provider/provider.go:305:3: undefined: PortForwardingRuleResource
+FAIL	terraform-provider-zstack/zstack/provider [build failed]
+FAIL

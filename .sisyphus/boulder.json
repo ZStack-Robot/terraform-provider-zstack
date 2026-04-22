@@ -1,0 +1,41 @@
+{
+  "active_plan": "/Users/michelvaillant/Developer/zstack.io/terraform-provider-zstack/.sisyphus/plans/qa-20260422-p0-plus-story15.md",
+  "started_at": "2026-04-22T15:14:32.027Z",
+  "session_ids": [
+    "ses_251ca64edffeqmXDcYR8BOmB4i"
+  ],
+  "session_origins": {
+    "ses_251ca64edffeqmXDcYR8BOmB4i": "direct"
+  },
+  "plan_name": "qa-20260422-p0-plus-story15",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**AST Scanner Harness Skeleton** (Wave 1)",
+      "session_id": "ses_24a3a4eaeffeYsuRaa8OZXQRKR",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-22T15:20:52.479Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "**BUG-001 Fix: tag_attachment.Delete passes ResourceUuids** (Wave 2)",
+      "session_id": "ses_24a30229cffeeEpfP6vMihdt66",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-22T15:44:50.209Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "**Story-15a: instance.go IsUnknown guards (3 sites)** (Wave 2)",
+      "session_id": "ses_24a207345ffewKWjaIWuKJwlu7",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-22T16:03:56.231Z"
+    }
+  }
+}

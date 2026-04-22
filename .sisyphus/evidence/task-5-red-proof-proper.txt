@@ -1,0 +1,6 @@
+=== RUN   TestTagAttachmentDeletePassesResourceUuids
+    resource_zstack_tag_attachment_test.go:175: expected 2 resourceUuids, got 0
+--- FAIL: TestTagAttachmentDeletePassesResourceUuids (0.00s)
+FAIL
+FAIL	terraform-provider-zstack/zstack/provider	0.733s
+FAIL

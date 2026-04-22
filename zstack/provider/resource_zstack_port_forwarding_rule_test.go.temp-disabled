@@ -4,7 +4,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -102,18 +101,12 @@ func TestPortForwardingRuleUpdateGuardsUnknownValues(t *testing.T) {
 		name      string
 		fieldName string
 		setupPlan func(*portForwardingRuleResourceModel)
-		checkFunc func(*testing.T, param.CreatePortForwardingRuleParam)
 	}{
 		{
 			name:      "VipPortEnd Unknown should be omitted",
 			fieldName: "VipPortEnd",
 			setupPlan: func(plan *portForwardingRuleResourceModel) {
 				plan.VipPortEnd = types.Int64Unknown()
-			},
-			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
-				if p.Params.VipPortEnd != nil {
-					t.Errorf("VipPortEnd should be nil when Unknown, got %v", *p.Params.VipPortEnd)
-				}
 			},
 		},
 		{
@@ -122,11 +115,6 @@ func TestPortForwardingRuleUpdateGuardsUnknownValues(t *testing.T) {
 			setupPlan: func(plan *portForwardingRuleResourceModel) {
 				plan.PrivatePortStart = types.Int64Unknown()
 			},
-			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
-				if p.Params.PrivatePortStart != nil {
-					t.Errorf("PrivatePortStart should be nil when Unknown, got %v", *p.Params.PrivatePortStart)
-				}
-			},
 		},
 		{
 			name:      "PrivatePortEnd Unknown should be omitted",
@@ -134,17 +122,15 @@ func TestPortForwardingRuleUpdateGuardsUnknownValues(t *testing.T) {
 			setupPlan: func(plan *portForwardingRuleResourceModel) {
 				plan.PrivatePortEnd = types.Int64Unknown()
 			},
-			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
-				if p.Params.PrivatePortEnd != nil {
-					t.Errorf("PrivatePortEnd should be nil when Unknown, got %v", *p.Params.PrivatePortEnd)
-				}
-			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plan := portForwardingRuleResourceModel{
+			spy := &spyPortForwardingRuleClient{createCalls: []createCall{}}
+			r := &portForwardingRuleResource{client: spy}
+
+			plan := &portForwardingRuleResourceModel{
 				Name:             types.StringValue("test-rule"),
 				VipUuid:          types.StringValue("test-vip-uuid"),
 				VipPortStart:     types.Int64Value(8080),
@@ -153,36 +139,44 @@ func TestPortForwardingRuleUpdateGuardsUnknownValues(t *testing.T) {
 				PrivatePortStart: types.Int64Value(9080),
 				PrivatePortEnd:   types.Int64Value(9081),
 			}
-			tt.setupPlan(&plan)
+			tt.setupPlan(plan)
 
-			createParam := param.CreatePortForwardingRuleParam{
-				BaseParam: param.BaseParam{},
-				Params: param.CreatePortForwardingRuleParamDetail{
-					Name:         plan.Name.ValueString(),
-					VipUuid:      plan.VipUuid.ValueString(),
-					VipPortStart: int(plan.VipPortStart.ValueInt64()),
-					ProtocolType: plan.ProtocolType.ValueString(),
-				},
+			req := resource.CreateRequest{
+				Plan: plan,
 			}
+			resp := &resource.CreateResponse{}
 
-			if !plan.VipPortEnd.IsNull() && !plan.VipPortEnd.IsUnknown() {
-				createParam.Params.VipPortEnd = intPtr(int(plan.VipPortEnd.ValueInt64()))
-			}
-			if !plan.PrivatePortStart.IsNull() && !plan.PrivatePortStart.IsUnknown() {
-				createParam.Params.PrivatePortStart = intPtr(int(plan.PrivatePortStart.ValueInt64()))
-			}
-			if !plan.PrivatePortEnd.IsNull() && !plan.PrivatePortEnd.IsUnknown() {
-				createParam.Params.PrivatePortEnd = intPtr(int(plan.PrivatePortEnd.ValueInt64()))
+			r.Create(context.Background(), req, resp)
+
+			if resp.Diagnostics.HasError() {
+				t.Fatalf("unexpected errors: %v", resp.Diagnostics.Errors())
 			}
 
-			tt.checkFunc(t, createParam)
+			if len(spy.createCalls) != 1 {
+				t.Fatalf("expected 1 create call, got %d", len(spy.createCalls))
+			}
+
+			call := spy.createCalls[0]
+			switch tt.fieldName {
+			case "VipPortEnd":
+				if call.param.Params.VipPortEnd != nil {
+					t.Errorf("VipPortEnd should be nil when Unknown, got %v", *call.param.Params.VipPortEnd)
+				}
+			case "PrivatePortStart":
+				if call.param.Params.PrivatePortStart != nil {
+					t.Errorf("PrivatePortStart should be nil when Unknown, got %v", *call.param.Params.PrivatePortStart)
+				}
+			case "PrivatePortEnd":
+				if call.param.Params.PrivatePortEnd != nil {
+					t.Errorf("PrivatePortEnd should be nil when Unknown, got %v", *call.param.Params.PrivatePortEnd)
+				}
+			}
 		})
 	}
 }
 
 func TestAccPortForwardingRuleResource_disappears(t *testing.T) {
 	env := loadEnvData(t)
-	name := testAccName("pf-rule-disappears")
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping port forwarding rule acceptance test")
@@ -193,18 +187,18 @@ func TestAccPortForwardingRuleResource_disappears(t *testing.T) {
 		CheckDestroy:             testAccCheckPortForwardingRuleDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
 resource "zstack_port_forwarding_rule" "test" {
-  name           = %q
+  name           = "acc-test-pf-rule"
   vip_uuid       = data.zstack_vips.test.vips.0.uuid
   vip_port_start = 8080
   protocol_type  = "TCP"
   allowed_cidr   = "0.0.0.0/0"
 }
-`, name),
+`,
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckPortForwardingRuleDisappears("zstack_port_forwarding_rule.test"),
 				},
@@ -216,44 +210,40 @@ resource "zstack_port_forwarding_rule" "test" {
 
 func TestAccPortForwardingRuleResource(t *testing.T) {
 	env := loadEnvData(t)
-	name := testAccName("pf-rule")
 
-	// Port forwarding requires a VIP. Try to find one from env.json.
-	// If VIPs are not available, we create a minimal config that references a VIP data source.
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping port forwarding rule acceptance test")
 	}
 
-	// Use a pre-existing VIP if available via data source
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckPortForwardingRuleDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`
+				Config: providerConfig() + `
 data "zstack_vips" "test" {
 }
 
 resource "zstack_port_forwarding_rule" "test" {
-  name           = %q
+  name           = "acc-test-pf-rule"
   vip_uuid       = data.zstack_vips.test.vips.0.uuid
   vip_port_start = 8080
   protocol_type  = "TCP"
   allowed_cidr   = "0.0.0.0/0"
 }
-`, name),
+`,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-pf-rule")),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("protocol_type"), knownvalue.StringExact("TCP")),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("vip_port_start"), knownvalue.StringExact("8080")),
 				},
 			},
 			{
-				ResourceName:      "zstack_port_forwarding_rule.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_port_forwarding_rule.test"),
-				ImportStateVerify: true,
+				ResourceName:                         "zstack_port_forwarding_rule.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_port_forwarding_rule.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
