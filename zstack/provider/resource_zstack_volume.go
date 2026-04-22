@@ -324,7 +324,7 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	if plan.Name.ValueString() != state.Name.ValueString() || plan.Description.ValueString() != state.Description.ValueString() {
+	if (!plan.Name.IsUnknown() && plan.Name.ValueString() != state.Name.ValueString()) || (!plan.Description.IsUnknown() && plan.Description.ValueString() != state.Description.ValueString()) {
 		updateParam := param.UpdateVolumeParam{
 			Params: param.UpdateVolumeParamDetail{
 				Name:        plan.Name.ValueString(),
@@ -341,7 +341,7 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		}
 	}
 
-	if !plan.DiskSize.IsNull() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64() {
+	if !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64() {
 		if plan.DiskSize.ValueInt64() < state.DiskSize.ValueInt64() {
 			resp.Diagnostics.AddError(
 				"Error updating Volume",
