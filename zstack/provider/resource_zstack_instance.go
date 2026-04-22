@@ -489,7 +489,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
 		}
 
-		if !rootDiskPlan.Size.IsNull() {
+		if !rootDiskPlan.Size.IsNull() && !rootDiskPlan.Size.IsUnknown() {
 			rootDiskPlan.Size = types.Int64Value(utils.GBToBytes(rootDiskPlan.Size.ValueInt64()))
 		}
 	}
@@ -501,7 +501,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 		for _, disk := range dataDisksPlan {
 			if !disk.OfferingUuid.IsNull() {
 				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
-			} else if !disk.Size.IsNull() {
+			} else if !disk.Size.IsNull() && !disk.Size.IsUnknown() {
 				dataDiskSizes = append(dataDiskSizes, utils.GBToBytes(disk.Size.ValueInt64()))
 				if disk.VirtioSCSI.ValueBool() {
 					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
@@ -663,7 +663,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 		}
 
 		number := 1
-		if !gpuSpecPlan.Number.IsNull() {
+		if !gpuSpecPlan.Number.IsNull() && !gpuSpecPlan.Number.IsUnknown() {
 			number = int(gpuSpecPlan.Number.ValueInt64())
 		}
 
