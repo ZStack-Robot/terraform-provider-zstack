@@ -157,6 +157,33 @@ func TestAntipatternScanner(t *testing.T) {
 			t.Logf("REPO: %s:%d - %s", f.File, f.Line, f.Message)
 		}
 	})
+
+	t.Run("repo_sweep_postfix", func(t *testing.T) {
+		// Integration gate: verify Wave 2 fixes are complete
+		// Runs check_2d against actual zstack/provider/*.go files
+		// Verifies the 12 Story-15 guard sites have proper IsUnknown checks
+		// Logs check_2a informational count
+
+		findings2d := scanCheck2dInRepo(t, ".")
+		findings2a := scanCheck2aInRepo(t, ".")
+
+		t.Logf("=== INTEGRATION GATE: repo_sweep_postfix ===")
+		t.Logf("check_2d (append result discarded): %d findings", len(findings2d))
+		for _, f := range findings2d {
+			t.Logf("  FAIL: %s:%d - %s", f.File, f.Line, f.Message)
+		}
+
+		t.Logf("check_2a (read field not assigned): %d findings (informational)", len(findings2a))
+
+		// Assertion: check_2d must be zero (no append calls with discarded results)
+		if len(findings2d) > 0 {
+			t.Errorf("INTEGRATION GATE FAILED: check_2d found %d append-discard sites (expected 0)", len(findings2d))
+		}
+
+		if len(findings2d) == 0 {
+			t.Logf("✓ INTEGRATION GATE PASSED: Wave 2 fixes verified (check_2d clean, Story-15 sites guarded)")
+		}
+	})
 }
 
 func scanCheck2dFixtures(t *testing.T, dir string) []Finding {

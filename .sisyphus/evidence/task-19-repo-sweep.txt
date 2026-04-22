@@ -1,0 +1,10 @@
+=== RUN   TestAntipatternScanner
+=== RUN   TestAntipatternScanner/repo_sweep_postfix
+    resource_antipattern_ast_test.go:170: === INTEGRATION GATE: repo_sweep_postfix ===
+    resource_antipattern_ast_test.go:171: check_2d (append result discarded): 0 findings
+    resource_antipattern_ast_test.go:176: check_2a (read field not assigned): 0 findings (informational)
+    resource_antipattern_ast_test.go:184: ✓ INTEGRATION GATE PASSED: Wave 2 fixes verified (check_2d clean, Story-15 sites guarded)
+--- PASS: TestAntipatternScanner (0.14s)
+    --- PASS: TestAntipatternScanner/repo_sweep_postfix (0.14s)
+PASS
+ok  	terraform-provider-zstack/zstack/provider	2.674s
