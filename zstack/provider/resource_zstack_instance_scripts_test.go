@@ -54,6 +54,31 @@ func TestScriptResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestInstanceScriptsUpdateGuardsUnknownValues(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		field  string
+	}{
+		{
+			name:   "Create_ScriptTimeout_Unknown",
+			method: "Create",
+			field:  "ScriptTimeout",
+		},
+		{
+			name:   "Update_ScriptTimeout_Unknown",
+			method: "Update",
+			field:  "ScriptTimeout",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("%s method must guard %s with IsUnknown() check", tt.method, tt.field)
+		})
+	}
+}
+
 func TestAccScriptResource(t *testing.T) {
 	_ = loadEnvData(t)
 

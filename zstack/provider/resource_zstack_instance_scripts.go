@@ -162,7 +162,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	}
 
 	scriptTimeout := int64(300)
-	if !plan.ScriptTimeout.IsNull() {
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
 		scriptTimeout = plan.ScriptTimeout.ValueInt64()
 	}
 	renderParams := ""
@@ -309,7 +309,7 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	}
 
 	scriptTimeout := int64(300)
-	if !plan.ScriptTimeout.IsNull() {
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
 		scriptTimeout = plan.ScriptTimeout.ValueInt64()
 	}
 
