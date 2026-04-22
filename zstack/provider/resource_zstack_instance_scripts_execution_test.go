@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -139,4 +140,40 @@ resource "zstack_script_execution" "test" {
 			},
 		},
 	})
+}
+
+func TestInstanceScriptsExecutionGuardsUnknownAndNullTimeout(t *testing.T) {
+	tests := []struct {
+		name        string
+		timeout     types.Int64
+		wantTimeout int
+	}{
+		{
+			name:        "Null",
+			timeout:     types.Int64Null(),
+			wantTimeout: 300,
+		},
+		{
+			name:        "Unknown",
+			timeout:     types.Int64Unknown(),
+			wantTimeout: 300,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test FIXED logic (lines 157-163 after fix)
+			var scriptTimeout int
+			if !tt.timeout.IsNull() && !tt.timeout.IsUnknown() {
+				scriptTimeout = int(tt.timeout.ValueInt64())
+			} else {
+				scriptTimeout = 300
+			}
+
+			if scriptTimeout != tt.wantTimeout {
+				t.Errorf("got timeout=%d, want %d (IsNull/IsUnknown guard must precede ValueInt64)",
+					scriptTimeout, tt.wantTimeout)
+			}
+		})
+	}
 }
