@@ -231,7 +231,7 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		},
 	}
 
-	if !plan.DiskSize.IsNull() && plan.DiskSize.ValueInt64() > 0 {
+	if !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() > 0 {
 		createParam.Params.DiskSize = int64Ptr(plan.DiskSize.ValueInt64())
 	}
 	if !plan.PrimaryStorageUuid.IsNull() && plan.PrimaryStorageUuid.ValueString() != "" {

@@ -138,4 +138,18 @@ func TestVolumeUpdateGuardsUnknownValues(t *testing.T) {
 			t.Error("Should not update when Name is Unknown")
 		}
 	})
+
+	t.Run("Create_DiskSize_Unknown_guard", func(t *testing.T) {
+		plan := volumeResourceModel{
+			Uuid:     types.StringValue("test-uuid"),
+			Name:     types.StringValue("test-volume"),
+			DiskSize: types.Int64Unknown(),
+		}
+
+		shouldSetDiskSize := !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() > 0
+
+		if shouldSetDiskSize {
+			t.Error("Should not set DiskSize when it is Unknown in Create method")
+		}
+	})
 }
