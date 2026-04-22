@@ -1,0 +1,36 @@
+package provider
+
+import (
+	"context"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+// Bad: IsNull() without IsUnknown() check on Int64 field
+func badInt64IsNull(ctx context.Context, data *struct {
+	Timeout types.Int64
+}) {
+	if data.Timeout.IsNull() {
+		// Missing IsUnknown() check - VIOLATION
+		return
+	}
+}
+
+// Bad: IsNull() without IsUnknown() check on Bool field
+func badBoolIsNull(ctx context.Context, data *struct {
+	Enabled types.Bool
+}) {
+	if data.Enabled.IsNull() {
+		// Missing IsUnknown() check - VIOLATION
+		return
+	}
+}
+
+// Bad: IsNull() without IsUnknown() in nested condition
+func badNestedIsNull(ctx context.Context, data *struct {
+	Port types.Int64
+}) {
+	if data.Port.IsNull() && true {
+		// Missing IsUnknown() check - VIOLATION
+		return
+	}
+}
