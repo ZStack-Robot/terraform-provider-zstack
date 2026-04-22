@@ -95,3 +95,165 @@ func stateCheckIAM2ProjectDisappears(resourceAddress string) statecheck.StateChe
 		return cli.DeleteIAM2Project(id, param.DeleteModePermissive)
 	})
 }
+
+func stateCheckImageDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteImage(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckVolumeDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteDataVolume(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckL2VlanNetworkDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteL2Network(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckLoadBalancerDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteLoadBalancer(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckLoadBalancerListenerDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteLoadBalancerListener(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckVirtualRouterImageDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteImage(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckVirtualRouterOfferingDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteInstanceOffering(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckAutoScalingGroupDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteAutoScalingGroup(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckPortForwardingRuleDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeletePortForwardingRule(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckInstanceOfferingDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteInstanceOffering(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckDiskOfferingDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteDiskOffering(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckTagDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteTag(id, param.DeleteModeEnforcing)
+	})
+}
+
+func stateCheckSecurityGroupDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteSecurityGroup(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckSecurityGroupRuleDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteSecurityGroupRule(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckCertificateDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteCertificate(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckWebhookDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteWebhook(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckVipDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteVip(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckReservedIpDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteReservedIpRange(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckUserDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteUser(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckRoleDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteRole(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckPolicyDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeletePolicy(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckIAM2VirtualIDDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteIAM2VirtualID(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckIAM2OrganizationDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteIAM2Organization(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckSNSTopicDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteSNSTopic(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckSchedulerTriggerDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteSchedulerTrigger(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckSchedulerJobDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteSchedulerJob(id, param.DeleteModePermissive)
+	})
+}
+
+func stateCheckAlarmDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.DeleteAlarm(id, param.DeleteModePermissive)
+	})
+}

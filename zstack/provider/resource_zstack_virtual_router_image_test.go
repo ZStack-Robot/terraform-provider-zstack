@@ -61,6 +61,36 @@ func TestVirtualRouterImageResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccVirtualRouterImageResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.BackupStorages) == 0 {
+		t.Skip("no backup storages in env data")
+	}
+	bsUUID := envStr(env.BackupStorages[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterImageDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_virtual_router_image" "test" {
+  name                 = "acc-test-vr-image"
+  url                  = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+  platform             = "Linux"
+  architecture         = "x86_64"
+  backup_storage_uuids = [%q]
+}
+`, bsUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVirtualRouterImageDisappears("zstack_virtual_router_image.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccVirtualRouterImageResource(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.BackupStorages) == 0 {
@@ -91,7 +121,7 @@ resource "zstack_virtual_router_image" "test" {
 			{
 				ResourceName:            "zstack_virtual_router_image.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_virtual_router_image.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_image.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"backup_storage_uuids", "architecture", "guest_os_type", "virtio", "boot_mode", "media_type"},

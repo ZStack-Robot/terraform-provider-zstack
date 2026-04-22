@@ -54,6 +54,40 @@ func TestVipResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccVipResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+
+	var l3UUID string
+	for _, l3 := range env.L3Networks {
+		if envStr(l3, "category") == "Public" {
+			l3UUID = envStr(l3, "uuid")
+			break
+		}
+	}
+	if l3UUID == "" {
+		t.Skip("no Public L3 network found in env data")
+	}
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVipDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_vip" "test" {
+  name            = "acc-test-vip"
+  l3_network_uuid = %q
+}
+`, l3UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVipDisappears("zstack_vip.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccVipResource(t *testing.T) {
 	env := loadEnvData(t)
 	name := testAccName("vip")
@@ -90,7 +124,7 @@ resource "zstack_vip" "test" {
 			{
 				ResourceName:      "zstack_vip.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_vip.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_vip.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

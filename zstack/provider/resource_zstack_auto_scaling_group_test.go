@@ -61,6 +61,33 @@ func TestAutoScalingGroupResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccAutoScalingGroupResource_disappears(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAutoScalingGroupDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_auto_scaling_group" "test" {
+  name                  = "acc-test-scaling-group"
+  scaling_resource_type = "VmInstance"
+  default_cooldown      = 60
+  min_resource_size     = 0
+  max_resource_size     = 5
+  removal_policy        = "OldestInstance"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckAutoScalingGroupDisappears("zstack_auto_scaling_group.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccAutoScalingGroupResource(t *testing.T) {
 	_ = loadEnvData(t)
 	name := testAccName("scaling-group")
@@ -91,7 +118,7 @@ resource "zstack_auto_scaling_group" "test" {
 			{
 				ResourceName:      "zstack_auto_scaling_group.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_auto_scaling_group.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_auto_scaling_group.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

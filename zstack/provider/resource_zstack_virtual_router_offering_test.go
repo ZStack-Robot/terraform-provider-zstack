@@ -61,6 +61,47 @@ func TestVirtualRouterOfferingResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccVirtualRouterOfferingResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env data")
+	}
+
+	var mgmtNetUUID, imageUUID string
+	if len(env.VirtualRouterOfferings) > 0 {
+		mgmtNetUUID = envStr(env.VirtualRouterOfferings[0], "management_network_uuid")
+		imageUUID = envStr(env.VirtualRouterOfferings[0], "image_uuid")
+	}
+	if mgmtNetUUID == "" || imageUUID == "" {
+		t.Skip("no virtual router offerings in env data to derive management_network_uuid and image_uuid")
+	}
+
+	zoneUUID := envStr(env.Zones[0], "uuid")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterOfferingDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_virtual_router_offer" "test" {
+  name                    = "acc-test-vr-offering"
+  cpu_num                 = 1
+  memory_size             = 512
+  zone_uuid               = %q
+  management_network_uuid = %q
+  image_uuid              = %q
+}
+`, zoneUUID, mgmtNetUUID, imageUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVirtualRouterOfferingDisappears("zstack_virtual_router_offer.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccVirtualRouterOfferingResource(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.Zones) == 0 {
@@ -103,7 +144,7 @@ resource "zstack_virtual_router_offer" "test" {
 			{
 				ResourceName:            "zstack_virtual_router_offer.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_virtual_router_offer.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_offer.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"management_network_uuid", "zone_uuid", "image_uuid", "public_network_uuid", "is_default"},

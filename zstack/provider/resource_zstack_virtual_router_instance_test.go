@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -18,6 +19,9 @@ import (
 
 func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 	mux := http.NewServeMux()
+
+	var mu sync.Mutex
+	deleted := false
 
 	// Setup generic login route
 	mux.HandleFunc("/zstack/v1/accounts/login", func(w http.ResponseWriter, r *http.Request) {
@@ -46,9 +50,19 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(res)
 	})
 
-	// Setup GET Virtual Router Instance (read path)
+	// Setup GET Virtual Router Instance (read path) — returns empty after DELETE
 	mux.HandleFunc("/zstack/v1/vm-instances/appliances/virtual-routers/mock-vr-uuid", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		mu.Lock()
+		isDeleted := deleted
+		mu.Unlock()
+		if isDeleted {
+			res := map[string]interface{}{
+				"inventories": []interface{}{},
+			}
+			json.NewEncoder(w).Encode(res)
+			return
+		}
 		res := map[string]interface{}{
 			"inventories": []interface{}{
 				map[string]interface{}{
@@ -64,9 +78,12 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(res)
 	})
 
-	// Setup DELETE Virtual Router Instance
+	// Setup DELETE Virtual Router Instance — sets deleted state
 	mux.HandleFunc("/zstack/v1/vm-instances/mock-vr-uuid", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
+			mu.Lock()
+			deleted = true
+			mu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{}`))
@@ -86,14 +103,15 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 
 	resource.UnitTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterInstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
 provider "zstack" {
     host              = "%s"
     port              = %s
-    account_name      = "admin" 
-    account_password  = "password" 
+    account_name      = "admin"
+    account_password  = "password"
 }
 
 resource "zstack_virtual_router_instance" "foo" {

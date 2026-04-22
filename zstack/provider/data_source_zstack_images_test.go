@@ -76,7 +76,12 @@ func TestAccZStackImageDataSourceFilterByNamePattern(t *testing.T) {
 	}
 	img := env.Images[0]
 	name := envStr(img, "name")
-	pattern := name[:3] + "%"
+	runes := []rune(name)
+	prefixLen := 3
+	if len(runes) < prefixLen {
+		prefixLen = len(runes)
+	}
+	pattern := string(runes[:prefixLen]) + "%"
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
