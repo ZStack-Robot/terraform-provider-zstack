@@ -627,7 +627,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	if plan.Marketplace.ValueBool() {
 		systemTags = append(systemTags, "marketplace::true")
 	}
-	if !plan.NeverStop.IsNull() && plan.NeverStop.ValueBool() {
+	if !plan.NeverStop.IsNull() && !plan.NeverStop.IsUnknown() && plan.NeverStop.ValueBool() {
 		systemTags = append(systemTags, "ha::NeverStop")
 	}
 
@@ -988,11 +988,11 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 		updateVm = true
 
 	}
-	if plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
+	if !plan.CPUNum.IsNull() && !plan.CPUNum.IsUnknown() && plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
 		updateVmInstanceParam.Params.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
 		updateVm = true
 	}
-	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
+	if !plan.MemorySize.IsNull() && !plan.MemorySize.IsUnknown() && plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
 		memorySizeBytes := utils.MBToBytes(plan.MemorySize.ValueInt64())
 		updateVmInstanceParam.Params.MemorySize = &memorySizeBytes
 		updateVm = true
