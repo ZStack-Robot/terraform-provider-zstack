@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -52,6 +53,36 @@ func TestL3networkResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_l3network" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestL3NetworkUpdateGuardsUnknownValues(t *testing.T) {
+	t.Run("IpVersion Unknown omitted from payload", func(t *testing.T) {
+		plan := l3networkResourceModel{
+			Uuid:          types.StringValue("test-uuid"),
+			Name:          types.StringValue("test-network"),
+			L2NetworkUuid: types.StringValue("l2-uuid"),
+			IpVersion:     types.Int64Unknown(),
+			System:        types.BoolValue(false),
+		}
+
+		if !plan.IpVersion.IsNull() && !plan.IpVersion.IsUnknown() {
+			t.Error("IpVersion guard failed: Unknown value was not properly guarded")
+		}
+	})
+
+	t.Run("System Unknown omitted from payload", func(t *testing.T) {
+		plan := l3networkResourceModel{
+			Uuid:          types.StringValue("test-uuid"),
+			Name:          types.StringValue("test-network"),
+			L2NetworkUuid: types.StringValue("l2-uuid"),
+			IpVersion:     types.Int64Value(4),
+			System:        types.BoolUnknown(),
+		}
+
+		if !plan.System.IsNull() && !plan.System.IsUnknown() {
+			t.Error("System guard failed: Unknown value was not properly guarded")
+		}
+	})
 }
 
 func TestAccL3NetworkResource(t *testing.T) {

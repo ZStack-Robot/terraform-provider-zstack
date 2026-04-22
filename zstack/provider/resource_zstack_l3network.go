@@ -182,12 +182,12 @@ func (r *l3networkResource) Create(ctx context.Context, request resource.CreateR
 	}
 
 	var ipVersion *int
-	if !plan.IpVersion.IsNull() {
+	if !plan.IpVersion.IsNull() && !plan.IpVersion.IsUnknown() {
 		ipVersion = intPtr(int(plan.IpVersion.ValueInt64()))
 	}
 
 	system := false
-	if !plan.System.IsNull() {
+	if !plan.System.IsNull() && !plan.System.IsUnknown() {
 		system = plan.System.ValueBool()
 	}
 
@@ -300,7 +300,7 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 	}
 
 	var system *bool
-	if !plan.System.IsNull() {
+	if !plan.System.IsNull() && !plan.System.IsUnknown() {
 		systemVal := plan.System.ValueBool()
 		system = &systemVal
 	}
