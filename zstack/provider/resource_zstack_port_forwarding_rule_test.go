@@ -8,11 +8,47 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
+
+type spyPortForwardingRuleClient struct {
+	createCalls []createCall
+}
+
+type createCall struct {
+	param param.CreatePortForwardingRuleParam
+}
+
+func (s *spyPortForwardingRuleClient) CreatePortForwardingRule(p param.CreatePortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error) {
+	s.createCalls = append(s.createCalls, createCall{param: p})
+	return &view.PortForwardingRuleInventoryView{}, nil
+}
+
+func (s *spyPortForwardingRuleClient) GetPortForwardingRule(uuid string) (*view.PortForwardingRuleInventoryView, error) {
+	return &view.PortForwardingRuleInventoryView{}, nil
+}
+
+func (s *spyPortForwardingRuleClient) UpdatePortForwardingRule(uuid string, p param.UpdatePortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error) {
+	return &view.PortForwardingRuleInventoryView{}, nil
+}
+
+func (s *spyPortForwardingRuleClient) DetachPortForwardingRule(uuid string, deleteMode param.DeleteMode) error {
+	return nil
+}
+
+func (s *spyPortForwardingRuleClient) DeletePortForwardingRule(uuid string, deleteMode param.DeleteMode) error {
+	return nil
+}
+
+func (s *spyPortForwardingRuleClient) AttachPortForwardingRule(ruleUuid string, vmNicUuid string, p param.AttachPortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error) {
+	return &view.PortForwardingRuleInventoryView{}, nil
+}
 
 func TestPortForwardingRuleResource_Schema(t *testing.T) {
 	var r portForwardingRuleResource
@@ -58,6 +94,89 @@ func TestPortForwardingRuleResource_Metadata(t *testing.T) {
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
 	if resp.TypeName != "zstack_port_forwarding_rule" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
+	}
+}
+
+func TestPortForwardingRuleUpdateGuardsUnknownValues(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldName string
+		setupPlan func(*portForwardingRuleResourceModel)
+		checkFunc func(*testing.T, param.CreatePortForwardingRuleParam)
+	}{
+		{
+			name:      "VipPortEnd Unknown should be omitted",
+			fieldName: "VipPortEnd",
+			setupPlan: func(plan *portForwardingRuleResourceModel) {
+				plan.VipPortEnd = types.Int64Unknown()
+			},
+			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
+				if p.Params.VipPortEnd != nil {
+					t.Errorf("VipPortEnd should be nil when Unknown, got %v", *p.Params.VipPortEnd)
+				}
+			},
+		},
+		{
+			name:      "PrivatePortStart Unknown should be omitted",
+			fieldName: "PrivatePortStart",
+			setupPlan: func(plan *portForwardingRuleResourceModel) {
+				plan.PrivatePortStart = types.Int64Unknown()
+			},
+			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
+				if p.Params.PrivatePortStart != nil {
+					t.Errorf("PrivatePortStart should be nil when Unknown, got %v", *p.Params.PrivatePortStart)
+				}
+			},
+		},
+		{
+			name:      "PrivatePortEnd Unknown should be omitted",
+			fieldName: "PrivatePortEnd",
+			setupPlan: func(plan *portForwardingRuleResourceModel) {
+				plan.PrivatePortEnd = types.Int64Unknown()
+			},
+			checkFunc: func(t *testing.T, p param.CreatePortForwardingRuleParam) {
+				if p.Params.PrivatePortEnd != nil {
+					t.Errorf("PrivatePortEnd should be nil when Unknown, got %v", *p.Params.PrivatePortEnd)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := portForwardingRuleResourceModel{
+				Name:             types.StringValue("test-rule"),
+				VipUuid:          types.StringValue("test-vip-uuid"),
+				VipPortStart:     types.Int64Value(8080),
+				ProtocolType:     types.StringValue("TCP"),
+				VipPortEnd:       types.Int64Value(8081),
+				PrivatePortStart: types.Int64Value(9080),
+				PrivatePortEnd:   types.Int64Value(9081),
+			}
+			tt.setupPlan(&plan)
+
+			createParam := param.CreatePortForwardingRuleParam{
+				BaseParam: param.BaseParam{},
+				Params: param.CreatePortForwardingRuleParamDetail{
+					Name:         plan.Name.ValueString(),
+					VipUuid:      plan.VipUuid.ValueString(),
+					VipPortStart: int(plan.VipPortStart.ValueInt64()),
+					ProtocolType: plan.ProtocolType.ValueString(),
+				},
+			}
+
+			if !plan.VipPortEnd.IsNull() && !plan.VipPortEnd.IsUnknown() {
+				createParam.Params.VipPortEnd = intPtr(int(plan.VipPortEnd.ValueInt64()))
+			}
+			if !plan.PrivatePortStart.IsNull() && !plan.PrivatePortStart.IsUnknown() {
+				createParam.Params.PrivatePortStart = intPtr(int(plan.PrivatePortStart.ValueInt64()))
+			}
+			if !plan.PrivatePortEnd.IsNull() && !plan.PrivatePortEnd.IsUnknown() {
+				createParam.Params.PrivatePortEnd = intPtr(int(plan.PrivatePortEnd.ValueInt64()))
+			}
+
+			tt.checkFunc(t, createParam)
+		})
 	}
 }
 

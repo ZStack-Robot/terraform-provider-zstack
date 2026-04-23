@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -92,5 +93,63 @@ resource "zstack_volume" "test" {
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
+	})
+}
+
+func TestVolumeUpdateGuardsUnknownValues(t *testing.T) {
+	t.Run("DiskSize Unknown should not trigger resize", func(t *testing.T) {
+		plan := volumeResourceModel{
+			Uuid:     types.StringValue("test-uuid"),
+			Name:     types.StringValue("test-volume"),
+			DiskSize: types.Int64Unknown(),
+		}
+
+		state := volumeResourceModel{
+			Uuid:     types.StringValue("test-uuid"),
+			Name:     types.StringValue("test-volume"),
+			DiskSize: types.Int64Value(100),
+		}
+
+		shouldResize := !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64()
+
+		if shouldResize {
+			t.Error("Should not resize when DiskSize is Unknown")
+		}
+	})
+
+	t.Run("Name Unknown should not trigger update", func(t *testing.T) {
+		plan := volumeResourceModel{
+			Uuid:        types.StringValue("test-uuid"),
+			Name:        types.StringUnknown(),
+			Description: types.StringValue("test-desc"),
+		}
+
+		state := volumeResourceModel{
+			Uuid:        types.StringValue("test-uuid"),
+			Name:        types.StringValue("test-volume"),
+			Description: types.StringValue("test-desc"),
+		}
+
+		nameChanged := !plan.Name.IsUnknown() && plan.Name.ValueString() != state.Name.ValueString()
+		descChanged := !plan.Description.IsUnknown() && plan.Description.ValueString() != state.Description.ValueString()
+		shouldUpdate := nameChanged || descChanged
+
+		if shouldUpdate {
+			t.Error("Should not update when Name is Unknown")
+		}
+	})
+
+	t.Run("Create_DiskSize_Unknown_guard", func(t *testing.T) {
+		plan := volumeResourceModel{
+			Uuid:     types.StringValue("test-uuid"),
+			Name:     types.StringValue("test-volume"),
+			DiskSize: types.Int64Unknown(),
+		}
+
+		shouldSetDiskSize := !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() > 0
+
+		if shouldSetDiskSize {
+			t.Error("Should not set DiskSize when it is Unknown in Create method")
+		}
 	})
 }

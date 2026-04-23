@@ -1,0 +1,43 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+import (
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+)
+
+// GoodAppendAssigned1 demonstrates correctly assigning append result
+func GoodAppendAssigned1(diags diag.Diagnostics, newDiag diag.Diagnostic) diag.Diagnostics {
+	// GOOD: append result is assigned
+	diags = append(diags, newDiag)
+	return diags
+}
+
+// GoodAppendAssigned2 demonstrates correctly assigning append result in a loop
+func GoodAppendAssigned2(diags diag.Diagnostics, newDiags []diag.Diagnostic) diag.Diagnostics {
+	for _, d := range newDiags {
+		// GOOD: append result is assigned
+		diags = append(diags, d)
+	}
+	return diags
+}
+
+// GoodAppendAssigned3 demonstrates correctly assigning append result with multiple arguments
+func GoodAppendAssigned3(items []string, newItems ...string) []string {
+	// GOOD: append result is assigned
+	items = append(items, newItems...)
+	return items
+}
+
+// GoodAppendAssignedToField demonstrates assigning append result to a struct field
+type ResourceResponse struct {
+	Diags diag.Diagnostics
+}
+
+func (r *ResourceResponse) AddDiagnostics(newDiags ...diag.Diagnostic) {
+	for _, d := range newDiags {
+		// GOOD: append result is assigned to struct field
+		r.Diags = append(r.Diags, d)
+	}
+}

@@ -1,0 +1,31 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+import (
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+)
+
+// BadAppendDiscarded1 demonstrates discarding append result on diagnostics slice
+func BadAppendDiscarded1(diags diag.Diagnostics, newDiag diag.Diagnostic) {
+	// BAD: append result is discarded
+	append(diags, newDiag)
+	// diags is unchanged
+}
+
+// BadAppendDiscarded2 demonstrates discarding append result in a loop
+func BadAppendDiscarded2(diags diag.Diagnostics, newDiags []diag.Diagnostic) {
+	for _, d := range newDiags {
+		// BAD: append result is discarded
+		append(diags, d)
+	}
+	// diags is unchanged
+}
+
+// BadAppendDiscarded3 demonstrates discarding append result with multiple arguments
+func BadAppendDiscarded3(items []string, newItems ...string) {
+	// BAD: append result is discarded
+	append(items, newItems...)
+	// items is unchanged
+}

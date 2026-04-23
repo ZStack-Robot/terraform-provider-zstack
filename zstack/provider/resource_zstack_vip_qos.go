@@ -116,15 +116,15 @@ func (r *vipQosResource) Create(ctx context.Context, req resource.CreateRequest,
 		Params:    param.SetVipQosParamDetail{},
 	}
 
-	if !plan.Port.IsNull() {
+	if !plan.Port.IsNull() && !plan.Port.IsUnknown() {
 		port := int(plan.Port.ValueInt64())
 		setParam.Params.Port = &port
 	}
-	if !plan.OutboundBandwidth.IsNull() {
+	if !plan.OutboundBandwidth.IsNull() && !plan.OutboundBandwidth.IsUnknown() {
 		bandwidth := plan.OutboundBandwidth.ValueInt64()
 		setParam.Params.OutboundBandwidth = &bandwidth
 	}
-	if !plan.InboundBandwidth.IsNull() {
+	if !plan.InboundBandwidth.IsNull() && !plan.InboundBandwidth.IsUnknown() {
 		bandwidth := plan.InboundBandwidth.ValueInt64()
 		setParam.Params.InboundBandwidth = &bandwidth
 	}
@@ -206,15 +206,15 @@ func (r *vipQosResource) Update(ctx context.Context, req resource.UpdateRequest,
 		Params:    param.SetVipQosParamDetail{},
 	}
 
-	if !plan.Port.IsNull() {
+	if !plan.Port.IsNull() && !plan.Port.IsUnknown() {
 		port := int(plan.Port.ValueInt64())
 		setParam.Params.Port = &port
 	}
-	if !plan.OutboundBandwidth.IsNull() {
+	if !plan.OutboundBandwidth.IsNull() && !plan.OutboundBandwidth.IsUnknown() {
 		bandwidth := plan.OutboundBandwidth.ValueInt64()
 		setParam.Params.OutboundBandwidth = &bandwidth
 	}
-	if !plan.InboundBandwidth.IsNull() {
+	if !plan.InboundBandwidth.IsNull() && !plan.InboundBandwidth.IsUnknown() {
 		bandwidth := plan.InboundBandwidth.ValueInt64()
 		setParam.Params.InboundBandwidth = &bandwidth
 	}

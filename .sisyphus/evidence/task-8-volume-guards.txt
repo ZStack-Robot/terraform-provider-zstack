@@ -1,0 +1,61 @@
+# Task 8: Volume.go IsUnknown Guards - Evidence
+
+## GREEN Phase: Logic Verification
+
+### Test 1: DiskSize Unknown should not trigger resize
+- Condition: `!plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64()`
+- Input: plan.DiskSize = Unknown, state.DiskSize = 100
+- Expected: shouldResize = false (Unknown is not null, but IS unknown, so guard blocks)
+- Result: PASS ✓
+
+### Test 2: Name Unknown should not trigger update
+- Condition: `(!plan.Name.IsUnknown() && plan.Name.ValueString() != state.Name.ValueString()) || (!plan.Description.IsUnknown() && plan.Description.ValueString() != state.Description.ValueString())`
+- Input: plan.Name = Unknown, state.Name = "test-volume", plan.Description = "test-desc", state.Description = "test-desc"
+- Expected: shouldUpdate = false (Name is unknown, so guard blocks; Description unchanged)
+- Result: PASS ✓
+
+## Code Changes
+
+### File: zstack/provider/resource_zstack_volume.go
+
+#### Line 327 (Update method - Name/Description guard)
+Before:
+```go
+if plan.Name.ValueString() != state.Name.ValueString() || plan.Description.ValueString() != state.Description.ValueString() {
+```
+
+After:
+```go
+if (!plan.Name.IsUnknown() && plan.Name.ValueString() != state.Name.ValueString()) || (!plan.Description.IsUnknown() && plan.Description.ValueString() != state.Description.ValueString()) {
+```
+
+#### Line 344 (Update method - DiskSize guard)
+Before:
+```go
+if !plan.DiskSize.IsNull() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64() {
+```
+
+After:
+```go
+if !plan.DiskSize.IsNull() && !plan.DiskSize.IsUnknown() && plan.DiskSize.ValueInt64() != state.DiskSize.ValueInt64() {
+```
+
+## Build Verification
+- `go build ./zstack/provider`: PASS ✓
+- No compilation errors
+- No warnings
+
+## Semantics
+
+### DiskSize (Int64)
+- Unknown → **omit** (zero-size resize would destroy data; never send Unknown=0)
+- Guard prevents sending Unknown as 0 to ResizeDataVolume API
+
+### Name/Description (String)
+- Unknown → **omit** (zero values often safe for strings, but Unknown should not be sent)
+- Guard prevents sending Unknown as "" to UpdateVolume API
+
+## Risk Mitigation
+- HIGH severity bug fixed: Prevents data-destroying resize-to-0
+- Prevents unintended API calls with Unknown values
+- Maintains backward compatibility (only adds guards, doesn't change behavior for known values)

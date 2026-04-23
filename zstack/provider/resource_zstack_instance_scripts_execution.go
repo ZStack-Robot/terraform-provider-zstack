@@ -154,8 +154,11 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 		return
 	}
 
-	scriptTimeout := int(plan.ScriptTimeout.ValueInt64())
-	if plan.ScriptTimeout.IsNull() {
+	// fixes ordering bug 2026-04-22 QA report — IsNull/IsUnknown must precede ValueInt64
+	var scriptTimeout int
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
+		scriptTimeout = int(plan.ScriptTimeout.ValueInt64())
+	} else {
 		scriptTimeout = 300
 	}
 

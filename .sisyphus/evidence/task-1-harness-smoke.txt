@@ -1,0 +1,48 @@
+# Task 1: AST Scanner Harness Skeleton — Evidence
+
+## Test Execution
+```
+$ go test ./zstack/provider/ -run TestAntipatternScanner/smoke -short -v
+=== RUN   TestAntipatternScanner
+=== RUN   TestAntipatternScanner/smoke
+    resource_antipattern_ast_test.go:97: parsed 316 files with 1728 functions
+--- PASS: TestAntipatternScanner (0.07s)
+    --- PASS: TestAntipatternScanner/smoke (0.07s)
+PASS
+ok  	terraform-provider-zstack/zstack/provider	3.565s
+```
+
+## Build Verification
+```
+$ go build ./zstack/provider/
+(no output — success)
+```
+
+## Vet Verification
+```
+$ go vet ./zstack/provider/
+(no output — success)
+```
+
+## Third-Party Library Check
+```
+$ grep -E "(ast-grep|go-ast|github.com.*ast)" zstack/provider/resource_antipattern_ast_test.go
+✓ No third-party AST libraries found
+```
+
+## Required Functions
+✓ parsePackage(dir string) ([]*ast.File, *token.FileSet, error)
+✓ walkFunctions(file *ast.File, visit func(*ast.FuncDecl))
+✓ findCallExpr(node ast.Node, pkg, name string) []*ast.CallExpr
+✓ Finding struct { File string; Line int; Check string; Message string }
+✓ TestAntipatternScanner(t *testing.T) with smoke sub-test
+
+## File Created
+- zstack/provider/resource_antipattern_ast_test.go (99 lines)
+
+## Status
+✓ All requirements met
+✓ Test passes
+✓ Build succeeds
+✓ Vet passes
+✓ No third-party libraries

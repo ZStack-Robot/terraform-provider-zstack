@@ -489,7 +489,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
 		}
 
-		if !rootDiskPlan.Size.IsNull() {
+		if !rootDiskPlan.Size.IsNull() && !rootDiskPlan.Size.IsUnknown() {
 			rootDiskPlan.Size = types.Int64Value(utils.GBToBytes(rootDiskPlan.Size.ValueInt64()))
 		}
 	}
@@ -501,7 +501,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 		for _, disk := range dataDisksPlan {
 			if !disk.OfferingUuid.IsNull() {
 				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
-			} else if !disk.Size.IsNull() {
+			} else if !disk.Size.IsNull() && !disk.Size.IsUnknown() {
 				dataDiskSizes = append(dataDiskSizes, utils.GBToBytes(disk.Size.ValueInt64()))
 				if disk.VirtioSCSI.ValueBool() {
 					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
@@ -627,7 +627,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	if plan.Marketplace.ValueBool() {
 		systemTags = append(systemTags, "marketplace::true")
 	}
-	if !plan.NeverStop.IsNull() && plan.NeverStop.ValueBool() {
+	if !plan.NeverStop.IsNull() && !plan.NeverStop.IsUnknown() && plan.NeverStop.ValueBool() {
 		systemTags = append(systemTags, "ha::NeverStop")
 	}
 
@@ -663,7 +663,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 		}
 
 		number := 1
-		if !gpuSpecPlan.Number.IsNull() {
+		if !gpuSpecPlan.Number.IsNull() && !gpuSpecPlan.Number.IsUnknown() {
 			number = int(gpuSpecPlan.Number.ValueInt64())
 		}
 
@@ -988,11 +988,11 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 		updateVm = true
 
 	}
-	if plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
+	if !plan.CPUNum.IsNull() && !plan.CPUNum.IsUnknown() && plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
 		updateVmInstanceParam.Params.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
 		updateVm = true
 	}
-	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
+	if !plan.MemorySize.IsNull() && !plan.MemorySize.IsUnknown() && plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
 		memorySizeBytes := utils.MBToBytes(plan.MemorySize.ValueInt64())
 		updateVmInstanceParam.Params.MemorySize = &memorySizeBytes
 		updateVm = true

@@ -1,0 +1,21 @@
+package provider
+
+import (
+	"context"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+// Good: Read field from API and assign to state
+func goodReadFieldAssigned(ctx context.Context, data *struct {
+	Name types.String
+	UUID types.String
+}) {
+	apiResp := map[string]interface{}{
+		"name": "test-name",
+		"uuid": "test-uuid",
+	}
+
+	// Read and assign both fields
+	data.Name = types.StringValue(apiResp["name"].(string))
+	data.UUID = types.StringValue(apiResp["uuid"].(string))
+}
