@@ -1,7 +1,0 @@
-=== RUN   TestAntipatternScanner
-=== RUN   TestAntipatternScanner/smoke
-    resource_antipattern_ast_test.go:97: parsed 316 files with 1728 functions
---- PASS: TestAntipatternScanner (0.06s)
-    --- PASS: TestAntipatternScanner/smoke (0.06s)
-PASS
-ok  	terraform-provider-zstack/zstack/provider	1.739s

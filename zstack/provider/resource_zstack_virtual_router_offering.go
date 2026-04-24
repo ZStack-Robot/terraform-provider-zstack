@@ -84,7 +84,6 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 		BaseParam: param.BaseParam{},
 		Params: param.CreateVirtualRouterOfferingParamDetail{
 			Name:                  plan.Name.ValueString(),
-			Description:           stringPtr(plan.Description.ValueString()),
 			CpuNum:                int(plan.CpuNum.ValueInt64()),
 			MemorySize:            utils.MBToBytes(plan.MemorySize.ValueInt64()),
 			ManagementNetworkUuid: plan.ManagementNetworkUuid.ValueString(),
@@ -94,10 +93,14 @@ func (r *virtualRouterOfferingResource) Create(ctx context.Context, req resource
 		},
 	}
 
+	// BUG-055: Description is Optional+Computed with UseStateForUnknown — guard Unknown
+	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
+		offerParam.Params.Description = stringPtr(plan.Description.ValueString())
+	}
 	if !plan.PublicNetworkUuid.IsNull() && plan.PublicNetworkUuid.ValueString() != "" {
 		offerParam.Params.PublicNetworkUuid = stringPtr(plan.PublicNetworkUuid.ValueString())
 	}
-	if !plan.IsDefault.IsNull() {
+	if !plan.IsDefault.IsNull() && !plan.IsDefault.IsUnknown() {
 		offerParam.Params.IsDefault = boolPtr(plan.IsDefault.ValueBool())
 	}
 

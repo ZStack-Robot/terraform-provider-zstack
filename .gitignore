@@ -27,3 +27,8 @@ docs/*
 !docs/data-sources/
 
 .generate_env.DS_Store
+.sisyphus/
+.worktrees/
+# AI agent transient task logs (cycle evidence)
+task-*.log
+task-*.txt

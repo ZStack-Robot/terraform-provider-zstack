@@ -1,3 +1,0 @@
-=== HIGH RISK: Int64/Bool fields missing IsUnknown guard ===
----
-zstack/provider/resource_zstack_access_control_list.go:204: DANGER — no read-after-write

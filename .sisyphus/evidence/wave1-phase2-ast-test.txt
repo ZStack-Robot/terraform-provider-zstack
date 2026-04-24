@@ -1,3 +1,0 @@
-testing: warning: no tests to run
-PASS
-ok  	terraform-provider-zstack/zstack/provider	1.815s [no tests to run]
