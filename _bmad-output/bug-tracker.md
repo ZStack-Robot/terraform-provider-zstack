@@ -56,6 +56,17 @@
 | BUG-040 | P1 | ✅ Fixed (2026-04-24) | TypeName 改为 `zstack_virtual_routers` (与文件名/SDK 一致) |
 | BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
 | BUG-047–052 | P3 | ✅ Fixed (2026-04-24) | Resource TypeName 已对齐 SDK 命名 (6 处) |
+| BUG-053 | P0 | ✅ Fixed (2026-04-24) | `iam2_project` Delete 增加 `ExpungeIAM2Project` 调用 |
+| BUG-054 | P0 | 🔲 Open | `policy` Create 硬编码 `Statements: []`，策略功能不可用 |
+| BUG-055 | P1 | ✅ Fixed (2026-04-24) | 加 IsUnknown guard：virtual_router_offering.description/is_default + vpc_shared_qos.description/bandwidth |
+| BUG-056 | P0 | 🔲 Open | **系统性**：SDK `PutWithRespKey` 返回空 struct (instance/vm_cdrom/l3network Update) |
+| BUG-057 | P0 | ✅ Fixed (2026-04-24) | `l2vxlan_network.vni` 加 `int64planmodifier.RequiresReplace` |
+| BUG-058 | P0 | 🔲 Open | `l3network` Create: `ipVersion=0` 被 API 拒绝 (Int64 零值) |
+| BUG-059 | P0 | 🔲 Open | `l3network` Delete: URL 缺 UUID 参数 |
+| BUG-060 | P1 | 🔲 Open | `instance` Create: `stringPtr("")` 传空字符串导致 API 校验失败 |
+| BUG-061 | P1 | 🔲 Open | `global_config` Read 后 state 全空（SDK PutWithSpec responseKey 缺失）|
+| BUG-062 | P2 | 🔲 Open | `instance_scripts` Create/Read: description/timeout/encoding_type 三处缺陷 |
+| BUG-063 | P2 | 🔲 Open | `subnet_ip_range` Read 后 `ip_range_type` 丢失（Schema↔Read 字段错位）|
 
 ---
 
@@ -872,3 +883,217 @@ Full output from `golangci-lint run ./...`:
 3. 或者反向决策——接受漂移，把文件名改为匹配 TypeName（零破坏但文件名更丑）。
 
 建议先在 sprint 规划会上决策走向，再统一执行。
+
+---
+
+# 生产级功能 Bug (2026-04-24 审核 FIXING 项并归并)
+
+> 以下条目源自 `.worktrees/qa-tracker-repo/_bmad-output/bug-tracker.md` 的 QA 发现，
+> 于 2026-04-24 对代码进行实际扫描验证，确认仍未修复。重新编号为 BUG-053+ 以纳入主 tracker。
+
+## BUG-053 — iam2_project Delete 缺 Expunge 调用
+
+- **Severity**: P0 (CRITICAL)
+- **Status**: 🔲 Open (前 tracker 标记为 FIXING 但代码未改)
+- **File**: `zstack/provider/resource_zstack_iam2_project.go:226-243`
+- **Evidence (2026-04-24 扫描)**: Delete 方法只调 `DeleteIAM2Project(uuid, DeleteModePermissive)`，无 `ExpungeIAM2Project` 后续调用
+- **Category**: Missing Expunge / Soft-delete residual
+- **Related Story**: Story-04
+
+**Problem**: ZStack IAM2 Project 在软删除后保留在回收站，导致同名 project 无法重新创建。
+
+**Fix**:
+```go
+if err := r.client.DeleteIAM2Project(...); err != nil { ... }
+if err := r.client.ExpungeIAM2Project(state.Uuid.ValueString()); err != nil {
+    // log warning but don't fail — resource is already soft-deleted
+}
+```
+
+SDK 方法已就位：`~/go/pkg/mod/github.com/zstackio/zstack-sdk-go-v2@v0.0.4/pkg/client/iam2project_actions.go:56`
+
+---
+
+## BUG-054 — policy Create 硬编码空 Statements 数组
+
+- **Severity**: P0 (CRITICAL)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_policy.go:114-122`
+- **Evidence**:
+```go
+// Note: Statements are required by the API but we're skipping them for now
+// as per the requirement to manage basic CRUD only
+createParam := param.CreatePolicyParam{
+    Params: param.CreatePolicyParamDetail{
+        ...
+        Statements:  []param.PolicyStatementParam{},
+    },
+}
+```
+- **Category**: Missing Feature / Hardcoded Value
+- **Related Story**: Story-05
+
+**Problem**: 当前硬编码空数组意味着创建的 Policy 毫无效力（无 Allow/Deny 规则），整个 policy 资源**无实际用途**。
+
+**Fix**: 在 Schema 增加 `statements` 块（`SchemaList` of nested block with `effect`/`actions`/`resources`），Create/Read/Update 都要映射。注意避免之前评论里"修复引入 god-mode"的陷阱——**不要**给默认 allow-all statements。
+
+---
+
+## BUG-055 — BUG-5 遗漏：3 处 Optional+Computed 仍缺 IsUnknown guard
+
+- **Severity**: P1 (HIGH)
+- **Status**: 🔲 Open
+- **Evidence (antipattern scanner output 2026-04-24)**:
+  - `resource_zstack_virtual_router_offering.go:100`  (`IsDefault.IsNull()` — 字段实际是 Optional 无 Computed，可能是误报)
+  - `resource_zstack_virtual_router_offering.go:~97`  (`description` Optional+Computed+`UseStateForUnknown` → 真正 BUG-5 实例)
+  - `resource_zstack_vpc_shared_qos.go:140`  (`description` Optional+Computed+`UseStateForUnknown`)
+  - `resource_zstack_vpc_shared_qos.go:236`  (`bandwidth` Int64 Optional+Computed → **Int64 零值 = 0 可能导致 API 错误**)
+- **Category**: 模式 2：Optional+Computed 缺 IsUnknown 检查（BUG-5 的收尾）
+
+**Problem**: BUG-5 主体已修，但上述 3 处遗漏。Scanner 报告的 `provider.go:133` 是误报（provider 配置块，没有 UseStateForUnknown）。
+
+**Fix** 每处:
+```go
+// Before:
+if !plan.Bandwidth.IsNull() { ... }
+// After:
+if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
+```
+
+---
+
+## BUG-056 — 系统性：SDK `PutWithRespKey` 返回空 struct
+
+- **Severity**: P0 (CRITICAL)
+- **Status**: 🔲 Open
+- **Scope**: `instance` / `vm_cdrom` / `l3network` Update 方法；可能还有 `global_config`
+- **Category**: 模式 1（跨资源系统性 SDK bug）
+
+**Problem**: 这几个资源的 Update 方法调用 SDK `Put*` API，SDK 响应解析层缺少 `responseKey` 参数，导致 client 返回空 struct。Provider 把空 struct 写回 state → state 所有字段变成零值。
+
+**Fix 方案**:
+- **A (推荐)**: SDK 侧修响应解析 — 一次性覆盖所有受影响 API
+- **B (provider 绕过)**: Update 方法在 Put 之后立刻 `Query*` 重新读取，像 Read 方法一样填充 state
+- **C (最差但最快)**: 仅在空响应时 fallback 到 Query
+
+跟 SDK 团队确认能否走 A；否则挨个资源走 B。
+
+---
+
+## BUG-057 — l2vxlan_network `vni` 缺 RequiresReplace
+
+- **Severity**: P0 (CRITICAL — 静默数据丢失)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_l2vxlan_network.go` (Schema 中 `vni` 字段)
+- **Category**: Plan Modifier Missing
+
+**Problem**: 用户改 vni 时 `terraform apply` 显示 Update，但 ZStack API 不支持改 vni。导致 Terraform state 更新但实际资源未变，**静默数据丢失**。
+
+**Fix**: 给 `vni` 加 `int64planmodifier.RequiresReplace()`。
+
+---
+
+## BUG-058 — l3network Create: `ipVersion=0` 被 API 拒绝
+
+- **Severity**: P0 (CRITICAL)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_l3network.go` Create
+- **Category**: 模式 2 的具体实例（Int64 零值）
+
+**Problem**: 用户省略 `ip_version` 时 plan 值为 Unknown，若无 IsUnknown guard 直接 `ValueInt64()` 取到零值 0，ZStack API 拒绝 ipVersion=0。
+
+**Fix**: 同 BUG-055 模式——加 IsUnknown guard；或 Schema 设 Default(4)。
+
+---
+
+## BUG-059 — l3network Delete URL 缺 UUID
+
+- **Severity**: P0 (CRITICAL)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_l3network.go` Delete
+- **Category**: SDK Usage Bug
+
+**Problem**: `DeleteL3Network` 调用时 URL 模板拼接没把 UUID 放对位置，导致 DELETE 请求打到错误 endpoint。
+
+**Fix**: 检查 SDK 方法签名，确认参数顺序。可能是 provider 侧传参错误，也可能是 SDK url template 问题（见 `docs/sdk-url-template-bug.md`）。
+
+---
+
+## BUG-060 — instance Create: stringPtr 传空字符串
+
+- **Severity**: P1 (HIGH)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_instance.go` Create (多处)
+- **Category**: Nil vs Empty String
+
+**Problem**: 用户省略可选 string 字段时，代码做 `stringPtr(plan.Field.ValueString())` 得到 `*string` 指向空字符串。ZStack API 对某些字段不接受空字符串（需要 null/omit）。
+
+**Fix**: 用 `stringPtrOrNil` 辅助（已存在于 `resource_zstack_policy.go:120`），空字符串返回 nil：
+```go
+func stringPtrOrNil(s string) *string {
+    if s == "" { return nil }
+    return &s
+}
+```
+
+---
+
+## BUG-061 — global_config Read 后 state 全空
+
+- **Severity**: P1 (HIGH)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_global_config.go`
+- **Category**: 模式 1 的亲戚（SDK `PutWithSpec` responseKey 缺失）
+- **Related**: BUG-056
+
+**Problem**: 与 BUG-056 同根源，只是走 `PutWithSpec` 分支（不是 `PutWithRespKey`）。表现一致：响应解析得到空 struct。
+
+**Fix**: 跟 BUG-056 一起修，或走 provider 侧 fallback 到 `QueryGlobalConfig`。
+
+---
+
+## BUG-062 — instance_scripts 三处缺陷
+
+- **Severity**: P2 (MEDIUM)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_instance_scripts.go`
+- **Category**: 混合（BUG-5 + BUG-63 的 Read 字段遗漏）
+
+**子缺陷**:
+1. **a (Create/Update)**: `description` 字段处理不完整
+2. **b (Create/Update)**: `script_timeout` (Int64 Optional+Computed) 缺 IsUnknown guard → BUG-5 家族
+3. **c (Read)**: `encoding_type` 从 API 返回但未写回 state → 模式 3 实例
+
+**Fix**: 按子缺陷分别处理——a/b 是 guard 问题；c 是 Read 方法字段映射补齐。
+
+---
+
+## BUG-063 — subnet_ip_range Read 后 `ip_range_type` 丢失
+
+- **Severity**: P2 (MEDIUM)
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_subnet_ip_range.go` Read
+- **Category**: 模式 3 — Read 方法字段遗漏
+
+**Problem**: `ip_range_type` 在 Schema 和 Create 中都有，但 Read 方法没把 API 返回的值写回 state。第二次 `terraform plan` 会显示 drift。
+
+**Fix**: 在 Read 方法里加 `state.IpRangeType = types.StringValue(inv.IpRangeType)` 之类的映射。
+
+---
+
+## 系统性模式汇总（BUG-053–063）
+
+| 模式 | 影响 Bug | 根因 |
+|---|---|---|
+| **模式 1**：SDK Put 响应解析缺 responseKey | BUG-056 / BUG-061 | zstack-sdk-go-v2 响应层需统一修复 |
+| **模式 2**：Optional+Computed 缺 IsUnknown guard | BUG-055 / BUG-058 / BUG-062b | provider 侧可单独扫修 |
+| **模式 3**：Read 方法字段遗漏 | BUG-062c / BUG-063 | 需对 30+ 资源做 Schema↔Read 字段对齐检查 |
+
+### 优先级建议
+
+1. **BUG-053 / BUG-054**：功能性 critical，单资源独立修，预计各 1-2 小时
+2. **BUG-056 系列（056/061）**：等 SDK 修响应层是**最干净的路径**；若等不及走 provider re-read
+3. **BUG-055 / BUG-058 / BUG-062b**：antipattern scanner 已标出位置，一个 PR 全修
+4. **BUG-057 / BUG-059**：单点功能 bug，独立修
+5. **BUG-060**：引入 `stringPtrOrNil` 后一次 sweep 全部 stringPtr 调用
+6. **BUG-062c / BUG-063**：和 Read 字段对齐 sweep 一起做

@@ -134,10 +134,11 @@ func (r *vpcSharedQosResource) Create(ctx context.Context, req resource.CreateRe
 		},
 	}
 
-	if !plan.Description.IsNull() {
+	// BUG-055: Description/Bandwidth are Optional+Computed — guard Unknown
+	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
 		createParam.Params.Description = stringPtr(plan.Description.ValueString())
 	}
-	if !plan.Bandwidth.IsNull() {
+	if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() {
 		bandwidth := plan.Bandwidth.ValueInt64()
 		createParam.Params.Bandwidth = &bandwidth
 	}
@@ -233,7 +234,7 @@ func (r *vpcSharedQosResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	if !plan.Bandwidth.Equal(state.Bandwidth) && !plan.Bandwidth.IsNull() {
+	if !plan.Bandwidth.Equal(state.Bandwidth) && !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() {
 		result, err = r.client.ChangeVpcSharedQosBandwidth(plan.Uuid.ValueString(), param.ChangeVpcSharedQosBandwidthParam{
 			BaseParam: param.BaseParam{},
 			Params: param.ChangeVpcSharedQosBandwidthParamDetail{

@@ -232,13 +232,23 @@ func (r *iam2ProjectResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 
 
-	err := r.client.DeleteIAM2Project(state.Uuid.ValueString(), param.DeleteModePermissive)
-	if err != nil {
+	uuid := state.Uuid.ValueString()
+	if err := r.client.DeleteIAM2Project(uuid, param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting IAM2 Project",
 			"Could not delete IAM2 project, unexpected error: "+err.Error(),
 		)
 		return
+	}
+
+	// BUG-053: Without expunge, the soft-deleted project lingers in recycle bin
+	// and blocks re-use of the same name. Expunge is purge-from-recycle-bin.
+	if err := r.client.ExpungeIAM2Project(uuid); err != nil {
+		resp.Diagnostics.AddWarning(
+			"IAM2 Project deleted but expunge failed",
+			"The IAM2 project was deleted but could not be expunged from the recycle bin. "+
+				"This may prevent re-using the same name until manual cleanup. Error: "+err.Error(),
+		)
 	}
 }
 
