@@ -64,7 +64,7 @@ func (d *backupStorageDataSource) Configure(_ context.Context, req datasource.Co
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *backupStorageDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_backupstorages"
+	resp.TypeName = req.ProviderTypeName + "_backup_storages"
 }
 
 // Read implements datasource.DataSourceWithConfigure.

@@ -25,7 +25,7 @@ data "zstack_l3networks" "l3networks" {
 
 # Fetch the details of an instance offering from ZStack Cloud by its name.
 # - `name`: The name of the instance offering to retrieve.
-data "zstack_instance_offers" "offer" {
+data "zstack_instance_offerings" "offer" {
   name = "InstanceOffering-1"
 }
 
@@ -44,7 +44,7 @@ resource "zstack_instance" "example_vm" {
   image_uuid = data.zstack_images.centos.images[0].uuid
   #  l3_network_uuids       = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
   description            = "Example VM instance"
-  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid # Using Instance offering UUID or custom CPU and memory
+  instance_offering_uuid = data.zstack_instance_offerings.offer.instance_offers[0].uuid # Using Instance offering UUID or custom CPU and memory
   # memory_size            = 1024000000
   # cpu_num                = 1
 

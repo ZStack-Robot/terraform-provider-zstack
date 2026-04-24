@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_clusters Data Source - terraform-provider-zstack"
-subcategory: "Infrastructure"
+subcategory: ""
 description: |-
     Fetches a list of clusters and their associated attributes.
 ---
@@ -67,7 +67,7 @@ Read-Only:
 - `hypervisor_type` (String) Type of hypervisor used by the cluster (e.g., KVM, ESXi)
 - `name` (String) Name of the cluster
 - `state` (String) State of the cluster (e.g., Enabled, Disabled)
-- `type` (String) ype of the cluster
+- `type` (String) Type of the cluster
 - `uuid` (String) UUID identifier of the cluster
 - `zone_uuid` (String) UUID of the zone to which the cluster belongs
 

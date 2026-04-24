@@ -150,7 +150,7 @@ func (r *virtualRouterOfferingResource) Delete(ctx context.Context, req resource
 
 // Metadata implements resource.Resource.
 func (r *virtualRouterOfferingResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_virtual_router_offer"
+	resp.TypeName = req.ProviderTypeName + "_virtual_router_offering"
 }
 
 // Read implements resource.Resource.

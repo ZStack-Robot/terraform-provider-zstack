@@ -62,7 +62,7 @@ func (d *instanceScriptDataSource) Configure(_ context.Context, req datasource.C
 }
 
 func (d *instanceScriptDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_scripts"
+	resp.TypeName = req.ProviderTypeName + "_instance_scripts"
 }
 
 func (d *instanceScriptDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {

@@ -132,7 +132,7 @@ func (r *instanceOfferingResource) Delete(ctx context.Context, req resource.Dele
 
 // Metadata implements resource.Resource.
 func (r *instanceOfferingResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_instance_offer"
+	resp.TypeName = req.ProviderTypeName + "_instance_offering"
 }
 
 // Read implements resource.Resource.

@@ -49,7 +49,7 @@ func TestScriptResource_Metadata(t *testing.T) {
 	var r scriptResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_script" {
+	if resp.TypeName != "zstack_instance_scripts" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -89,7 +89,7 @@ func TestAccScriptResource(t *testing.T) {
 			// Step 1: Create
 			{
 				Config: providerConfig() + `
-resource "zstack_script" "test" {
+resource "zstack_instance_scripts" "test" {
   name           = "acc-test-script"
   script_content = "echo hello"
   script_type    = "Shell"
@@ -98,14 +98,14 @@ resource "zstack_script" "test" {
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script")),
+					statecheck.ExpectKnownValue("zstack_instance_scripts.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance_scripts.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script")),
 				},
 			},
 			// Step 2: Update name (encoding_type is RequiresReplace, name is not)
 			{
 				Config: providerConfig() + `
-resource "zstack_script" "test" {
+resource "zstack_instance_scripts" "test" {
   name           = "acc-test-script-updated"
   script_content = "echo hello"
   script_type    = "Shell"
@@ -114,14 +114,14 @@ resource "zstack_script" "test" {
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_script.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script-updated")),
+					statecheck.ExpectKnownValue("zstack_instance_scripts.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-script-updated")),
 				},
 			},
 			// Step 3: Import
 			{
-				ResourceName:                         "zstack_script.test",
+				ResourceName:                         "zstack_instance_scripts.test",
 				ImportState:                          true,
-				ImportStateIdFunc:                    importStateIdFromUUID("zstack_script.test"),
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_instance_scripts.test"),
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

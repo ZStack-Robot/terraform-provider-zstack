@@ -56,7 +56,7 @@ func TestVirtualRouterOfferingResource_Metadata(t *testing.T) {
 	var r virtualRouterOfferingResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_virtual_router_offer" {
+	if resp.TypeName != "zstack_virtual_router_offering" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -85,7 +85,7 @@ func TestAccVirtualRouterOfferingResource_disappears(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
-resource "zstack_virtual_router_offer" "test" {
+resource "zstack_virtual_router_offering" "test" {
 	  name                    = %q
 	  cpu_num                 = 1
 	  memory_size             = 512
@@ -95,7 +95,7 @@ resource "zstack_virtual_router_offer" "test" {
 }
 	`, name, zoneUUID, mgmtNetUUID, imageUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					stateCheckVirtualRouterOfferingDisappears("zstack_virtual_router_offer.test"),
+					stateCheckVirtualRouterOfferingDisappears("zstack_virtual_router_offering.test"),
 				},
 				ExpectNonEmptyPlan: true,
 			},
@@ -128,7 +128,7 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
-resource "zstack_virtual_router_offer" "test" {
+resource "zstack_virtual_router_offering" "test" {
   name                    = %q
   cpu_num                 = 1
   memory_size             = 512
@@ -138,14 +138,14 @@ resource "zstack_virtual_router_offer" "test" {
 }
 `, name, zoneUUID, mgmtNetUUID, imageUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offering.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offering.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{
-				ResourceName:            "zstack_virtual_router_offer.test",
+				ResourceName:            "zstack_virtual_router_offering.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_offer.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_offering.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"management_network_uuid", "zone_uuid", "image_uuid", "public_network_uuid", "is_default"},

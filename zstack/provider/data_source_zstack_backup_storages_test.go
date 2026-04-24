@@ -23,15 +23,15 @@ func TestAccZStackBackupStorageDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig() + `data "zstack_backupstorages" "test" {}`,
+				Config: providerConfig() + `data "zstack_backup_storages" "test" {}`,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages"), knownvalue.ListSizeExact(len(env.BackupStorages))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(bs, "name"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("total_capacity"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("available_capacity"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages"), knownvalue.ListSizeExact(len(env.BackupStorages))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(bs, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("total_capacity"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("available_capacity"), knownvalue.NotNull()),
 				},
 			},
 		},
@@ -50,13 +50,13 @@ func TestAccZStackBackupStorageDataSourceFilterByName(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`data "zstack_backupstorages" "test" { name = %q }`, name),
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_backup_storages" "test" { name = %q }`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages"), knownvalue.ListSizeExact(1)),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
 				},
 			},
 		},
@@ -76,12 +76,12 @@ func TestAccZStackBackupStorageDataSourceFilterByNamePattern(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`data "zstack_backupstorages" "test" { name_pattern = %q }`, pattern),
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_backup_storages" "test" { name_pattern = %q }`, pattern),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
-					statecheck.ExpectKnownValue("data.zstack_backupstorages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(bs, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(bs, "status"))),
+					statecheck.ExpectKnownValue("data.zstack_backup_storages.test", tfjsonpath.New("backup_storages").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(bs, "state"))),
 				},
 			},
 		},

@@ -51,7 +51,7 @@ func TestScriptExecutionResource_Metadata(t *testing.T) {
 	var r scriptExecutionResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_script_execution" {
+	if resp.TypeName != "zstack_instance_scripts_execution" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -120,7 +120,7 @@ resource "zstack_instance" "exec_test_vm" {
   ]
 }
 
-resource "zstack_script" "exec_test" {
+resource "zstack_instance_scripts" "exec_test" {
   name           = "acc-test-script-for-execution"
   script_content = "echo hello"
   script_type    = "Shell"
@@ -129,13 +129,13 @@ resource "zstack_script" "exec_test" {
   script_timeout = 60
 }
 
-resource "zstack_script_execution" "test" {
-  script_uuid   = zstack_script.exec_test.uuid
+resource "zstack_instance_scripts_execution" "test" {
+  script_uuid   = zstack_instance_scripts.exec_test.uuid
   instance_uuid = zstack_instance.exec_test_vm.uuid
 }
 `, imageUUID, offeringUUID, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_script_execution.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance_scripts_execution.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 				},
 			},
 		},

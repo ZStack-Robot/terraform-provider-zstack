@@ -114,12 +114,12 @@ var testAccCheckPortForwardingRuleDestroy = testAccCheckResourceDestroyByGet("zs
 	return err
 })
 
-var testAccCheckInstanceOfferingDestroy = testAccCheckResourceDestroyByGet("zstack_instance_offer", func(cli *client.ZSClient, id string) error {
+var testAccCheckInstanceOfferingDestroy = testAccCheckResourceDestroyByGet("zstack_instance_offering", func(cli *client.ZSClient, id string) error {
 	_, err := cli.GetInstanceOffering(id)
 	return err
 })
 
-var testAccCheckDiskOfferingDestroy = testAccCheckResourceDestroyByGet("zstack_disk_offer", func(cli *client.ZSClient, id string) error {
+var testAccCheckDiskOfferingDestroy = testAccCheckResourceDestroyByGet("zstack_disk_offering", func(cli *client.ZSClient, id string) error {
 	_, err := cli.GetDiskOffering(id)
 	return err
 })
@@ -621,7 +621,7 @@ var testAccCheckPreconfigurationTemplateDestroy = testAccCheckResourceDestroyByQ
 
 // Story-11: Compute & Storage destroy check functions
 
-var testAccCheckScriptDestroy = testAccCheckResourceDestroyByGet("zstack_script", func(cli *client.ZSClient, id string) error {
+var testAccCheckScriptDestroy = testAccCheckResourceDestroyByGet("zstack_instance_scripts", func(cli *client.ZSClient, id string) error {
 	_, err := cli.GetGuestVmScript(id)
 	return err
 })
