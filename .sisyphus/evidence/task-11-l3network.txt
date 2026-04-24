@@ -1,7 +1,0 @@
-=== RUN   TestL3NetworkUpdateGuardsUnknownValues
-=== RUN   TestL3NetworkUpdateGuardsUnknownValues/IpVersion_Unknown_omitted_from_payload
-=== RUN   TestL3NetworkUpdateGuardsUnknownValues/System_Unknown_omitted_from_payload
---- PASS: TestL3NetworkUpdateGuardsUnknownValues (0.00s)
-    --- PASS: TestL3NetworkUpdateGuardsUnknownValues/IpVersion_Unknown_omitted_from_payload (0.00s)
-    --- PASS: TestL3NetworkUpdateGuardsUnknownValues/System_Unknown_omitted_from_payload (0.00s)
-PASS

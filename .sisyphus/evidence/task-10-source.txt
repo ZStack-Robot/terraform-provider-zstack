@@ -1,4 +1,0 @@
-IsNull+IsUnknown check at line 159
-ValueInt64 call at line 160
-
-✓ CORRECT: IsNull/IsUnknown guard (line 159) appears BEFORE ValueInt64 (line 160)

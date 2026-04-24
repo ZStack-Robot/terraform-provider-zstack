@@ -1,4 +1,0 @@
-=== RUN   TestTagAttachmentDeletePassesResourceUuids
---- PASS: TestTagAttachmentDeletePassesResourceUuids (0.00s)
-PASS
-ok  	terraform-provider-zstack/zstack/provider	(cached)
