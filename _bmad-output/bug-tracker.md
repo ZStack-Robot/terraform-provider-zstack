@@ -61,12 +61,12 @@
 | BUG-055 | P1 | ✅ Fixed (2026-04-24) | 加 IsUnknown guard：virtual_router_offering.description/is_default + vpc_shared_qos.description/bandwidth |
 | BUG-056 | P0 | 🔲 Open | **系统性**：SDK `PutWithRespKey` 返回空 struct (instance/vm_cdrom/l3network Update) |
 | BUG-057 | P0 | ✅ Fixed (2026-04-24) | `l2vxlan_network.vni` 加 `int64planmodifier.RequiresReplace` |
-| BUG-058 | P0 | 🔲 Open | `l3network` Create: `ipVersion=0` 被 API 拒绝 (Int64 零值) |
-| BUG-059 | P0 | 🔲 Open | `l3network` Delete: URL 缺 UUID 参数 |
-| BUG-060 | P1 | 🔲 Open | `instance` Create: `stringPtr("")` 传空字符串导致 API 校验失败 |
+| BUG-058 | P0 | ✅ Fixed (已在代码中) | `l3network` Create ipVersion 已有 IsUnknown guard (line 185-187)，核对后确认修过 |
+| BUG-059 | P0 | 🔲 Open | `l3network` Delete: URL 缺 UUID 参数（SDK 侧问题，非 provider） |
+| BUG-060 | P1 | ✅ Fixed (2026-04-24) | `instance` Create Description 改用 `stringPtrOrNil` |
 | BUG-061 | P1 | 🔲 Open | `global_config` Read 后 state 全空（SDK PutWithSpec responseKey 缺失）|
-| BUG-062 | P2 | 🔲 Open | `instance_scripts` Create/Read: description/timeout/encoding_type 三处缺陷 |
-| BUG-063 | P2 | 🔲 Open | `subnet_ip_range` Read 后 `ip_range_type` 丢失（Schema↔Read 字段错位）|
+| BUG-062 | P2 | ✅ Fixed (2026-04-24) | 子缺陷 a/b 核实已修；c (encoding_type Read 映射) 新修 |
+| BUG-063 | P2 | ✅ Fixed (2026-04-24) | `subnet_ip_range` Read 加上 `IpRangeType` 字段映射 |
 
 ---
 

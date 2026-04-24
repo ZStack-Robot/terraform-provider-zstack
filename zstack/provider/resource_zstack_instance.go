@@ -739,7 +739,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 			ZoneUuid:                        stringPtrOrNil(zoneUuid),
 			ClusterUuid:                     stringPtrOrNil(clusterUuid),
 			HostUuid:                        stringPtrOrNil(hostUuid),
-			Description:                     stringPtr(plan.Description.ValueString()),
+			Description:                     stringPtrOrNil(plan.Description.ValueString()),
 			DefaultL3NetworkUuid:            stringPtr(defaultL3Uuid),
 			TagUuids:                        nil,
 			Strategy:                        stringPtr(plan.Strategy.ValueString()),
