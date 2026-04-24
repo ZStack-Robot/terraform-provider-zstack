@@ -63,7 +63,7 @@ func (d *sdnControllerDataSource) Configure(_ context.Context, req datasource.Co
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *sdnControllerDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_networking_sdn_controllers"
+	resp.TypeName = req.ProviderTypeName + "_sdn_controllers"
 }
 
 // Read implements datasource.DataSourceWithConfigure.

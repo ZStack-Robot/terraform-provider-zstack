@@ -64,7 +64,7 @@ func (r *scriptExecutionResource) Configure(ctx context.Context, request resourc
 }
 
 func (r *scriptExecutionResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = request.ProviderTypeName + "_script_execution"
+	response.TypeName = request.ProviderTypeName + "_instance_scripts_execution"
 }
 
 func (r *scriptExecutionResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {

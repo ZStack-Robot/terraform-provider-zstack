@@ -127,7 +127,7 @@ func (r *diskOfferingResource) Delete(ctx context.Context, req resource.DeleteRe
 
 // Metadata implements resource.Resource.
 func (r *diskOfferingResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_disk_offer"
+	resp.TypeName = req.ProviderTypeName + "_disk_offering"
 }
 
 // Read implements resource.Resource.

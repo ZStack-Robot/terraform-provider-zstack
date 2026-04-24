@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_tags Data Source - terraform-provider-zstack"
-subcategory: "Configuration"
+subcategory: ""
 description: |-
     Data source to retrieve User, System, or regular Tags from the ZStack environment based on name, pattern, or filters.
 ---

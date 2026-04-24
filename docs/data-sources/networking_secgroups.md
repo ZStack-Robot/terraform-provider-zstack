@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_networking_secgroups Data Source - terraform-provider-zstack"
-subcategory: "Networking"
+subcategory: ""
 description: |-
     Query ZStack Security Groups by name, name pattern, or additional filters.
 ---

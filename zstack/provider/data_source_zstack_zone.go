@@ -61,7 +61,7 @@ func (d *zoneDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 }
 
 func (d *zoneDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_zones"
+	resp.TypeName = req.ProviderTypeName + "_zone"
 }
 
 func (d *zoneDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {

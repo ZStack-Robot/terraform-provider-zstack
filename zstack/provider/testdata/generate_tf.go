@@ -355,12 +355,12 @@ func dataSourceGenerators() []generator {
 					return "", false, "vm_instances empty"
 				}
 				vmUUID := getStr(env.VmInstances[0], "uuid")
-				return fmt.Sprintf(`data "zstack_guest_tools" "test" {
+				return fmt.Sprintf(`data "zstack_instance_guest_tools" "test" {
   instance_uuid = %q
 }
 
 output "result" {
-  value = data.zstack_guest_tools.test
+  value = data.zstack_instance_guest_tools.test
 }
 `, vmUUID), true, ""
 			},
@@ -391,14 +391,14 @@ func selfContainedResourceGenerators() []generator {
 		{
 			name: "res-disk_offer",
 			fn: func(env *EnvData) (string, bool, string) {
-				return `resource "zstack_disk_offer" "test" {
+				return `resource "zstack_disk_offering" "test" {
   name        = "tf-batch-test-disk-offer"
   disk_size   = 10
   description = "[batch-test] disk offering"
 }
 
 output "uuid" {
-  value = zstack_disk_offer.test.uuid
+  value = zstack_disk_offering.test.uuid
 }
 `, true, ""
 			},
@@ -406,7 +406,7 @@ output "uuid" {
 		{
 			name: "res-instance_offer",
 			fn: func(env *EnvData) (string, bool, string) {
-				return `resource "zstack_instance_offer" "test" {
+				return `resource "zstack_instance_offering" "test" {
   name        = "tf-batch-test-instance-offer"
   cpu_num     = 1
   memory_size = 1024
@@ -414,7 +414,7 @@ output "uuid" {
 }
 
 output "uuid" {
-  value = zstack_instance_offer.test.uuid
+  value = zstack_instance_offering.test.uuid
 }
 `, true, ""
 			},
@@ -439,7 +439,7 @@ output "uuid" {
 		{
 			name: "res-script",
 			fn: func(env *EnvData) (string, bool, string) {
-				return `resource "zstack_script" "test" {
+				return `resource "zstack_instance_scripts" "test" {
   name           = "tf-batch-test-script"
   script_content = "#!/bin/bash\necho hello"
   encoding_type  = "PlainText"
@@ -450,7 +450,7 @@ output "uuid" {
 }
 
 output "uuid" {
-  value = zstack_script.test.uuid
+  value = zstack_instance_scripts.test.uuid
 }
 `, true, ""
 			},
@@ -813,7 +813,7 @@ output "uuid" {
 				pubUUID := getStr(vro, "public_network_uuid")
 				imgUUID := getStr(vro, "image_uuid")
 
-				return fmt.Sprintf(`resource "zstack_virtual_router_offer" "test" {
+				return fmt.Sprintf(`resource "zstack_virtual_router_offering" "test" {
   name                    = "tf-batch-test-vr-offering"
   description             = "[batch-test] virtual router offering"
   cpu_num                 = 2
@@ -825,7 +825,7 @@ output "uuid" {
 }
 
 output "uuid" {
-  value = zstack_virtual_router_offer.test.uuid
+  value = zstack_virtual_router_offering.test.uuid
 }
 `, zoneUUID, mgmtUUID, pubUUID, imgUUID), true, ""
 			},

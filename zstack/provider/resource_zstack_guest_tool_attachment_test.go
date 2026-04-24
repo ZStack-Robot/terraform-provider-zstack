@@ -50,7 +50,7 @@ func TestGuestToolsResource_Metadata(t *testing.T) {
 	var r guestToolsResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_guest_tools_attachment" {
+	if resp.TypeName != "zstack_guest_tool_attachment" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -112,12 +112,12 @@ resource "zstack_instance" "gt_test_vm" {
   ]
 }
 
-resource "zstack_guest_tools_attachment" "test" {
+resource "zstack_guest_tool_attachment" "test" {
   instance_uuid = zstack_instance.gt_test_vm.uuid
 }
 `, imageUUID, offeringUUID, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_guest_tools_attachment.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_guest_tool_attachment.test", tfjsonpath.New("id"), knownvalue.NotNull()),
 				},
 			},
 		},

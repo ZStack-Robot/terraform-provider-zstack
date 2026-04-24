@@ -49,7 +49,7 @@ func TestInstanceOfferingResource_Metadata(t *testing.T) {
 	var r instanceOfferingResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_instance_offer" {
+	if resp.TypeName != "zstack_instance_offering" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -63,14 +63,14 @@ func TestAccInstanceOfferingResource_disappears(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
-resource "zstack_instance_offer" "test" {
+resource "zstack_instance_offering" "test" {
   name        = "acc-test-instance-offer"
   cpu_num     = 1
   memory_size = 1073741824
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					stateCheckInstanceOfferingDisappears("zstack_instance_offer.test"),
+					stateCheckInstanceOfferingDisappears("zstack_instance_offering.test"),
 				},
 				ExpectNonEmptyPlan: true,
 			},
@@ -88,23 +88,23 @@ func TestAccInstanceOfferingResource(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
-resource "zstack_instance_offer" "test" {
+resource "zstack_instance_offering" "test" {
   name        = "acc-test-instance-offer"
   cpu_num     = 1
   memory_size = 1073741824
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_instance_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_instance_offer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-instance-offer")),
-					statecheck.ExpectKnownValue("zstack_instance_offer.test", tfjsonpath.New("cpu_num"), knownvalue.Int64Exact(1)),
-					statecheck.ExpectKnownValue("zstack_instance_offer.test", tfjsonpath.New("memory_size"), knownvalue.Int64Exact(1073741824)),
+					statecheck.ExpectKnownValue("zstack_instance_offering.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance_offering.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-instance-offer")),
+					statecheck.ExpectKnownValue("zstack_instance_offering.test", tfjsonpath.New("cpu_num"), knownvalue.Int64Exact(1)),
+					statecheck.ExpectKnownValue("zstack_instance_offering.test", tfjsonpath.New("memory_size"), knownvalue.Int64Exact(1073741824)),
 				},
 			},
 			{
-				ResourceName:                         "zstack_instance_offer.test",
+				ResourceName:                         "zstack_instance_offering.test",
 				ImportState:                          true,
-				ImportStateIdFunc:                    importStateIdFromUUID("zstack_instance_offer.test"),
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_instance_offering.test"),
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

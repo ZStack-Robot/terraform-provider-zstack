@@ -25,13 +25,13 @@ func TestAccZStackZonesDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig() + `data "zstack_zones" "test" {}`,
+				Config: providerConfig() + `data "zstack_zone" "test" {}`,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones"), knownvalue.ListSizeExact(len(env.Zones))),
-					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(z, "name"))),
-					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(z, "uuid"))),
-					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(z, "type"))),
-					statecheck.ExpectKnownValue("data.zstack_zones.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(z, "state"))),
+					statecheck.ExpectKnownValue("data.zstack_zone.test", tfjsonpath.New("zones"), knownvalue.ListSizeExact(len(env.Zones))),
+					statecheck.ExpectKnownValue("data.zstack_zone.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(envStr(z, "name"))),
+					statecheck.ExpectKnownValue("data.zstack_zone.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(z, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_zone.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(z, "type"))),
+					statecheck.ExpectKnownValue("data.zstack_zone.test", tfjsonpath.New("zones").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(z, "state"))),
 				},
 			},
 		},

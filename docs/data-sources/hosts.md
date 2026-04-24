@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_hosts Data Source - terraform-provider-zstack"
-subcategory: "Infrastructure"
+subcategory: ""
 description: |-
     Fetches a list of hosts and their associated attributes from the ZStack environment.
 ---

@@ -24,9 +24,9 @@ func TestAccZStackInstanceGuestToolsDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig() + fmt.Sprintf(`data "zstack_guest_tools" "test" { instance_uuid = %q }`, vmUUID),
+				Config: providerConfig() + fmt.Sprintf(`data "zstack_instance_guest_tools" "test" { instance_uuid = %q }`, vmUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_guest_tools.test", tfjsonpath.New("status"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("data.zstack_instance_guest_tools.test", tfjsonpath.New("status"), knownvalue.NotNull()),
 				},
 			},
 		},

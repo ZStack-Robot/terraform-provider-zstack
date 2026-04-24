@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_image Resource - terraform-provider-zstack"
-subcategory: "Image"
+subcategory: ""
 description: |-
     This resource allows you to manage images in ZStack. An image represents a virtual machine image format qcow2, raw, vmdk or an ISO file that can be used to create or boot virtual machines. You can define the image's properties, such as its URL, format, architecture, and backup storage locations.
 ---
@@ -14,7 +14,7 @@ This resource allows you to manage images in ZStack. An image represents a virtu
 ```terraform
 # Copyright (c) ZStack.io, Inc.
 
-data "zstack_backupstorages" "example" {
+data "zstack_backup_storages" "example" {
   name = "name of image Storage"
 }
 
@@ -30,7 +30,7 @@ resource "zstack_image" "image" {
   format               = "qcow2"
   architecture         = "x86_64"
   virtio               = false
-  backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
+  backup_storage_uuids = [data.zstack_backup_storages.example.backup_storages.0.uuid]
   boot_mode            = "legacy"
   expunge              = true
 }

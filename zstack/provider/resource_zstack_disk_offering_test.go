@@ -49,7 +49,7 @@ func TestDiskOfferingResource_Metadata(t *testing.T) {
 	var r diskOfferingResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_disk_offer" {
+	if resp.TypeName != "zstack_disk_offering" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
 }
@@ -63,13 +63,13 @@ func TestAccDiskOfferingResource_disappears(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
-resource "zstack_disk_offer" "test" {
+resource "zstack_disk_offering" "test" {
   name      = "acc-test-disk-offer"
   disk_size = 10
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					stateCheckDiskOfferingDisappears("zstack_disk_offer.test"),
+					stateCheckDiskOfferingDisappears("zstack_disk_offering.test"),
 				},
 				ExpectNonEmptyPlan: true,
 			},
@@ -87,21 +87,21 @@ func TestAccDiskOfferingResource(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + `
-resource "zstack_disk_offer" "test" {
+resource "zstack_disk_offering" "test" {
   name      = "acc-test-disk-offer"
   disk_size = 10
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_disk_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_disk_offer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-disk-offer")),
-					statecheck.ExpectKnownValue("zstack_disk_offer.test", tfjsonpath.New("disk_size"), knownvalue.Int64Exact(10)),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-disk-offer")),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("disk_size"), knownvalue.Int64Exact(10)),
 				},
 			},
 			{
-				ResourceName:                         "zstack_disk_offer.test",
+				ResourceName:                         "zstack_disk_offering.test",
 				ImportState:                          true,
-				ImportStateIdFunc:                    importStateIdFromUUID("zstack_disk_offer.test"),
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_disk_offering.test"),
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

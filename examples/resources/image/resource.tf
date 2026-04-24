@@ -1,6 +1,6 @@
 # Copyright (c) ZStack.io, Inc.
 
-data "zstack_backupstorages" "example" {
+data "zstack_backup_storages" "example" {
   name = "name of image Storage"
 }
 
@@ -16,7 +16,7 @@ resource "zstack_image" "image" {
   format               = "qcow2"
   architecture         = "x86_64"
   virtio               = false
-  backup_storage_uuids = [data.zstack_backupstorages.example.backup_storages.0.uuid]
+  backup_storage_uuids = [data.zstack_backup_storages.example.backup_storages.0.uuid]
   boot_mode            = "legacy"
   expunge              = true
 }

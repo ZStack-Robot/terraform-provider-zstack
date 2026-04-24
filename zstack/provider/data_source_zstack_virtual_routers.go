@@ -84,7 +84,7 @@ func (d *vrouterDataSource) Configure(_ context.Context, req datasource.Configur
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *vrouterDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_virtual_router_instances"
+	resp.TypeName = req.ProviderTypeName + "_virtual_routers"
 }
 
 // Read implements datasource.DataSourceWithConfigure.

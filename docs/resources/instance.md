@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instance Resource - terraform-provider-zstack"
-subcategory: "Compute"
+subcategory: ""
 description: |-
     This resource allows you to manage virtual machine (VM) instances in ZStack. A VM instance represents a virtualized compute resource that can be created, updated, and deleted. You can define the VM's properties, such as its name, image, network configuration, disks, and GPU devices.
 ---
@@ -20,7 +20,7 @@ data "zstack_l3networks" "l3networks" {
   name = "public-net"
 }
 
-data "zstack_instance_offers" "offer" {
+data "zstack_instance_offerings" "offer" {
   name = "min"
 }
 
@@ -29,7 +29,7 @@ resource "zstack_instance" "example_vm" {
   image_uuid = data.zstack_images.centos.images[0].uuid
   # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
   description = "jumper server"
-  #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  #  instance_offering_uuid = data.zstack_instance_offerings.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
   network_interfaces = [
     {
       l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid

@@ -54,7 +54,7 @@ func (r *guestToolsResource) Configure(ctx context.Context, request resource.Con
 }
 
 func (r *guestToolsResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = request.ProviderTypeName + "_guest_tools_attachment"
+	response.TypeName = request.ProviderTypeName + "_guest_tool_attachment"
 }
 
 func (r *guestToolsResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {

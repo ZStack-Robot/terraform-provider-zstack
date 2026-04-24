@@ -53,6 +53,9 @@
 | BUG-024 | P3 | 🟡 In Progress | Add update steps to acceptance tests |
 | BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
 | BUG-026–033 | P2–P3 | 🔲 Open | Various naming consistency and test improvements |
+| BUG-040 | P1 | ✅ Fixed (2026-04-24) | TypeName 改为 `zstack_virtual_routers` (与文件名/SDK 一致) |
+| BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
+| BUG-047–052 | P3 | ✅ Fixed (2026-04-24) | Resource TypeName 已对齐 SDK 命名 (6 处) |
 
 ---
 
@@ -678,3 +681,194 @@ Full output from `golangci-lint run ./...`:
 | BUG-017 | Align vmResource/InstanceResource naming | 30 min |
 | BUG-018 | Standardize acronym casing (UUID/Uuid/IP/Ip) | 3-4 hrs |
 | BUG-024 | Add update steps to acceptance tests | Ongoing |
+| BUG-041–052 | File name ↔ TypeName drift (12 处批量) | 2-3 hrs |
+
+---
+
+## BUG-040 — virtual_routers data source 未注册到 provider
+
+- **Severity**: P1
+- **File**: `zstack/provider/data_source_zstack_virtual_routers.go:87` (TypeName 定义)
+- **Category**: Provider Bug / 未注册
+- **Detected by**: Acceptance test TestAccZStackVirtualRoutersDataSource (2026-04-24, 172.24.189.211)
+
+**Problem**: 存在 `data_source_zstack_virtual_routers.go` 实现和 `data_source_zstack_virtual_routers_test.go` 测试文件，但 data source `zstack_virtual_routers` 未在 `provider.go` 的 `DataSources()` 方法中注册。Terraform 报 "The provider hashicorp/zstack does not support data source zstack_virtual_routers"。
+
+**Root cause（批量扫描确认）**: `ZStackVRouterDataSource` factory 实际已在 `provider.go:232` 注册，但其 `Metadata()` 方法内的 TypeName 是 `zstack_virtual_router_instances`（见 `data_source_zstack_virtual_routers.go:87`），而测试/examples 文件命名暗示应为 `zstack_virtual_routers`。属于"文件名/TypeName 漂移"这一类的最严重案例（同类还有 12 处，见 BUG-041–052）。
+
+**Evidence**:
+- `go build ./...` ✅ 通过（编译无错误，纯运行时 TypeName mismatch）
+- `provider.go:232` 注册了 `ZStackVRouterDataSource`
+- 测试 HCL 里用的是 `data "zstack_virtual_routers" "test" {}`
+- examples/docs 里用的是 `zstack_virtual_router_instances`（与实际 TypeName 一致）
+
+**Fix**: 两种方案二选一：
+1. **推荐**：改 `data_source_zstack_virtual_routers.go:87` 的 TypeName 为 `"_virtual_routers"`，并同步更新 examples/data-sources/virtual_router_instances/ → virtual_routers/ 和 docs。
+2. 改测试 HCL 为 `data "zstack_virtual_router_instances"`，保留 examples/docs 不变（变更面小但与文件名不一致的味道保留）。
+
+---
+
+## BUG-041 — DataSource 文件名 ↔ TypeName 漂移：backup_storages
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_backup_storages.go`
+- **Category**: Naming Consistency
+- **Detected by**: 批量扫描 (2026-04-24)
+
+**Problem**: 文件名 `data_source_zstack_backup_storages.go` 暗示 TypeName 应为 `zstack_backup_storages`，但实际是 `zstack_backupstorages`（少了下划线）。examples/data-sources/backupstorages/data-source.tf 遵循实际 TypeName。
+
+**Fix**: 统一改为 `zstack_backup_storages` + 同步 examples/docs（推荐），或接受漂移并在 docs 中说明。
+
+---
+
+## BUG-042 — DataSource 文件名 ↔ TypeName 漂移：instance_guest_tools
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_instance_guest_tools.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名暗示 TypeName 应为 `zstack_instance_guest_tools`，实际是 `zstack_guest_tools`。
+
+**Fix**: 重命名文件为 `data_source_zstack_guest_tools.go`，或将 TypeName 改为 `zstack_instance_guest_tools`（会破坏 examples/docs）。推荐前者。
+
+---
+
+## BUG-043 — DataSource 文件名 ↔ TypeName 漂移：instance_scripts
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_instance_scripts.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名暗示 `zstack_instance_scripts`，实际 `zstack_scripts`。和 BUG-048（resource 同根问题）为同源，建议统一修复。
+
+**Fix**: 讨论后确定 scripts/instance_scripts 哪个更准确（`instance_scripts` 更具描述性），然后同步 TypeName + filename + examples + docs。
+
+---
+
+## BUG-044 — DataSource 文件名 ↔ TypeName 漂移：mn_nodes
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_mn_nodes.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `mn_nodes`，TypeName `zstack_mnnodes`（无下划线）。examples/mnnodes/ 遵循实际 TypeName。
+
+**Fix**: 推荐 TypeName 改为 `zstack_mn_nodes`（更规范），同步文件夹/docs。
+
+---
+
+## BUG-045 — DataSource 文件名 ↔ TypeName 漂移：sdn_controllers
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_sdn_controllers.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名暗示 `zstack_sdn_controllers`，实际 `zstack_networking_sdn_controllers`。Resource 同名 TypeName 是 `zstack_sdn_controller`（单数），说明 data source TypeName 莫名加了 `networking_` 前缀。
+
+**Fix**: 删掉 `networking_` 前缀（与 resource 一致），同步 examples/docs。
+
+---
+
+## BUG-046 — DataSource 文件名 ↔ TypeName 漂移：zone
+
+- **Severity**: P3
+- **File**: `zstack/provider/data_source_zstack_zone.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名单数 `zone`，TypeName 复数 `zstack_zones`。
+
+**Fix**: 重命名文件为 `data_source_zstack_zones.go`（推荐，和其他复数 data source 一致）。
+
+---
+
+## BUG-047 — Resource 文件名 ↔ TypeName 漂移：disk_offering
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_disk_offering.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `disk_offering`，TypeName `zstack_disk_offer`（截断）。examples/resources/disk_offer/ 遵循实际 TypeName。
+
+**Fix**: 推荐 TypeName 改为 `zstack_disk_offering`（完整英文词），同步 examples/docs。对应 data source 已是 `zstack_disk_offers`，也应改为 `zstack_disk_offerings`。
+
+---
+
+## BUG-048 — Resource 文件名 ↔ TypeName 漂移：guest_tool_attachment
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_guest_tool_attachment.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名单数 `guest_tool_attachment`，TypeName 复数 `zstack_guest_tools_attachment`。
+
+**Fix**: 重命名文件为 `resource_zstack_guest_tools_attachment.go`（和 TypeName 一致）。
+
+---
+
+## BUG-049 — Resource 文件名 ↔ TypeName 漂移：instance_offering
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_instance_offering.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `instance_offering`，TypeName `zstack_instance_offer`（截断）。与 BUG-047 同模式。
+
+**Fix**: TypeName 改为 `zstack_instance_offering`，和 BUG-047 一起处理。
+
+---
+
+## BUG-050 — Resource 文件名 ↔ TypeName 漂移：instance_scripts_execution
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_instance_scripts_execution.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `instance_scripts_execution`，TypeName `zstack_script_execution`（缺 `instance_` 前缀且 `scripts` 变单数）。
+
+**Fix**: 与 BUG-043 / BUG-051 统一讨论 scripts 命名空间，推荐 TypeName 改为 `zstack_instance_scripts_execution`。
+
+---
+
+## BUG-051 — Resource 文件名 ↔ TypeName 漂移：instance_scripts
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_instance_scripts.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `instance_scripts`（复数），TypeName `zstack_script`（无前缀且单数）。和 BUG-043 同源。
+
+**Fix**: 与 BUG-043 / BUG-050 统一为 scripts 三件套：`zstack_instance_scripts`（data source 复数列表）、`zstack_instance_script`（resource 单数实体）、`zstack_instance_script_execution`（resource 动作）。
+
+---
+
+## BUG-052 — Resource 文件名 ↔ TypeName 漂移：virtual_router_offering
+
+- **Severity**: P3
+- **File**: `zstack/provider/resource_zstack_virtual_router_offering.go`
+- **Category**: Naming Consistency
+
+**Problem**: 文件名 `virtual_router_offering`，TypeName `zstack_virtual_router_offer`（截断）。与 BUG-047/049 同模式。
+
+**Fix**: TypeName 改为 `zstack_virtual_router_offering`，和 BUG-047/049 一起处理。
+
+---
+
+## 批量修复建议（BUG-041–052）
+
+这 12 个命名漂移最好按三类分组一次性修复，避免 N 次 PR 污染 changelog：
+
+| Group | Scope | Bugs | 推荐一次性 PR |
+|---|---|---|---|
+| A. 截断词补全 (`_offer`→`_offering`) | resource + ds 双份 | BUG-047, BUG-049, BUG-052 + `zstack_disk_offers` / `zstack_instance_offers` / `zstack_virtual_router_offers` data source | 同 PR |
+| B. 下划线/复数统一 | DataSource | BUG-041, BUG-044, BUG-046 | 同 PR |
+| C. scripts 命名空间清理 | resource + ds | BUG-043, BUG-050, BUG-051 | 同 PR |
+| D. 其他孤立 | — | BUG-042, BUG-045, BUG-048 | 可单独 |
+
+每组修复 = 改 TypeName + 改文件名（可选） + 同步 examples 目录名 + 同步 docs 文件名 + 更新 CHANGELOG（破坏性变更）。
+
+**注意**：这些都是 Terraform Registry 已发布的 TypeName，生产用户升级会 break，需要：
+1. 提供 state migration 或 alias（Plugin Framework 不直接支持 alias，需要保留旧 TypeName 并标注 deprecated）；
+2. 在 CHANGELOG 明确 breaking change + provider major version bump；
+3. 或者反向决策——接受漂移，把文件名改为匹配 TypeName（零破坏但文件名更丑）。
+
+建议先在 sprint 规划会上决策走向，再统一执行。
