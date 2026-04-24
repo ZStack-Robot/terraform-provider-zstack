@@ -217,6 +217,8 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 		Netmask:       types.StringValue(subnet.Netmask),
 		Gateway:       types.StringValue(subnet.Gateway),
 		L3NetworkUuid: types.StringValue(subnet.L3NetworkUuid),
+		// BUG-063: map ip_range_type back to state (previously missing → drift on 2nd plan)
+		IpRangeType: types.StringValue(subnet.IpRangeType),
 	}
 
 	diags = response.State.Set(ctx, &state)

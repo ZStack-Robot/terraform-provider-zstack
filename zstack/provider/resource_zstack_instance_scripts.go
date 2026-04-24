@@ -280,6 +280,8 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 	state.Platform = types.StringValue(scripts.Platform)
 	state.ScriptType = types.StringValue(scripts.ScriptType)
 	state.ScriptTimeout = types.Int64Value(int64(scripts.ScriptTimeout))
+	// BUG-062c: map encoding_type back to state (Create maps it but Read previously did not → drift)
+	state.EncodingType = types.StringValue(scripts.EncodingType)
 
 	diags = response.State.Set(ctx, state)
 	response.Diagnostics.Append(diags...)
