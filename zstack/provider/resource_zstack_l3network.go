@@ -316,11 +316,21 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 		},
 	}
 
-	result, err := r.client.UpdateL3Network(state.Uuid.ValueString(), p)
-	if err != nil {
+	if _, err := r.client.UpdateL3Network(state.Uuid.ValueString(), p); err != nil {
 		response.Diagnostics.AddError(
 			"Error updating L3 Network",
 			"Could not update L3 network, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// BUG-056 workaround: SDK PutWithRespKey passes empty responseKey, so the returned
+	// struct is empty. Re-query by UUID to populate state correctly.
+	result, err := findResourceByQuery(r.client.QueryL3Network, state.Uuid.ValueString())
+	if err != nil {
+		response.Diagnostics.AddError(
+			"Error re-reading L3 Network after update",
+			"Could not re-query L3 network, unexpected error: "+err.Error(),
 		)
 		return
 	}

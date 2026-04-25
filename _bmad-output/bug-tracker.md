@@ -57,14 +57,14 @@
 | BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
 | BUG-047–052 | P3 | ✅ Fixed (2026-04-24) | Resource TypeName 已对齐 SDK 命名 (6 处) |
 | BUG-053 | P0 | ✅ Fixed (2026-04-24) | `iam2_project` Delete 增加 `ExpungeIAM2Project` 调用 |
-| BUG-054 | P0 | 🔲 Open | `policy` Create 硬编码 `Statements: []`，策略功能不可用 |
+| BUG-054 | P0 | ✅ Fixed (2026-04-25) | `policy` 加 `statements` 嵌套 Schema (effect/actions/resources/principals/name)，Create 真发送，Read 真映射；RequiresReplace 因 ZStack policy immutable |
 | BUG-055 | P1 | ✅ Fixed (2026-04-24) | 加 IsUnknown guard：virtual_router_offering.description/is_default + vpc_shared_qos.description/bandwidth |
-| BUG-056 | P0 | 🔲 Open | **系统性**：SDK `PutWithRespKey` 返回空 struct (instance/vm_cdrom/l3network Update) |
+| BUG-056 | P0 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround: vm_cdrom/l3network/global_config Update 后用 findResourceByQuery；instance Update 已有该模式 |
 | BUG-057 | P0 | ✅ Fixed (2026-04-24) | `l2vxlan_network.vni` 加 `int64planmodifier.RequiresReplace` |
 | BUG-058 | P0 | ✅ Fixed (已在代码中) | `l3network` Create ipVersion 已有 IsUnknown guard (line 185-187)，核对后确认修过 |
 | BUG-059 | P0 | 🔲 Open | `l3network` Delete: URL 缺 UUID 参数（SDK 侧问题，非 provider） |
 | BUG-060 | P1 | ✅ Fixed (2026-04-24) | `instance` Create Description 改用 `stringPtrOrNil` |
-| BUG-061 | P1 | 🔲 Open | `global_config` Read 后 state 全空（SDK PutWithSpec responseKey 缺失）|
+| BUG-061 | P1 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround：global_config Create+Update 后用 QueryGlobalConfig 重读 |
 | BUG-062 | P2 | ✅ Fixed (2026-04-24) | 子缺陷 a/b 核实已修；c (encoding_type Read 映射) 新修 |
 | BUG-063 | P2 | ✅ Fixed (2026-04-24) | `subnet_ip_range` Read 加上 `IpRangeType` 字段映射 |
 

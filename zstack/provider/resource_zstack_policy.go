@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -31,10 +34,19 @@ type policyResource struct {
 }
 
 type policyResourceModel struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	AccountUuid types.String `tfsdk:"account_uuid"`
+	Uuid        types.String          `tfsdk:"uuid"`
+	Name        types.String          `tfsdk:"name"`
+	Description types.String          `tfsdk:"description"`
+	AccountUuid types.String          `tfsdk:"account_uuid"`
+	Statements  []policyStatementModel `tfsdk:"statements"`
+}
+
+type policyStatementModel struct {
+	Name       types.String `tfsdk:"name"`
+	Effect     types.String `tfsdk:"effect"`
+	Principals types.List   `tfsdk:"principals"`
+	Actions    types.List   `tfsdk:"actions"`
+	Resources  types.List   `tfsdk:"resources"`
 }
 
 func PolicyResource() resource.Resource {
@@ -99,6 +111,49 @@ func (r *policyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"statements": schema.ListNestedAttribute{
+				Required:    true,
+				Description: "Policy statements defining Allow/Deny rules. Each statement specifies effect, actions, and resources. ZStack Policy is immutable — changes here force resource replacement.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.List{
+					listvalidator.SizeAtLeast(1),
+				},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Optional:    true,
+							Description: "Optional human-readable name for the statement.",
+						},
+						"effect": schema.StringAttribute{
+							Required:    true,
+							Description: "Effect of the statement. One of: Allow, Deny.",
+							Validators: []validator.String{
+								stringvalidator.OneOf("Allow", "Deny"),
+							},
+						},
+						"principals": schema.ListAttribute{
+							Optional:    true,
+							ElementType: types.StringType,
+							Description: "Principals this statement applies to (optional).",
+						},
+						"actions": schema.ListAttribute{
+							Required:    true,
+							ElementType: types.StringType,
+							Description: "API actions this statement covers, e.g. [\"vm:Start\", \"vm:Stop\"].",
+							Validators: []validator.List{
+								listvalidator.SizeAtLeast(1),
+							},
+						},
+						"resources": schema.ListAttribute{
+							Optional:    true,
+							ElementType: types.StringType,
+							Description: "Resource UUIDs or patterns this statement applies to (optional).",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -111,14 +166,19 @@ func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	// Note: Statements are required by the API but we're skipping them for now
-	// as per the requirement to manage basic CRUD only
+	// BUG-054: build real statements from plan instead of sending empty array.
+	statements, sdiags := buildPolicyStatementParams(ctx, plan.Statements)
+	resp.Diagnostics.Append(sdiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	createParam := param.CreatePolicyParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreatePolicyParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: stringPtrOrNil(plan.Description.ValueString()),
-			Statements:  []param.PolicyStatementParam{},
+			Statements:  statements,
 		},
 	}
 
@@ -140,6 +200,52 @@ func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
+}
+
+// buildPolicyStatementParams converts the Terraform plan's statements list into
+// the SDK's PolicyStatementParam slice. Returns diagnostics for any decode errors.
+func buildPolicyStatementParams(ctx context.Context, in []policyStatementModel) ([]param.PolicyStatementParam, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	out := make([]param.PolicyStatementParam, 0, len(in))
+	for i, s := range in {
+		stmt := param.PolicyStatementParam{
+			Name:   s.Name.ValueString(),
+			Effect: s.Effect.ValueString(),
+		}
+		if !s.Principals.IsNull() && !s.Principals.IsUnknown() {
+			var principals []string
+			d := s.Principals.ElementsAs(ctx, &principals, false)
+			diags.Append(d...)
+			if d.HasError() {
+				diags.AddError(
+					fmt.Sprintf("Invalid statements[%d].principals", i),
+					"Failed to decode principals list",
+				)
+				return nil, diags
+			}
+			stmt.Principals = principals
+		}
+		if !s.Actions.IsNull() && !s.Actions.IsUnknown() {
+			var actions []string
+			d := s.Actions.ElementsAs(ctx, &actions, false)
+			diags.Append(d...)
+			if d.HasError() {
+				return nil, diags
+			}
+			stmt.Actions = actions
+		}
+		if !s.Resources.IsNull() && !s.Resources.IsUnknown() {
+			var resources []string
+			d := s.Resources.ElementsAs(ctx, &resources, false)
+			diags.Append(d...)
+			if d.HasError() {
+				return nil, diags
+			}
+			stmt.Resources = resources
+		}
+		out = append(out, stmt)
+	}
+	return out, diags
 }
 
 func (r *policyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -165,6 +271,28 @@ func (r *policyResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	state.Name = types.StringValue(policy.Name)
 	state.AccountUuid = types.StringValue(policy.AccountUuid)
+
+	// BUG-054: map statements from API view back to state.
+	stmts := make([]policyStatementModel, 0, len(policy.Statements))
+	for _, s := range policy.Statements {
+		principals, pdiags := types.ListValueFrom(ctx, types.StringType, s.Principals)
+		resp.Diagnostics.Append(pdiags...)
+		actions, adiags := types.ListValueFrom(ctx, types.StringType, s.Actions)
+		resp.Diagnostics.Append(adiags...)
+		resources, rdiags := types.ListValueFrom(ctx, types.StringType, s.Resources)
+		resp.Diagnostics.Append(rdiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		stmts = append(stmts, policyStatementModel{
+			Name:       stringValueOrNull(s.Name),
+			Effect:     types.StringValue(s.Effect),
+			Principals: principals,
+			Actions:    actions,
+			Resources:  resources,
+		})
+	}
+	state.Statements = stmts
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
