@@ -64,6 +64,7 @@ output "first_script_content" {
 - `filter` (Block List) Additional filtering by field name and values. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching scripts
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

@@ -20,6 +20,7 @@ Fetches a list of auto scaling groups and their associated attributes from the Z
 - `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by state, use `name = "state"` and `values = ["Enabled"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for searching auto scaling groups.
 - `name_pattern` (String) Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

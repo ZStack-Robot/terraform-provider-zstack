@@ -20,6 +20,7 @@ Query ZStack volume snapshots.
 - `filter` (Block List) Filter resources based on any returned field. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name to match.
 - `name_pattern` (String) Pattern for fuzzy name search. Use % for multiple characters and _ for exactly one character.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

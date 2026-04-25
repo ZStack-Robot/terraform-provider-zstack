@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -20,6 +23,7 @@ var (
 )
 
 type vrouterDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String   `tfsdk:"name"`
 	NamePattern types.String   `tfsdk:"name_pattern"`
 	Filter      []Filter       `tfsdk:"filter"`
@@ -101,11 +105,7 @@ func (d *vrouterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	params := param.NewQueryParam()
 
 	// 优先检查 `name` 精确查询
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	vrouters, err := d.client.QueryVirtualRouterVm(&params)
 	if err != nil {
@@ -183,6 +183,16 @@ func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of virtual router instances and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router instance",
 				Optional:    true,

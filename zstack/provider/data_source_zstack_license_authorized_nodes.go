@@ -8,8 +8,11 @@ import (
 	"terraform-provider-zstack/zstack/utils"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -35,6 +38,7 @@ type licenseAuthorizedNodeItem struct {
 }
 
 type licenseAuthorizedNodeDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String                `tfsdk:"name"`
 	NamePattern types.String                `tfsdk:"name_pattern"`
 	Filter      []Filter                    `tfsdk:"filter"`
@@ -73,11 +77,7 @@ func (d *licenseAuthorizedNodeDataSource) Read(ctx context.Context, req datasour
 	}
 
 	params := param.NewQueryParam()
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	nodes, err := d.client.QueryLicenseAuthorizedNode(&params)
 	if err != nil {
@@ -125,6 +125,16 @@ func (d *licenseAuthorizedNodeDataSource) Schema(ctx context.Context, req dataso
 	resp.Schema = schema.Schema{
 		Description: "Query ZStack License Authorized Nodes by name, name pattern, or additional filters.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for querying.",
 				Optional:    true,
