@@ -321,33 +321,79 @@ output "result" {
 }
 
 func dataSourceGenerators() []generator {
+	// All TypeNames below match the provider's actual registered names (see
+	// zstack/provider/data_source_zstack_*.go Metadata methods). After the
+	// SDK-name alignment refactor (commit 9c3b97d), the previous test names
+	// — `backupstorages`, `disk_offers`, `instance_offers`,
+	// `networking_sdn_controllers`, `mnnodes`, `scripts`,
+	// `virtual_router_offers`, `zones` — became invalid; they have been
+	// renamed to match the provider.
 	return []generator{
-		dataSimple("images", "images", "name", func(e *EnvData) []map[string]interface{} { return e.Images }),
-		dataSimple("zones", "zones", "name", func(e *EnvData) []map[string]interface{} { return e.Zones }),
+		// Phase A core data sources
+		dataSimple("zone", "zones", "name", func(e *EnvData) []map[string]interface{} { return e.Zones }),
 		dataSimple("clusters", "clusters", "name", func(e *EnvData) []map[string]interface{} { return e.Clusters }),
 		dataSimple("hosts", "hosts", "name", func(e *EnvData) []map[string]interface{} { return e.Hosts }),
 		dataSimple("l3networks", "l3_networks", "name", func(e *EnvData) []map[string]interface{} { return e.L3Networks }),
-		dataSimple("backupstorages", "backup_storages", "name", func(e *EnvData) []map[string]interface{} { return e.BackupStorages }),
-		dataSimple("instance_offers", "instance_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.InstanceOfferings }),
-		dataSimple("disk_offers", "disk_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.DiskOfferings }),
-		dataSimple("virtual_router_offers", "virtual_router_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.VirtualRouterOfferings }),
-		dataSimple("virtual_routers", "virtual_routers", "name", func(e *EnvData) []map[string]interface{} { return e.VirtualRouters }),
-		dataSimple("virtual_router_images", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
 		dataSimple("instances", "vm_instances", "name", func(e *EnvData) []map[string]interface{} { return e.VmInstances }),
+
+		// Image / storage
+		dataSimple("images", "images", "name", func(e *EnvData) []map[string]interface{} { return e.Images }),
+		dataSimple("virtual_router_images", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("backup_storages", "backup_storages", "name", func(e *EnvData) []map[string]interface{} { return e.BackupStorages }),
+		dataSimple("primary_storages", "primary_storages", "name", func(e *EnvData) []map[string]interface{} { return e.PrimaryStorages }),
+
+		// Compute offerings
+		dataSimple("instance_offerings", "instance_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.InstanceOfferings }),
+		dataSimple("disk_offerings", "disk_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.DiskOfferings }),
+		dataSimple("virtual_router_offerings", "virtual_router_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.VirtualRouterOfferings }),
+
+		// Virtual routers + L2
+		dataSimple("virtual_routers", "virtual_routers", "name", func(e *EnvData) []map[string]interface{} { return e.VirtualRouters }),
+		dataSimple("l2networks", "l2_networks", "name", func(e *EnvData) []map[string]interface{} { return e.L2Networks }),
+		dataSimple("l2vlan_networks", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// Volumes / disks
 		dataSimple("volumes", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
 		dataSimple("volume_snapshots", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("disks", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// Network plumbing
 		dataSimple("networking_secgroups", "security_groups", "name", func(e *EnvData) []map[string]interface{} { return e.SecurityGroups }),
 		dataSimple("networking_secgroup_rules", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
-		dataSimple("networking_sdn_controllers", "sdn_controllers", "name", func(e *EnvData) []map[string]interface{} { return e.SdnControllers }),
-		dataSimple("scripts", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
-		dataSimple("hook_scripts", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("sdn_controllers", "sdn_controllers", "name", func(e *EnvData) []map[string]interface{} { return e.SdnControllers }),
 		dataSimple("vips", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
-		dataSimple("mnnodes", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
-		dataSimple("disks", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("eips", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("port_forwarding_rules", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("reserved_ips", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("subnet_ip_ranges", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// Scripts
+		dataSimple("instance_scripts", "instance_scripts", "name", func(e *EnvData) []map[string]interface{} { return e.InstanceScripts }),
+		dataSimple("hook_scripts", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// MN / system
+		dataSimple("mn_nodes", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("gpu_devices", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// Identity / RBAC
 		dataSimple("accounts", "accounts", "name", func(e *EnvData) []map[string]interface{} { return e.Accounts }),
 		dataSimple("iam2_projects", "iam2_projects", "name", func(e *EnvData) []map[string]interface{} { return e.IAM2Projects }),
 		dataSimple("affinity_groups", "affinity_groups", "name", func(e *EnvData) []map[string]interface{} { return e.AffinityGroups }),
 		dataSimple("ssh_key_pairs", "ssh_key_pairs", "name", func(e *EnvData) []map[string]interface{} { return e.SshKeyPairs }),
+
+		// Load balancing
+		dataSimple("load_balancers", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("load_balancer_listeners", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// Auto-scaling
+		dataSimple("auto_scaling_groups", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// User tags
+		dataSimple("user_tags", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+
+		// License
+		dataSimple("license_authorized_nodes", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
+		dataSimple("license_authorized_capacity", "", "", func(e *EnvData) []map[string]interface{} { return nil }),
 		{
 			name: "data-guest_tools",
 			fn: func(env *EnvData) (string, bool, string) {
