@@ -632,7 +632,7 @@ func buildQADataSourceHCL(env *EnvData, def qaDataSource) string {
 
 	// Variant 1 — list-all (no filter)
 	fmt.Fprintf(&b, "data \"zstack_%s\" \"all\" {\n%s}\n", def.tfType, def.extraArgs)
-	fmt.Fprintf(&b, "output \"%s_all_count\" {\n  value = length(data.zstack_%s.all.%s)\n}\n\n",
+	fmt.Fprintf(&b, "output \"%s_all_count\" {\n  value = try(length(data.zstack_%s.all.%s), 0)\n}\n\n",
 		def.tfType, def.tfType, def.listAttr)
 
 	list := def.getList(env)
@@ -663,7 +663,7 @@ func buildQADataSourceHCL(env *EnvData, def qaDataSource) string {
 	if def.supportsNamePattern && firstName != "" {
 		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_name_pattern\" {\n%s  name_pattern = %q\n}\n",
 			def.tfType, def.extraArgs, firstName)
-		fmt.Fprintf(&b, "output \"%s_by_name_pattern_count\" {\n  value = length(data.zstack_%s.by_name_pattern.%s)\n}\n\n",
+		fmt.Fprintf(&b, "output \"%s_by_name_pattern_count\" {\n  value = try(length(data.zstack_%s.by_name_pattern.%s), 0)\n}\n\n",
 			def.tfType, def.tfType, def.listAttr)
 	}
 
@@ -672,7 +672,7 @@ func buildQADataSourceHCL(env *EnvData, def qaDataSource) string {
 		fmt.Fprintf(&b, "# Negative-path probe: a known-bad UUID must yield an empty list, not an error.\n")
 		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_nonexistent_uuid\" {\n%s  uuid = %q\n}\n",
 			def.tfType, def.extraArgs, negativeProbeUUID)
-		fmt.Fprintf(&b, "output \"%s_nonexistent_count\" {\n  value = length(data.zstack_%s.by_nonexistent_uuid.%s)\n}\n\n",
+		fmt.Fprintf(&b, "output \"%s_nonexistent_count\" {\n  value = try(length(data.zstack_%s.by_nonexistent_uuid.%s), 0)\n}\n\n",
 			def.tfType, def.tfType, def.listAttr)
 	}
 

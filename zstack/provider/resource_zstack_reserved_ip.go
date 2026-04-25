@@ -155,14 +155,27 @@ func (r *reservedIpResource) Read(ctx context.Context, request resource.ReadRequ
 		return
 	}
 
-	var reservedIpRanges []view.ReservedIpRangeInventoryView
-	_, err := r.client.Zql(ctx, fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &reservedIpRanges, "inventories")
+	// ZQL responses wrap the rows in {"results": [{"inventories": [...]}]} —
+	// passing only "inventories" as the unmarshal key drills into a top-level
+	// field that does not exist and the SDK raises "key not found". Decode the
+	// full envelope instead.
+	var zqlResponse struct {
+		Results []struct {
+			Inventories []view.ReservedIpRangeInventoryView `json:"inventories"`
+		} `json:"results"`
+	}
+	_, err := r.client.Zql(ctx, fmt.Sprintf("query reservedIpRange where uuid='%s'", state.Uuid.ValueString()), &zqlResponse)
 	if err != nil {
 		if isZStackNotFoundError(err) {
 			response.State.RemoveResource(ctx)
 			return
 		}
 		return
+	}
+
+	var reservedIpRanges []view.ReservedIpRangeInventoryView
+	for _, result := range zqlResponse.Results {
+		reservedIpRanges = append(reservedIpRanges, result.Inventories...)
 	}
 
 	if len(reservedIpRanges) == 0 {
