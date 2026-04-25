@@ -1097,3 +1097,141 @@ func stringPtrOrNil(s string) *string {
 4. **BUG-057 / BUG-059**：单点功能 bug，独立修
 5. **BUG-060**：引入 `stringPtrOrNil` 后一次 sweep 全部 stringPtr 调用
 6. **BUG-062c / BUG-063**：和 Read 字段对齐 sweep 一起做
+
+---
+
+# SDK Workaround Registry (provider 侧绕过的 SDK Bug)
+
+> **目的**：所有 provider 代码里"绕过 SDK bug"的地方集中登记。每条都标识：(1) SDK 哪里坏了；(2) provider 怎么绕；(3) 上游修好后这里要回收的代码位置。
+>
+> **生成日期**: 2026-04-25  
+> **SDK 版本**: `github.com/zstackio/zstack-sdk-go-v2 v0.0.4`  
+> **共 4 类 SDK bug，影响 25+ 资源文件**
+
+---
+
+## SDK-WA-001 — `PutWithRespKey` / `PutWithSpec` 返回空 struct
+
+### SDK Bug
+SDK 中所有 Update 方法（如 `UpdateVmInstance`、`UpdateL3Network`、`UpdateAlarm` 等）调用 `PutWithRespKey(path, uuid, "", params, &resp)`，第三个参数 `responseKey=""`。
+HTTP 客户端逻辑（`pkg/client/http_client.go` 第 374 行）：
+```go
+if len(responseKey) == 0 {
+    return location, resp.Unmarshal(retVal)  // ← 不指定 key，整个 resp 反序列化
+}
+return location, resp.Unmarshal(retVal, responseKey)  // ← 应该走这条
+```
+ZStack API 的 PUT 响应实际是 `{"inventory": {...}}`，缺少 `"inventory"` key 导致 `Unmarshal(retVal)` 没匹配字段，返回**全零值 struct**。
+
+### 影响范围
+**23 个 provider 资源**已经在 Update（部分含 Create）后做 re-query 绕过：
+
+| Provider 文件 | SDK 方法 | 绕过模式 |
+|---|---|---|
+| `resource_zstack_account.go` | `UpdateAccount` | `_, err := Update(...)` → `GetAccount(uuid)` |
+| `resource_zstack_affinity_group.go` | `UpdateAffinityGroup` | `_, err :=` → `GetAffinityGroup` |
+| `resource_zstack_alarm.go` | `UpdateAlarm` | `_, err :=` → `findResourceByQuery(QueryAlarm)` |
+| `resource_zstack_auto_scaling_group.go` | `UpdateAutoScalingGroup` | `_, err :=` → `GetAutoScalingGroup` |
+| `resource_zstack_backup_storage.go` | `UpdateBackupStorage` | `_, err :=` |
+| `resource_zstack_cluster.go` | `UpdateCluster` | `_, err :=` |
+| `resource_zstack_global_config.go` | `UpdateGlobalConfig` (Create+Update) | `_, err :=` → `findResourceByQuery(QueryGlobalConfig)` ★ 本轮修 |
+| `resource_zstack_host.go` | `UpdateHost` / `UpdateKVMHost` | `_, err :=` |
+| `resource_zstack_iam2_project.go` | `UpdateIAM2Project` | `_, err :=` |
+| `resource_zstack_image_store_backup_storage.go` | `UpdateImageStoreBackupStorage` | `_, err :=` |
+| `resource_zstack_instance.go` | `UpdateVmInstance` | `_, err :=` → `findResourceByGet(GetVmInstance)` |
+| `resource_zstack_instance_scripts.go` | `UpdateGuestVmScript` | `_, err :=` |
+| `resource_zstack_l2vlan_network.go` | `UpdateL2Network` | `_, err :=` |
+| `resource_zstack_l3network.go` | `UpdateL3Network` | `_, err :=` → `findResourceByQuery(QueryL3Network)` ★ 本轮修 |
+| `resource_zstack_load_balancer.go` | `UpdateLoadBalancer` | `_, err :=` → `GetLoadBalancer` |
+| `resource_zstack_load_balancer_listener.go` | `UpdateLoadBalancerListener` | `_, err :=` → `GetLoadBalancerListener` |
+| `resource_zstack_port_forwarding_rule.go` | `UpdatePortForwardingRule` | `_, err :=` |
+| `resource_zstack_primary_storage.go` | `UpdatePrimaryStorage` | `_, err :=` |
+| `resource_zstack_ssh_key_pair.go` | `UpdateSshKeyPair` | `_, err :=` |
+| `resource_zstack_vm_cdrom.go` | `UpdateVmCdRom` | `_, err :=` → `findResourceByQuery(QueryVmCdRom)` ★ 本轮修 |
+| `resource_zstack_volume.go` | `UpdateVolume` | `_, err :=` |
+| `resource_zstack_volume_snapshot.go` | `UpdateVolumeSnapshot` | `_, err :=` |
+| `resource_zstack_zone.go` | `UpdateZone` | `_, err :=` |
+
+### 已记录文档
+- `troubleshooting/SDK-BUG-UpdateAlarm-Empty-Response.md` — 完整原始报告（alarm 案例）
+
+### SDK 修复后的回收清单
+SDK 把 `PutWithRespKey` 调用改成传 `"inventory"` 后，provider 侧可：
+1. 把 `_, err := r.client.UpdateXxx(...)` 还原为 `xxx, err := ...`
+2. 删除每个资源 Update 后的 re-query 块
+3. 直接用 SDK 返回的 view struct 写回 state
+
+或者更稳：保留 re-query 当作"刷新最新状态"的一致性保障，只删除"绕过"注释。
+
+---
+
+## SDK-WA-002 — `ZSClient.Post()` 不解析 URL 模板占位符
+
+### SDK Bug
+SDK 嵌入了两个 HTTP client：
+- `ZSHttpClient.Post(resource, params, retVal)` — 通过 `getPostURL()` 正确解析占位符
+- `ZSClient.Post(path, params, result)` — 直接 `fmt.Sprintf("%s/%s", baseURL, path)`，**不替换 `{xxx}` 占位符**
+
+`other_actions.go` 中 **101 个 action 函数（分布于 32 个文件）**调用 `cli.Post(...)` 时走的是被遮蔽的 `ZSClient.Post()`，URL 永远带 literal `{xxx}` → API 返回 404。
+
+### 影响范围（部分确认）
+| 文件 | 受影响方法 | Provider 状态 |
+|---|---|---|
+| `pkg/client/other_actions.go` | 全 101 个 | provider 暂未触发；触发时手动调 `ZSHttpClient.Post()` |
+| `resource_zstack_primary_storage.go:218,234` | `AddLocalPrimaryStorage` / `AddNfsPrimaryStorage` | provider 直接 `r.client.Post("v1/primary-storage/local-storage", ...)` 绕过 SDK 包装函数 |
+
+### 已记录文档
+- `docs/SDK_URL_TEMPLATE_BUG.md` — 中文版完整报告
+- `docs/sdk-url-template-bug.md` — 同根
+
+### SDK 修复后的回收清单
+SDK 给 `ZSClient.Post()` 加占位符替换后，provider 侧可：
+1. 把直接 `r.client.Post("v1/primary-storage/...", ...)` 替换为 `r.client.AddLocalPrimaryStorage(...)` / `AddNfsPrimaryStorage(...)`（前提是 SDK 函数也修了入参）
+2. 删 `// SDK bug:` 注释（`resource_zstack_primary_storage.go:218,234`）
+
+---
+
+## SDK-WA-003 — `IAM2Project` 软删除不释放 name
+
+### SDK Bug
+`DeleteIAM2Project(uuid, mode)` 仅做软删除，project 进回收站；同名 project 无法重新创建。SDK 提供了独立的 `ExpungeIAM2Project(uuid)` 但没有"删除并清空回收站"的复合方法。
+
+### 影响范围
+| 文件 | 修复 |
+|---|---|
+| `resource_zstack_iam2_project.go:226-249` | Delete 之后调用 `ExpungeIAM2Project`；expunge 失败时降级为 warning（资源已经软删除）★ 本轮修 |
+
+### SDK 修复后的回收清单
+SDK 给 `DeleteIAM2Project` 加 `purge bool` 参数后：
+1. 删除 provider 侧的 `ExpungeIAM2Project` 调用块
+2. 改用 `DeleteIAM2Project(uuid, mode, true)`
+
+---
+
+## SDK-WA-004 — `findResourceByQuery` / `findResourceByGet` 兼容层
+
+### Background（不算严格 SDK bug，更像设计差异）
+不同资源用不同 SDK 方法读单条记录：
+- 一些用 `Get<Resource>(uuid)` → 直接返回 struct 或 `ErrNotFound`
+- 一些用 `Query<Resource>(*QueryParam)` → 返回 list，需自己过滤 + 处理空 list
+
+Provider 内部用 `findResourceByGet` / `findResourceByQuery` 统一为"找单条记录或返回 `ErrResourceNotFound`"语义。
+
+### 影响范围
+**广泛使用**（`zstack/provider/utils.go` 或 helpers），不是 workaround 而是 adapter 层。
+SDK 修不修都建议保留。
+
+---
+
+## SDK 修复跟进列表（请提给 SDK 团队）
+
+| 编号 | SDK 修复内容 | 影响 provider 文件数 |
+|---|---|---|
+| **SDK-FIX-001** | `PutWithRespKey` 调用处补传 `"inventory"` （或在底层默认走 inventory 解析） | 23 |
+| **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | 1 (Primary Storage) + 潜在 32 个 |
+| **SDK-FIX-003** | `DeleteIAM2Project` 增加 purge 参数或新增 `DeleteAndExpungeIAM2Project` 一站式方法 | 1 |
+| **SDK-FIX-004** | l3network Delete URL 修复（BUG-059，待 SDK 团队复现） | 1 |
+
+每条 SDK 修复对应的 provider 回收 PR 都很简单（删几行 re-query），但要注意：
+- 不要在 SDK 上线**前**回收，否则破坏当前 provider 的正确性。
+- 推荐：SDK release 后跟一个 `chore: clean up SDK workarounds (closes SDK-WA-001..003)` 的 PR。
