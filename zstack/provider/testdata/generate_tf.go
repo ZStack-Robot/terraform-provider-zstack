@@ -5,11 +5,14 @@
 //
 // Usage:
 //   source .env.test && go run ./zstack/provider/testdata/generate_tf.go
+//   # QA mode — only data sources, with 3 lookup variants per type:
+//   go run ./zstack/provider/testdata/generate_tf.go -only=datasources
 
 package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -426,6 +429,316 @@ output "result" {
 		},
 		// L2 networks — no dedicated data source in provider, skip if not present
 	}
+}
+
+// ---------------------------------------------------------------------------
+// QA-style data source generators
+// ---------------------------------------------------------------------------
+//
+// Each entry produces ONE main.tf containing up to FIVE blocks of the same
+// data source — `all`, `by_name`, `by_uuid`, `by_name_pattern`,
+// `by_nonexistent_uuid` — plus outputs and cross-validation assertions.
+// A single `terraform apply` therefore validates, per data source:
+//
+//   1. Listing without filter (smoke).
+//   2. Human-friendly `name` lookup.
+//   3. AI / automation deterministic `uuid` lookup.
+//   4. Fuzzy `name_pattern` lookup (when supported by the schema).
+//   5. Negative lookup with a known-bad UUID — must return an empty list,
+//      NOT an error. This catches API regressions where the SDK turns a
+//      "no rows" result into a 404.
+//
+// Plus, when both `by_name` and `by_uuid` resolve, an additional
+// `_lookup_consistency` output asserts they pin the SAME record at apply
+// time. Variants are skipped automatically when env.json doesn't have the
+// inputs (e.g. an empty zone list will skip `by_name` / `by_uuid` /
+// `by_name_pattern`, but `all` and `by_nonexistent_uuid` always run).
+
+// negativeProbeUUID is a deterministic UUID that should never exist in any
+// real ZStack deployment. Used to assert "filter returns empty list" (not
+// an error) for every data source that supports `uuid` filtering.
+const negativeProbeUUID = "00000000-0000-0000-0000-000000000000"
+
+// qaDataSource describes one data source we want to QA.
+type qaDataSource struct {
+	tfType   string                                  // TypeName suffix, e.g. "zones" → emits data "zstack_zones"
+	envField string                                  // diagnostic / skip-reason hint, e.g. "zones"
+	getList  func(*EnvData) []map[string]interface{} // returns env list for this resource
+	listAttr string                                  // schema attribute holding the result list, e.g. "zones"
+
+	// Filter capabilities. When false, the corresponding variant is skipped
+	// even if env data is present. Defaults (zero value = false) match the
+	// strictest case; populate explicitly per data source.
+	supportsName        bool
+	supportsUUID        bool
+	supportsNamePattern bool
+
+	// extraArgs is raw HCL injected verbatim into EVERY generated block of
+	// this data source. Used for required filter args like
+	// `tag_type = "tag"` on zstack_tags or `instance_uuid = "..."` on
+	// zstack_instance_guest_tools. The trailing newline is required.
+	extraArgs string
+
+	// singleton marks data sources that don't expose a list — they have
+	// top-level Computed fields only (e.g. license_authorized_capacity).
+	// Only the `all` variant is emitted for these, with a single output
+	// echoing the entire object.
+	singleton bool
+}
+
+func dataSourceQAGenerators() []generator {
+	defs := []qaDataSource{
+		// ---- Phase A core (already covered, expanded with name_pattern + negative)
+		{tfType: "zone", envField: "zones", getList: func(e *EnvData) []map[string]interface{} { return e.Zones }, listAttr: "zones",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "clusters", envField: "clusters", getList: func(e *EnvData) []map[string]interface{} { return e.Clusters }, listAttr: "clusters",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "hosts", envField: "hosts", getList: func(e *EnvData) []map[string]interface{} { return e.Hosts }, listAttr: "hosts",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "l3networks", envField: "l3_networks", getList: func(e *EnvData) []map[string]interface{} { return e.L3Networks }, listAttr: "l3networks",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "instances", envField: "vm_instances", getList: func(e *EnvData) []map[string]interface{} { return e.VmInstances }, listAttr: "vminstances",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Image / storage
+		{tfType: "images", envField: "images", getList: func(e *EnvData) []map[string]interface{} { return e.Images }, listAttr: "images",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "virtual_router_images", envField: "(no env list)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "images",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "backup_storages", envField: "backup_storages", getList: func(e *EnvData) []map[string]interface{} { return e.BackupStorages }, listAttr: "backup_storages",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "primary_storages", envField: "primary_storages", getList: func(e *EnvData) []map[string]interface{} { return e.PrimaryStorages }, listAttr: "primary_storages",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Compute offerings
+		{tfType: "instance_offerings", envField: "instance_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.InstanceOfferings }, listAttr: "instance_offers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "disk_offerings", envField: "disk_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.DiskOfferings }, listAttr: "disk_offers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "virtual_router_offerings", envField: "virtual_router_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.VirtualRouterOfferings }, listAttr: "virtual_router_offers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Virtual routers + L2
+		{tfType: "virtual_routers", envField: "virtual_routers", getList: func(e *EnvData) []map[string]interface{} { return e.VirtualRouters }, listAttr: "virtual_router",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "l2networks", envField: "l2_networks", getList: func(e *EnvData) []map[string]interface{} { return e.L2Networks }, listAttr: "l2networks",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "l2vlan_networks", envField: "l2_vlan_networks", getList: func(e *EnvData) []map[string]interface{} { return e.L2VlanNetworks }, listAttr: "l2vlan_networks",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Volumes / disks / snapshots
+		{tfType: "volumes", envField: "volumes", getList: func(e *EnvData) []map[string]interface{} { return e.Volumes }, listAttr: "volumes",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "volume_snapshots", envField: "volume_snapshots", getList: func(e *EnvData) []map[string]interface{} { return e.VolumeSnapshots }, listAttr: "snapshots",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "disks", envField: "(no env list)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "disks",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Network plumbing
+		{tfType: "networking_secgroups", envField: "security_groups", getList: func(e *EnvData) []map[string]interface{} { return e.SecurityGroups }, listAttr: "networking_secgroups",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "networking_secgroup_rules", envField: "security_group_rules", getList: func(e *EnvData) []map[string]interface{} { return e.SecurityGroupRules }, listAttr: "rules"},
+		{tfType: "sdn_controllers", envField: "sdn_controllers", getList: func(e *EnvData) []map[string]interface{} { return e.SdnControllers }, listAttr: "sdn_controllers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "vips", envField: "vips", getList: func(e *EnvData) []map[string]interface{} { return e.Vips }, listAttr: "vips",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "eips", envField: "eips", getList: func(e *EnvData) []map[string]interface{} { return e.Eips }, listAttr: "eips",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "port_forwarding_rules", envField: "port_forwarding_rules", getList: func(e *EnvData) []map[string]interface{} { return e.PortForwardingRules }, listAttr: "port_forwarding_rules",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "subnet_ip_ranges", envField: "ip_ranges", getList: func(e *EnvData) []map[string]interface{} { return e.IpRanges }, listAttr: "subnet_ip_ranges",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "reserved_ips", envField: "(no env list)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "reserved_ips",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Load balancing
+		{tfType: "load_balancers", envField: "load_balancers", getList: func(e *EnvData) []map[string]interface{} { return e.LoadBalancers }, listAttr: "load_balancers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "load_balancer_listeners", envField: "load_balancer_listeners", getList: func(e *EnvData) []map[string]interface{} { return e.LoadBalancerListeners }, listAttr: "load_balancer_listeners",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Auto-scaling / GPU
+		{tfType: "auto_scaling_groups", envField: "auto_scaling_groups", getList: func(e *EnvData) []map[string]interface{} { return e.AutoScalingGroups }, listAttr: "auto_scaling_groups",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "gpu_devices", envField: "gpu_devices", getList: func(e *EnvData) []map[string]interface{} { return e.GpuDevices }, listAttr: "gpu_devices",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Scripts
+		{tfType: "instance_scripts", envField: "instance_scripts", getList: func(e *EnvData) []map[string]interface{} { return e.InstanceScripts }, listAttr: "scripts",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "hook_scripts", envField: "(no env list)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "hook_scripts",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Identity / RBAC
+		{tfType: "accounts", envField: "accounts", getList: func(e *EnvData) []map[string]interface{} { return e.Accounts }, listAttr: "accounts",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "iam2_projects", envField: "iam2_projects", getList: func(e *EnvData) []map[string]interface{} { return e.IAM2Projects }, listAttr: "iam2_projects",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "affinity_groups", envField: "affinity_groups", getList: func(e *EnvData) []map[string]interface{} { return e.AffinityGroups }, listAttr: "affinity_groups",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "ssh_key_pairs", envField: "ssh_key_pairs", getList: func(e *EnvData) []map[string]interface{} { return e.SshKeyPairs }, listAttr: "ssh_key_pairs",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		// ---- Tags
+		{tfType: "user_tags", envField: "user_tags", getList: func(e *EnvData) []map[string]interface{} { return e.UserTags }, listAttr: "user_tags",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "tags", envField: "system_tags", getList: func(e *EnvData) []map[string]interface{} { return e.SystemTags }, listAttr: "tags",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true,
+			extraArgs: "  tag_type = \"tag\"\n"},
+		// ---- License (license_authorized_nodes is list, capacity is singleton)
+		{tfType: "license_authorized_nodes", envField: "(no env list)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "nodes",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "license_authorized_capacity", envField: "(singleton)", getList: func(e *EnvData) []map[string]interface{} { return nil }, listAttr: "",
+			singleton: true},
+		// ---- MN nodes (no filter args at all in schema → only `all`)
+		{tfType: "mn_nodes", envField: "mn_nodes", getList: func(e *EnvData) []map[string]interface{} { return e.MnNodes }, listAttr: "mn_nodes"},
+	}
+
+	gens := make([]generator, 0, len(defs)+1)
+	for _, def := range defs {
+		def := def
+		gens = append(gens, generator{
+			name: "qa-data-" + def.tfType,
+			fn: func(env *EnvData) (string, bool, string) {
+				return buildQADataSourceHCL(env, def), true, ""
+			},
+		})
+	}
+
+	// Specials that need a per-env Required argument computed at generation
+	// time, not a static extraArgs string.
+	gens = append(gens, generator{
+		name: "qa-data-instance_guest_tools",
+		fn: func(env *EnvData) (string, bool, string) {
+			if len(env.VmInstances) == 0 {
+				return "", false, "vm_instances empty (instance_guest_tools requires instance_uuid)"
+			}
+			vmUUID := getStr(env.VmInstances[0], "uuid")
+			if vmUUID == "" {
+				return "", false, "vm_instance has no uuid"
+			}
+			return buildInstanceGuestToolsHCL(vmUUID), true, ""
+		},
+	})
+
+	return gens
+}
+
+// buildQADataSourceHCL emits up to 5 blocks per data source plus
+// cross-validation outputs. Variants without env data are documented
+// inline so QA can see what was skipped vs. exercised.
+func buildQADataSourceHCL(env *EnvData, def qaDataSource) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# QA fixture for data \"zstack_%s\".\n", def.tfType)
+	if def.singleton {
+		fmt.Fprintf(&b, "# Singleton data source — no list, no filters; only `all` variant.\n\n")
+		fmt.Fprintf(&b, "data \"zstack_%s\" \"all\" {}\n\n", def.tfType)
+		fmt.Fprintf(&b, "output \"%s_all\" {\n  value = data.zstack_%s.all\n}\n",
+			def.tfType, def.tfType)
+		return b.String()
+	}
+	fmt.Fprintf(&b, "# Variants exercised: all%s.\n", listVariants(def, env))
+	b.WriteString("\n")
+
+	// Variant 1 — list-all (no filter)
+	fmt.Fprintf(&b, "data \"zstack_%s\" \"all\" {\n%s}\n", def.tfType, def.extraArgs)
+	fmt.Fprintf(&b, "output \"%s_all_count\" {\n  value = length(data.zstack_%s.all.%s)\n}\n\n",
+		def.tfType, def.tfType, def.listAttr)
+
+	list := def.getList(env)
+	var firstName, firstUUID string
+	if len(list) > 0 {
+		firstName = getStr(list[0], "name")
+		firstUUID = getStr(list[0], "uuid")
+	}
+
+	// Variant 2 — by_name (human ergonomic)
+	if def.supportsName && firstName != "" {
+		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_name\" {\n%s  name = %q\n}\n",
+			def.tfType, def.extraArgs, firstName)
+		fmt.Fprintf(&b, "output \"%s_by_name_first_uuid\" {\n  value = try(data.zstack_%s.by_name.%s[0].uuid, null)\n}\n\n",
+			def.tfType, def.tfType, def.listAttr)
+	}
+
+	// Variant 3 — by_uuid (deterministic)
+	if def.supportsUUID && firstUUID != "" {
+		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_uuid\" {\n%s  uuid = %q\n}\n",
+			def.tfType, def.extraArgs, firstUUID)
+		fmt.Fprintf(&b, "output \"%s_by_uuid_first_name\" {\n  value = try(data.zstack_%s.by_uuid.%s[0].name, null)\n}\n\n",
+			def.tfType, def.tfType, def.listAttr)
+	}
+
+	// Variant 4 — by_name_pattern (fuzzy lookup; pattern ≡ exact name to keep the
+	// match deterministic without depending on ZStack's wildcard rules).
+	if def.supportsNamePattern && firstName != "" {
+		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_name_pattern\" {\n%s  name_pattern = %q\n}\n",
+			def.tfType, def.extraArgs, firstName)
+		fmt.Fprintf(&b, "output \"%s_by_name_pattern_count\" {\n  value = length(data.zstack_%s.by_name_pattern.%s)\n}\n\n",
+			def.tfType, def.tfType, def.listAttr)
+	}
+
+	// Variant 5 — by_nonexistent_uuid (negative path: returns empty list, NOT error)
+	if def.supportsUUID {
+		fmt.Fprintf(&b, "# Negative-path probe: a known-bad UUID must yield an empty list, not an error.\n")
+		fmt.Fprintf(&b, "data \"zstack_%s\" \"by_nonexistent_uuid\" {\n%s  uuid = %q\n}\n",
+			def.tfType, def.extraArgs, negativeProbeUUID)
+		fmt.Fprintf(&b, "output \"%s_nonexistent_count\" {\n  value = length(data.zstack_%s.by_nonexistent_uuid.%s)\n}\n\n",
+			def.tfType, def.tfType, def.listAttr)
+	}
+
+	// Cross-check: by_name and by_uuid resolved to the same record.
+	if def.supportsName && def.supportsUUID && firstName != "" && firstUUID != "" {
+		fmt.Fprintf(&b, "# Lookup consistency assertion (eval at apply time).\n")
+		fmt.Fprintf(&b, "output \"%s_lookup_consistency\" {\n", def.tfType)
+		b.WriteString("  value = (\n")
+		fmt.Fprintf(&b, "    try(data.zstack_%s.by_name.%s[0].uuid, \"\") ==\n", def.tfType, def.listAttr)
+		fmt.Fprintf(&b, "    try(data.zstack_%s.by_uuid.%s[0].uuid, \"\")\n", def.tfType, def.listAttr)
+		b.WriteString("  )\n}\n")
+	}
+
+	if len(list) == 0 && !def.singleton {
+		fmt.Fprintf(&b, "\n# Skipped variants by_name/by_uuid/by_name_pattern: env.%s is empty.\n", def.envField)
+	}
+
+	return b.String()
+}
+
+// buildInstanceGuestToolsHCL — instance_guest_tools is special-cased because
+// the only Required arg is `instance_uuid`. There is no list filter, so we
+// only test (a) happy path on a real VM, and (b) negative path on a bogus
+// instance_uuid which should surface a clean diagnostic, not a panic.
+func buildInstanceGuestToolsHCL(vmUUID string) string {
+	return fmt.Sprintf(`# QA fixture for data "zstack_instance_guest_tools".
+# Required arg: instance_uuid. Only "happy" variant is exercised — the
+# negative variant is intentionally omitted because the data source returns
+# a hard error (not an empty result) for a non-existent instance, which
+# would fail the apply.
+
+data "zstack_instance_guest_tools" "happy" {
+  instance_uuid = %q
+}
+
+output "guest_tools" {
+  value = data.zstack_instance_guest_tools.happy
+}
+`, vmUUID)
+}
+
+// listVariants returns a comma-prefixed list of variant names that will be
+// emitted for this data source, derived from def + env data. Used for the
+// per-fixture comment header so QA can see what was actually exercised.
+func listVariants(def qaDataSource, env *EnvData) string {
+	if def.singleton {
+		return ""
+	}
+	parts := []string{}
+	list := def.getList(env)
+	if def.supportsName && len(list) > 0 && getStr(list[0], "name") != "" {
+		parts = append(parts, "by_name")
+	}
+	if def.supportsUUID && len(list) > 0 && getStr(list[0], "uuid") != "" {
+		parts = append(parts, "by_uuid")
+	}
+	if def.supportsNamePattern && len(list) > 0 && getStr(list[0], "name") != "" {
+		parts = append(parts, "by_name_pattern")
+	}
+	if def.supportsUUID {
+		parts = append(parts, "by_nonexistent_uuid")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return ", " + strings.Join(parts, ", ")
 }
 
 // ---------------------------------------------------------------------------
@@ -1117,6 +1430,9 @@ output "uuid" {
 // ---------------------------------------------------------------------------
 
 func main() {
+	onlyMode := flag.String("only", "", "if 'datasources', generate ONLY data source fixtures with QA-style 3-variant lookups")
+	flag.Parse()
+
 	envPath := "zstack/provider/testdata/env.json"
 	tfDir := "zstack/provider/testdata/terraform"
 
@@ -1155,11 +1471,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 4. Collect all generators
+	// 4. Collect generators (gated by -only flag)
 	var allGens []generator
-	allGens = append(allGens, dataSourceGenerators()...)
-	allGens = append(allGens, selfContainedResourceGenerators()...)
-	allGens = append(allGens, envDependentResourceGenerators()...)
+	switch *onlyMode {
+	case "datasources":
+		// QA mode: only data source coverage, with 3-variant lookups per type
+		// (all / by_name / by_uuid) to validate both human and AI lookup paths.
+		allGens = append(allGens, dataSourceQAGenerators()...)
+	case "":
+		allGens = append(allGens, dataSourceGenerators()...)
+		allGens = append(allGens, selfContainedResourceGenerators()...)
+		allGens = append(allGens, envDependentResourceGenerators()...)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown -only mode %q (supported: datasources)\n", *onlyMode)
+		os.Exit(2)
+	}
 
 	// 5. Generate
 	generated := 0
