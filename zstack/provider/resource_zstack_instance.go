@@ -761,7 +761,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 
 	plan.Uuid = types.StringValue(instance.UUID)
 	plan.Name = types.StringValue(instance.Name)
-	plan.Description = types.StringValue(instance.Description)
+	plan.Description = stringValueOrNull(instance.Description)
 	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 	plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
 
@@ -883,7 +883,7 @@ func (r *instanceResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	state.Uuid = types.StringValue(vm.UUID)
 	state.Name = types.StringValue(vm.Name)
-	state.Description = types.StringValue(vm.Description)
+	state.Description = stringValueOrNull(vm.Description)
 	state.ImageUuid = types.StringValue(vm.ImageUuid)
 	state.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
 	state.CPUNum = types.Int64Value(int64(vm.CpuNum))
@@ -911,34 +911,7 @@ func (r *instanceResource) Read(ctx context.Context, req resource.ReadRequest, r
 	state.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 	resp.Diagnostics.Append(diags...)
 
-	var networkInterfaces []NetworkInterfaceModel
-	originalNetworkInterfaces := make(map[string]string)
-	if !state.NetworkInterfaces.IsNull() && len(state.NetworkInterfaces.Elements()) > 0 {
-		var oldNics []NetworkInterfaceModel
-		diags := state.NetworkInterfaces.ElementsAs(ctx, &oldNics, false)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, oldNic := range oldNics {
-			if !oldNic.StaticIp.IsNull() && oldNic.StaticIp.ValueString() != "" {
-				originalNetworkInterfaces[oldNic.L3NetworkUuid.ValueString()] = oldNic.StaticIp.ValueString()
-			}
-		}
-	}
-
-	for _, nic := range vm.VmNics {
-		staticIP := types.StringNull()
-		if ip, ok := originalNetworkInterfaces[nic.L3NetworkUuid]; ok && ip == nic.Ip {
-			staticIP = types.StringValue(ip)
-		}
-
-		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-			L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
-			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid == vm.DefaultL3NetworkUuid),
-			StaticIp:      staticIP,
-		})
-	}
+	networkInterfaces := normalizeNetworkInterfacesFromVM(vm)
 	state.NetworkInterfaces, _ = types.ListValueFrom(ctx, types.ObjectType{
 		AttrTypes: map[string]attr.Type{
 			"l3_network_uuid": types.StringType,
@@ -999,7 +972,7 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	if updateVm {
-		instance, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam)
+		_, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error updating VM Instance",
@@ -1007,42 +980,21 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 			return
 		}
 
-		plan.Uuid = types.StringValue(instance.UUID)
-		plan.Name = types.StringValue(instance.Name)
-		plan.Description = types.StringValue(instance.Description)
-		plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
-		plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
-		//plan.IP = types.StringValue(instance.VmNics[0].IP)
-
-		// 更新 vm_nics 信息
-		var vmNics []NicsModel
-		for _, nic := range instance.VmNics {
-			vmNics = append(vmNics, NicsModel{
-				Uuid:    types.StringValue(nic.UUID),
-				Ip:      types.StringValue(nic.Ip),
-				Netmask: types.StringValue(nic.Netmask),
-				Gateway: types.StringValue(nic.Gateway),
-			})
+		vm, err := findResourceByGet(r.client.GetVmInstance, uuid)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error updating VM Instance",
+				"Could not refresh vm instance after update: "+err.Error())
+			return
 		}
 
-		// 将 vm_nics 信息设置到状态中
-		plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
-
-		var networkInterfaces []NetworkInterfaceModel
-		for _, nic := range instance.VmNics {
-			networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-				L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
-				DefaultL3:     types.BoolValue(nic.L3NetworkUuid == instance.DefaultL3NetworkUuid),
-				StaticIp:      types.StringNull(), // 无法反查
-			})
+		plan, err = buildUpdatedStateFromVM(ctx, plan, vm)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error updating VM Instance",
+				"Could not rebuild vm instance state after update: "+err.Error())
+			return
 		}
-		plan.NetworkInterfaces, _ = types.ListValueFrom(ctx, types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"l3_network_uuid": types.StringType,
-				"default_l3":      types.BoolType,
-				"static_ip":       types.StringType,
-			},
-		}, networkInterfaces)
 
 		diags := resp.State.Set(ctx, &plan)
 		resp.Diagnostics.Append(diags...)
@@ -1166,6 +1118,63 @@ func syncInstanceDataDisksFromVM(ctx context.Context, state vmInstanceDataSource
 	}
 	state.DataDisks = listValue
 	return state, nil
+}
+
+func normalizeNetworkInterfacesFromVM(vm *view.VmInstanceInventoryView) []NetworkInterfaceModel {
+	networkInterfaces := make([]NetworkInterfaceModel, 0, len(vm.VmNics))
+	for _, nic := range vm.VmNics {
+		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
+			L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
+			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid == vm.DefaultL3NetworkUuid),
+			StaticIp:      types.StringValue(nic.Ip),
+		})
+	}
+	return networkInterfaces
+}
+
+func buildUpdatedStateFromVM(ctx context.Context, current vmInstanceDataSourceModel, vm *view.VmInstanceInventoryView) (vmInstanceDataSourceModel, error) {
+	updated := current
+	updated.Uuid = types.StringValue(vm.UUID)
+	updated.Name = types.StringValue(vm.Name)
+	updated.Description = stringValueOrNull(vm.Description)
+	updated.ImageUuid = types.StringValue(vm.ImageUuid)
+	updated.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
+	updated.CPUNum = types.Int64Value(int64(vm.CpuNum))
+
+	var vmNics []NicsModel
+	for _, nic := range vm.VmNics {
+		vmNics = append(vmNics, NicsModel{
+			Uuid:    types.StringValue(nic.UUID),
+			Ip:      types.StringValue(nic.Ip),
+			Netmask: types.StringValue(nic.Netmask),
+			Gateway: types.StringValue(nic.Gateway),
+		})
+	}
+	vmNicsValue, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
+	if diags.HasError() {
+		return current, fmt.Errorf("failed encoding vm_nics state: %v", diags)
+	}
+	updated.VMNics = vmNicsValue
+
+	networkInterfaces := normalizeNetworkInterfacesFromVM(vm)
+	networkInterfacesValue, diags := types.ListValueFrom(ctx, types.ObjectType{
+		AttrTypes: map[string]attr.Type{
+			"l3_network_uuid": types.StringType,
+			"default_l3":      types.BoolType,
+			"static_ip":       types.StringType,
+		},
+	}, networkInterfaces)
+	if diags.HasError() {
+		return current, fmt.Errorf("failed encoding network_interfaces state: %v", diags)
+	}
+	updated.NetworkInterfaces = networkInterfacesValue
+
+	updatedDataDisks, err := syncInstanceDataDisksFromVM(ctx, updated, vm)
+	if err != nil {
+		return current, err
+	}
+
+	return updatedDataDisks, nil
 }
 
 func instanceDataVolumeUUIDsFromState(ctx context.Context, state vmInstanceDataSourceModel) ([]string, error) {

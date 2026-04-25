@@ -73,3 +73,68 @@ func TestBUG019DeleteUsesStateDataDiskUUIDs(t *testing.T) {
 		t.Fatalf("expected delete path to use state volume uuid, got %#v", volumeUUIDs)
 	}
 }
+
+func TestBUG019NormalizeNetworkInterfacesSetsStaticIPFromObservedNIC(t *testing.T) {
+	vm := &view.VmInstanceInventoryView{
+		VmNics: []view.VmNicInventoryView{
+			{
+				L3NetworkUuid: "l3-1",
+				Ip:            "172.24.202.21",
+			},
+		},
+		DefaultL3NetworkUuid: "l3-1",
+	}
+
+	nics := normalizeNetworkInterfacesFromVM(vm)
+	if len(nics) != 1 {
+		t.Fatalf("expected 1 network interface, got %d", len(nics))
+	}
+
+	if got := nics[0].L3NetworkUuid.ValueString(); got != "l3-1" {
+		t.Fatalf("expected l3_network_uuid to be l3-1, got %q", got)
+	}
+
+	if got := nics[0].StaticIp.ValueString(); got != "172.24.202.21" {
+		t.Fatalf("expected static_ip to be observed nic ip, got %q", got)
+	}
+
+	if got := nics[0].DefaultL3.ValueBool(); !got {
+		t.Fatalf("expected default_l3 to be true")
+	}
+}
+
+func TestBUG019BuildUpdatedStateFromVMKeepsIdentityAndCoreFields(t *testing.T) {
+	ctx := context.Background()
+	current := vmInstanceDataSourceModel{}
+
+	vm := &view.VmInstanceInventoryView{
+		BaseInfoView:         view.BaseInfoView{UUID: "vm-123", Name: "vm-name"},
+		Description:          "vm-desc",
+		ImageUuid:            "img-123",
+		MemorySize:           2 * 1024 * 1024 * 1024,
+		CpuNum:               2,
+		DefaultL3NetworkUuid: "l3-1",
+		VmNics:               []view.VmNicInventoryView{{L3NetworkUuid: "l3-1", Ip: "172.24.202.21", Gateway: "172.24.0.1", Netmask: "255.255.0.0"}},
+	}
+
+	updated, err := buildUpdatedStateFromVM(ctx, current, vm)
+	if err != nil {
+		t.Fatalf("buildUpdatedStateFromVM returned error: %v", err)
+	}
+
+	if got := updated.Uuid.ValueString(); got != "vm-123" {
+		t.Fatalf("expected uuid vm-123, got %q", got)
+	}
+	if got := updated.Name.ValueString(); got != "vm-name" {
+		t.Fatalf("expected name vm-name, got %q", got)
+	}
+	if got := updated.Description.ValueString(); got != "vm-desc" {
+		t.Fatalf("expected description vm-desc, got %q", got)
+	}
+	if got := updated.MemorySize.ValueInt64(); got != 2048 {
+		t.Fatalf("expected memory_size 2048MB, got %d", got)
+	}
+	if got := updated.CPUNum.ValueInt64(); got != 2 {
+		t.Fatalf("expected cpu_num 2, got %d", got)
+	}
+}
