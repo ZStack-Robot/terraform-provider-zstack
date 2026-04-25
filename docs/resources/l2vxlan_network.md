@@ -23,7 +23,7 @@ Manages an L2 VXLAN network in ZStack.
 ### Optional
 
 - `description` (String) A description for the L2 VXLAN network.
-- `vni` (Number) The VXLAN Network Identifier (VNI).
+- `vni` (Number) The VXLAN Network Identifier (VNI). Changing this forces a new resource to be created — ZStack does not support mutating VNI in place (BUG-057).
 - `zone_uuid` (String) The UUID of the zone.
 
 ### Read-Only
