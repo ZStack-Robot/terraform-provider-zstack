@@ -18,6 +18,7 @@ Manages a Policy in ZStack.
 ### Required
 
 - `name` (String) The name of the policy
+- `statements` (Attributes List) Policy statements defining Allow/Deny rules. Each statement specifies effect, actions, and resources. ZStack Policy is immutable — changes here force resource replacement. (see [below for nested schema](#nestedatt--statements))
 
 ### Optional
 
@@ -27,3 +28,17 @@ Manages a Policy in ZStack.
 
 - `account_uuid` (String) The UUID of the account the policy belongs to
 - `uuid` (String) The UUID of the policy
+
+<a id="nestedatt--statements"></a>
+### Nested Schema for `statements`
+
+Required:
+
+- `actions` (List of String) API actions this statement covers, e.g. ["vm:Start", "vm:Stop"].
+- `effect` (String) Effect of the statement. One of: Allow, Deny.
+
+Optional:
+
+- `name` (String) Optional human-readable name for the statement.
+- `principals` (List of String) Principals this statement applies to (optional).
+- `resources` (List of String) Resource UUIDs or patterns this statement applies to (optional).

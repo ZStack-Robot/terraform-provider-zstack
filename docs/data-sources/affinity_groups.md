@@ -20,6 +20,7 @@ Query ZStack Affinity Groups by name, name pattern, or additional filters.
 - `filter` (Block List) Filter results by field values. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for querying an affinity group.
 - `name_pattern` (String) Pattern for fuzzy matching affinity group names. Use % or _ like SQL.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

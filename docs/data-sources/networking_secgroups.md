@@ -33,6 +33,7 @@ output "zstack_secs" {
 - `filter` (Block List) Filter results by fields in the security group, such as state or IP version. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for querying a security group.
 - `name_pattern` (String) Pattern for fuzzy matching security group names. Use % or _ like SQL.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

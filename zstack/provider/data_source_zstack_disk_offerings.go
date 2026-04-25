@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -20,6 +23,7 @@ var (
 )
 
 type diskOfferingDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name         types.String        `tfsdk:"name"`
 	NamePattern  types.String        `tfsdk:"name_pattern"`
 	Filter       []Filter            `tfsdk:"filter"`
@@ -79,12 +83,7 @@ func (d *diskOfferingDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 
 	params := param.NewQueryParam()
-
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	diskOffers, err := d.client.QueryDiskOffering(&params)
 	if err != nil {
@@ -140,6 +139,16 @@ func (d *diskOfferingDataSource) Schema(ctx context.Context, req datasource.Sche
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of disk offers and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching  disk offer",
 				Optional:    true,

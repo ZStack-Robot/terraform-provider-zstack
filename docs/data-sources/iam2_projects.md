@@ -20,6 +20,7 @@ Query ZStack IAM2 Projects by name, name pattern, or additional filters.
 - `filter` (Block List) Filter results by field values. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name for querying an IAM2 project.
 - `name_pattern` (String) Pattern for fuzzy matching IAM2 project names. Use % or _ like SQL.
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 
