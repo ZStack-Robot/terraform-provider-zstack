@@ -324,8 +324,7 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 		return
 	}
 
-	// BUG-056 workaround: SDK PutWithRespKey passes empty responseKey, so the returned
-	// struct is empty. Re-query by UUID to populate state correctly.
+	// Re-query by UUID after Update to refresh state with the latest server-side values.
 	result, err := findResourceByQuery(r.client.QueryL3Network, state.Uuid.ValueString())
 	if err != nil {
 		response.Diagnostics.AddError(

@@ -131,8 +131,7 @@ func (r *globalConfigResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
-	// BUG-061 workaround: SDK PutWithSpec returns empty struct (responseKey="" missing).
-	// Re-query by category+name to populate state correctly.
+	// Re-query by category+name after Update to refresh state with the latest server-side values.
 	result, err := findResourceByQuery(func(queryParam *param.QueryParam) ([]view.GlobalConfigInventoryView, error) {
 		*queryParam = param.NewQueryParam()
 		queryParam.AddQ("category=" + plan.Category.ValueString())
@@ -231,7 +230,7 @@ func (r *globalConfigResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	// BUG-061 workaround: SDK PutWithSpec returns empty struct; re-query to populate state.
+	// Re-query by category+name after Update to refresh state with the latest server-side values.
 	result, err := findResourceByQuery(func(queryParam *param.QueryParam) ([]view.GlobalConfigInventoryView, error) {
 		*queryParam = param.NewQueryParam()
 		queryParam.AddQ("category=" + plan.Category.ValueString())

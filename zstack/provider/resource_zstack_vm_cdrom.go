@@ -202,8 +202,7 @@ func (r *vmCdRomResource) Update(ctx context.Context, request resource.UpdateReq
 		return
 	}
 
-	// BUG-056 workaround: SDK PutWithRespKey returns empty struct (responseKey="" missing in
-	// SDK call); re-query by UUID to populate state correctly. Track upstream SDK fix.
+	// Re-query by UUID after Update to refresh state with the latest server-side values.
 	cdrom, err := findResourceByQuery(r.client.QueryVmCdRom, state.Uuid.ValueString())
 	if err != nil {
 		response.Diagnostics.AddError("Error re-reading VM CD-ROM after update", err.Error())
