@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-04-21  
+> Updated: 2026-04-26（tracker hygiene + 新增 BUG-064/065 + SDK v0.0.5 联动）  
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning
 
@@ -45,14 +45,13 @@
 | BUG-023 | P2 | ✅ Fixed | Randomize test resource names |
 | BUG-019 | P2 | ✅ Fixed | Move disk state logic to Read() per TODO |
 
-### Remaining (11 bugs — deferred / lower priority)
+### Remaining (3 bugs — deferred / lower priority)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
 | BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
 | BUG-024 | P3 | 🟡 In Progress | Add update steps to acceptance tests |
 | BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
-| BUG-026–033 | P2–P3 | 🔲 Open | Various naming consistency and test improvements |
 | BUG-040 | P1 | ✅ Fixed (2026-04-24) | TypeName 改为 `zstack_virtual_routers` (与文件名/SDK 一致) |
 | BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
 | BUG-047–052 | P3 | ✅ Fixed (2026-04-24) | Resource TypeName 已对齐 SDK 命名 (6 处) |
@@ -62,11 +61,14 @@
 | BUG-056 | P0 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround: vm_cdrom/l3network/global_config Update 后用 findResourceByQuery；instance Update 已有该模式 |
 | BUG-057 | P0 | ✅ Fixed (2026-04-24) | `l2vxlan_network.vni` 加 `int64planmodifier.RequiresReplace` |
 | BUG-058 | P0 | ✅ Fixed (已在代码中) | `l3network` Create ipVersion 已有 IsUnknown guard (line 185-187)，核对后确认修过 |
-| BUG-059 | P0 | 🔲 Open | `l3network` Delete: URL 缺 UUID 参数（SDK 侧问题，非 provider） |
+| BUG-059 | P0 | 🔁 Moved → SDK | `l3network` Delete URL 缺 UUID 参数；属 SDK 侧 bug，已迁移至 SDK 仓库 [`SDK-BUG-004`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-004-L3Network-Delete-URL.md)（待 SDK 团队复现） |
 | BUG-060 | P1 | ✅ Fixed (2026-04-24) | `instance` Create Description 改用 `stringPtrOrNil` |
 | BUG-061 | P1 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround：global_config Create+Update 后用 QueryGlobalConfig 重读 |
 | BUG-062 | P2 | ✅ Fixed (2026-04-24) | 子缺陷 a/b 核实已修；c (encoding_type Read 映射) 新修 |
 | BUG-063 | P2 | ✅ Fixed (2026-04-24) | `subnet_ip_range` Read 加上 `IpRangeType` 字段映射 |
+| BUG-064 | P1 | ✅ Fixed (2026-04-26, commit `1275c54`) | `reserved_ips` ZQL envelope decode 错位（SDK Zql 把 varargs 当 unmarshal-key 钻进 JSON envelope，但 ZQL 响应是 `{"results":[{"inventories":[...]}]}`），导致 Read 失败；同 commit 给 `testdata/generate_tf` 加 `try(length)` guard |
+| BUG-065 | P1 | ✅ Fixed (2026-04-26, commit `d3aafc6`) | 24 处 Optional+Computed 空字符串清洗：引入 `stringValueOrNull()` 让空 API 响应 → state null（消除 plan-time `""` vs null drift）；instance Update 后 `findResourceByGet` re-read 重建 state（BUG-019 后续 + SDK-WA-001 模式扩展） |
+| **F1/F4 followup** | TBD | 🔲 待 QA | MR #31 最终验证 F1（Plan Compliance）/ F4（Scope Fidelity）reject；具体要求待 QA 下周给报告，到时再编号入账 |
 
 ---
 
@@ -894,7 +896,7 @@ Full output from `golangci-lint run ./...`:
 ## BUG-053 — iam2_project Delete 缺 Expunge 调用
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔲 Open (前 tracker 标记为 FIXING 但代码未改)
+- **Status**: ✅ Fixed (2026-04-24, commit `c45c082`)；后续随 SDK v0.0.5 `DeleteAndExpungeIAM2Project` 进一步收敛为单步调用
 - **File**: `zstack/provider/resource_zstack_iam2_project.go:226-243`
 - **Evidence (2026-04-24 扫描)**: Delete 方法只调 `DeleteIAM2Project(uuid, DeleteModePermissive)`，无 `ExpungeIAM2Project` 后续调用
 - **Category**: Missing Expunge / Soft-delete residual
@@ -917,7 +919,7 @@ SDK 方法已就位：`~/go/pkg/mod/github.com/zstackio/zstack-sdk-go-v2@v0.0.4/
 ## BUG-054 — policy Create 硬编码空 Statements 数组
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-25, commit `6588547`)
 - **File**: `zstack/provider/resource_zstack_policy.go:114-122`
 - **Evidence**:
 ```go
@@ -942,7 +944,7 @@ createParam := param.CreatePolicyParam{
 ## BUG-055 — BUG-5 遗漏：3 处 Optional+Computed 仍缺 IsUnknown guard
 
 - **Severity**: P1 (HIGH)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-24, commit `c45c082`)
 - **Evidence (antipattern scanner output 2026-04-24)**:
   - `resource_zstack_virtual_router_offering.go:100`  (`IsDefault.IsNull()` — 字段实际是 Optional 无 Computed，可能是误报)
   - `resource_zstack_virtual_router_offering.go:~97`  (`description` Optional+Computed+`UseStateForUnknown` → 真正 BUG-5 实例)
@@ -965,7 +967,7 @@ if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
 ## BUG-056 — 系统性：SDK `PutWithRespKey` 返回空 struct
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-25, commit `6588547`) — provider 侧走方案 B（Update 后 re-query）；SDK v0.0.5 已修底层（[`SDK-BUG-001`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-001-PutWithRespKey-Empty-Envelope.md)），provider re-query 现降级为一致性兜底
 - **Scope**: `instance` / `vm_cdrom` / `l3network` Update 方法；可能还有 `global_config`
 - **Category**: 模式 1（跨资源系统性 SDK bug）
 
@@ -983,7 +985,7 @@ if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
 ## BUG-057 — l2vxlan_network `vni` 缺 RequiresReplace
 
 - **Severity**: P0 (CRITICAL — 静默数据丢失)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-24, commit `c45c082`)
 - **File**: `zstack/provider/resource_zstack_l2vxlan_network.go` (Schema 中 `vni` 字段)
 - **Category**: Plan Modifier Missing
 
@@ -996,7 +998,7 @@ if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
 ## BUG-058 — l3network Create: `ipVersion=0` 被 API 拒绝
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (确认代码中已有 IsUnknown guard, line 185-187, 2026-04-24)
 - **File**: `zstack/provider/resource_zstack_l3network.go` Create
 - **Category**: 模式 2 的具体实例（Int64 零值）
 
@@ -1009,20 +1011,20 @@ if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
 ## BUG-059 — l3network Delete URL 缺 UUID
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔲 Open
+- **Status**: 🔁 Moved → SDK ([`SDK-BUG-004`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-004-L3Network-Delete-URL.md), 2026-04-26)
 - **File**: `zstack/provider/resource_zstack_l3network.go` Delete
 - **Category**: SDK Usage Bug
 
 **Problem**: `DeleteL3Network` 调用时 URL 模板拼接没把 UUID 放对位置，导致 DELETE 请求打到错误 endpoint。
 
-**Fix**: 检查 SDK 方法签名，确认参数顺序。可能是 provider 侧传参错误，也可能是 SDK url template 问题（见 `docs/sdk-url-template-bug.md`）。
+**Disposition**: 经审视确认根因在 SDK `getDeleteURL` / `DeleteWithSpec` 拼接逻辑（见 `docs/sdk-url-template-bug.md` 与 SDK 仓库 `pkg/docs/SDK-BUG-004-...md`）。本条已迁移至 SDK 仓库由 SDK 团队按"复现步骤"复现并修；provider 侧暂保持调用 `DeleteL3Network` 不绕过，等 SDK 修复后升 SDK 即可。
 
 ---
 
 ## BUG-060 — instance Create: stringPtr 传空字符串
 
 - **Severity**: P1 (HIGH)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-24, commit `849b93f`)；后续 BUG-065 把 `stringValueOrNull()` sweep 范围扩到 24 处
 - **File**: `zstack/provider/resource_zstack_instance.go` Create (多处)
 - **Category**: Nil vs Empty String
 
@@ -1041,7 +1043,7 @@ func stringPtrOrNil(s string) *string {
 ## BUG-061 — global_config Read 后 state 全空
 
 - **Severity**: P1 (HIGH)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-25, commit `6588547`) — provider 走方案 B（QueryGlobalConfig 重读）；底层随 SDK v0.0.5 SDK-BUG-001 一并修复
 - **File**: `zstack/provider/resource_zstack_global_config.go`
 - **Category**: 模式 1 的亲戚（SDK `PutWithSpec` responseKey 缺失）
 - **Related**: BUG-056
@@ -1055,7 +1057,7 @@ func stringPtrOrNil(s string) *string {
 ## BUG-062 — instance_scripts 三处缺陷
 
 - **Severity**: P2 (MEDIUM)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-24, commit `849b93f`)
 - **File**: `zstack/provider/resource_zstack_instance_scripts.go`
 - **Category**: 混合（BUG-5 + BUG-63 的 Read 字段遗漏）
 
@@ -1071,7 +1073,7 @@ func stringPtrOrNil(s string) *string {
 ## BUG-063 — subnet_ip_range Read 后 `ip_range_type` 丢失
 
 - **Severity**: P2 (MEDIUM)
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-04-24, commit `849b93f`)
 - **File**: `zstack/provider/resource_zstack_subnet_ip_range.go` Read
 - **Category**: 模式 3 — Read 方法字段遗漏
 
@@ -1081,13 +1083,66 @@ func stringPtrOrNil(s string) *string {
 
 ---
 
-## 系统性模式汇总（BUG-053–063）
+## BUG-064 — `reserved_ips` ZQL envelope 解码错位 + generator 缺 length guard
+
+- **Severity**: P1 (HIGH)
+- **Status**: ✅ Fixed (2026-04-26, commit `1275c54`)
+- **File**:
+  - `zstack/provider/data_source_zstack_reserved_ips.go` Read
+  - `zstack/provider/resource_zstack_reserved_ip.go` Read
+  - `zstack/provider/testdata/generate_tf.go`
+- **Category**: SDK Usage Bug / Read Failure
+
+**Problem**: `data.zstack_reserved_ips` 与 `resource zstack_reserved_ip` 的 Read 都调用 `Zql(ctx, q, &dst, "inventories")`。SDK `Zql` 把尾部 varargs 当作 unmarshal-key 钻进 JSON envelope，但 ZQL 真实响应是：
+
+```json
+{ "results": [ { "inventories": [ ... ] } ] }
+```
+
+顶层没有 `"inventories"`，导致每次 Read 报 `"Get: key not found"` (`jsonutils.ErrJsonDictKeyNotFound`)，资源完全无法刷新。
+
+**Fix**:
+1. Read 方法改为先反序列化整个 envelope 到一个反映响应结构的 struct，再 flatten `Results[*].Inventories`（与 ZStack 内部其它 ZQL 调用相同模式）。
+2. `testdata/generate_tf.go` 给若干 `length()` 调用包 `try(length(...), 0)`，避免空集合导致 fixture 渲染失败。
+
+---
+
+## BUG-065 — Optional+Computed 字符串清洗 + instance Update 后 re-read（24 处 sweep）
+
+- **Severity**: P1 (HIGH)
+- **Status**: ✅ Fixed (2026-04-26, commit `d3aafc6`)
+- **File**:
+  - `zstack/provider/resource_zstack_instance.go`（含两个新辅助 `normalizeNetworkInterfacesFromVM` / `buildUpdatedStateFromVM` + `resource_zstack_instance_bug019_test.go`）
+  - `zstack/provider/resource_zstack_l3network.go`
+  - `zstack/provider/resource_zstack_sdn_controller.go`
+  - `zstack/provider/resource_zstack_aliyun_proxy_vswitch.go`
+  - 共 24 处 Optional+Computed 字符串字段（description / dns_domain / vendor_version / status …）
+- **Category**: 模式 1 扩展（SDK-WA-001 显式落地） + Empty/Null Drift Cleanup
+- **Related**: BUG-019 (Delete 已用 state 而非 re-query), BUG-060 (`stringPtrOrNil`), SDK-WA-001
+
+**Problem**:
+1. 大量 Optional+Computed 字符串字段在 ZStack API 返回空字符串时被写回 state 为 `""`，与 HCL 中省略字段的语义（null）不一致，每次 plan 都出现 `"" → null` 噪音 drift。
+2. `instance` 资源 Update 路径直接信任 SDK 返回的 (空) struct，state 与 ZStack 实际持久化的内容偶发不符（与 BUG-056/SDK-WA-001 同根，但 SDK v0.0.5 修复前需要 provider 显式兜底）。
+
+**Fix**:
+1. 引入 `stringValueOrNull(s string) types.String` 辅助：空字符串 → `types.StringNull()`；24 处调用点切换。
+2. `instance.Update` 在成功调用 `UpdateVmInstance` 之后再走 `findResourceByGet(GetVmInstance)` 重读，并通过两个新辅助从 fresh inventory 重建 state（包含 data-disk 同步，把 BUG-019 的 Delete 改造延伸到 Update 路径）。
+3. 新增两个单元测试覆盖辅助函数。
+4. `testdata/generate_tf.go -only=datasources` 现在为全部 42 个 list-shaped data source 生成 fixture（all / by_name / by_uuid / by_name_pattern / by_nonexistent_uuid 五变体 + by_name/by_uuid 一致性断言），并给每个 data source 按 schema 真实可过滤字段裁剪（如 `mn_nodes` 只支持 `all`、`networking_secgroup_rules` 只有 `priority`、`license_authorized_capacity` 是 singleton）。
+
+**Verified**: `go build ./...` / `go vet ./...` / `go test ./zstack/provider/` 全通过；42/42 生成 fixture 通过 `terraform validate`（dev_overrides）。
+
+---
+
+## 系统性模式汇总（BUG-053–065）
 
 | 模式 | 影响 Bug | 根因 |
 |---|---|---|
-| **模式 1**：SDK Put 响应解析缺 responseKey | BUG-056 / BUG-061 | zstack-sdk-go-v2 响应层需统一修复 |
+| **模式 1**：SDK Put 响应解析缺 responseKey | BUG-056 / BUG-061 / BUG-065 | zstack-sdk-go-v2 响应层；上游已在 v0.0.5 修复（[`SDK-BUG-001`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-001-PutWithRespKey-Empty-Envelope.md)） |
 | **模式 2**：Optional+Computed 缺 IsUnknown guard | BUG-055 / BUG-058 / BUG-062b | provider 侧可单独扫修 |
 | **模式 3**：Read 方法字段遗漏 | BUG-062c / BUG-063 | 需对 30+ 资源做 Schema↔Read 字段对齐检查 |
+| **模式 4**：Empty string 空响应应映射为 null | BUG-060 / BUG-065 | `stringValueOrNull` / `stringPtrOrNil` sweep |
+| **模式 5**：ZQL envelope 路径错位 | BUG-064 | SDK `Zql` 当 varargs 钻 envelope，但 ZQL 响应是嵌套 `results.inventories` |
 
 ### 优先级建议
 
@@ -1104,13 +1159,25 @@ func stringPtrOrNil(s string) *string {
 
 > **目的**：所有 provider 代码里"绕过 SDK bug"的地方集中登记。每条都标识：(1) SDK 哪里坏了；(2) provider 怎么绕；(3) 上游修好后这里要回收的代码位置。
 >
-> **生成日期**: 2026-04-25  
-> **SDK 版本**: `github.com/zstackio/zstack-sdk-go-v2 v0.0.4`  
+> **生成日期**: 2026-04-25（SDK v0.0.4 基线）  
+> **更新**: 2026-04-26 — 上游 SDK [v0.0.5](https://github.com/zstackio/zstack-sdk-go-v2/releases/tag/v0.0.5) 已修复 SDK-BUG-001 / SDK-BUG-003；详见各 WA 条目下的"上游状态"
+>
+> **当前 provider SDK pin**: `github.com/zstackio/zstack-sdk-go-v2 v0.0.4`（待单独 PR 升级到 v0.0.5）  
 > **共 4 类 SDK bug，影响 25+ 资源文件**
+
+| 编号 | 上游 SDK 状态 | Provider 当前状态 |
+|---|---|---|
+| **SDK-WA-001** | ✅ Fixed (v0.0.5, [`SDK-BUG-001`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-001-PutWithRespKey-Empty-Envelope.md)) | 23 资源 re-query 仍在；建议升 SDK 后保留 re-query 当一致性兜底，仅清 `// SDK bug:` 注释 |
+| **SDK-WA-002** | 🔲 Open ([`SDK-BUG-002`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-002-ZSClient-Post-URL-Template.md)) | 7 资源已绕过；待 SDK 修后回收 |
+| **SDK-WA-003** | ✅ Fixed (v0.0.5, [`SDK-BUG-003`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-003-IAM2Project-Soft-Delete.md)) — 新增 `DeleteAndExpungeIAM2Project` | provider 仍走两步；升 SDK 后改单步调用（PR-B 一并做） |
+| **SDK-WA-004** | — (设计差异，非 bug) | 保留作 adapter 层 |
 
 ---
 
 ## SDK-WA-001 — `PutWithRespKey` / `PutWithSpec` 返回空 struct
+
+### 上游状态
+✅ **Fixed in SDK v0.0.5** — `PutWithAsync` / `PostWithAsync` 在 `responseKey == ""` 时已落地 `inventory` envelope 兜底。详见 [`SDK-BUG-001`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-001-PutWithRespKey-Empty-Envelope.md)。
 
 ### SDK Bug
 SDK 中所有 Update 方法（如 `UpdateVmInstance`、`UpdateL3Network`、`UpdateAlarm` 等）调用 `PutWithRespKey(path, uuid, "", params, &resp)`，第三个参数 `responseKey=""`。
@@ -1154,18 +1221,25 @@ ZStack API 的 PUT 响应实际是 `{"inventory": {...}}`，缺少 `"inventory"`
 
 ### 已记录文档
 - `troubleshooting/SDK-BUG-UpdateAlarm-Empty-Response.md` — 完整原始报告（alarm 案例）
+- 上游：[`SDK-BUG-001`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-001-PutWithRespKey-Empty-Envelope.md)（v0.0.5 已修）
 
-### SDK 修复后的回收清单
-SDK 把 `PutWithRespKey` 调用改成传 `"inventory"` 后，provider 侧可：
-1. 把 `_, err := r.client.UpdateXxx(...)` 还原为 `xxx, err := ...`
-2. 删除每个资源 Update 后的 re-query 块
-3. 直接用 SDK 返回的 view struct 写回 state
+### SDK v0.0.5 升级后的回收策略（**已选定**）
+2026-04-26 决策：**保留 23 处 re-query 当一致性兜底**，仅做最小回收。原因：
+- v0.0.5 已让 SDK 自动从 `inventory` envelope 解码，re-query 已不必为正确性所需；
+- 但保留 re-query 在 server-side compute（`lastOpDate`、动态字段）下仍能拿到最新值，且仅多一次网络往返，成本可忽略；
+- 大规模回收 23 处 re-query = 大 diff + 回归风险，性价比低。
 
-或者更稳：保留 re-query 当作"刷新最新状态"的一致性保障，只删除"绕过"注释。
+后续 PR-B（SDK v0.0.5 升级）会做：
+1. `go get github.com/zstackio/zstack-sdk-go-v2@v0.0.5`；
+2. 全仓清除 `// SDK bug:` / `// SDK-WA-001:` 注释（保留 re-query 代码本身）；
+3. 不改 23 个资源的逻辑。
 
 ---
 
 ## SDK-WA-002 — `ZSClient.Post()` 不解析 URL 模板占位符
+
+### 上游状态
+🔲 **Open** — 详见 [`SDK-BUG-002`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-002-ZSClient-Post-URL-Template.md)（待 SDK 团队修；v0.0.5 未包含此修复）。
 
 ### SDK Bug
 SDK 嵌入了两个 HTTP client：
@@ -1193,6 +1267,9 @@ SDK 给 `ZSClient.Post()` 加占位符替换后，provider 侧可：
 
 ## SDK-WA-003 — `IAM2Project` 软删除不释放 name
 
+### 上游状态
+✅ **Fixed in SDK v0.0.5** — 新增 `DeleteAndExpungeIAM2Project(uuid, deleteMode)` 复合方法（无 break change）。详见 [`SDK-BUG-003`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-003-IAM2Project-Soft-Delete.md)。
+
 ### SDK Bug
 `DeleteIAM2Project(uuid, mode)` 仅做软删除，project 进回收站；同名 project 无法重新创建。SDK 提供了独立的 `ExpungeIAM2Project(uuid)` 但没有"删除并清空回收站"的复合方法。
 
@@ -1201,10 +1278,12 @@ SDK 给 `ZSClient.Post()` 加占位符替换后，provider 侧可：
 |---|---|
 | `resource_zstack_iam2_project.go:226-249` | Delete 之后调用 `ExpungeIAM2Project`；expunge 失败时降级为 warning（资源已经软删除）★ 本轮修 |
 
-### SDK 修复后的回收清单
-SDK 给 `DeleteIAM2Project` 加 `purge bool` 参数后：
-1. 删除 provider 侧的 `ExpungeIAM2Project` 调用块
-2. 改用 `DeleteIAM2Project(uuid, mode, true)`
+### SDK v0.0.5 升级后的回收清单（PR-B 一并做）
+1. `go get github.com/zstackio/zstack-sdk-go-v2@v0.0.5`；
+2. `resource_zstack_iam2_project.go` Delete 路径：
+   - 删除两步调用（`DeleteIAM2Project` + `ExpungeIAM2Project` + warning 降级）；
+   - 替换为单步 `r.client.DeleteAndExpungeIAM2Project(uuid, param.DeleteModePermissive)`；
+3. 删除 `// SDK-BUG-003:` 注释。
 
 ---
 
@@ -1225,13 +1304,18 @@ SDK 修不修都建议保留。
 
 ## SDK 修复跟进列表（请提给 SDK 团队）
 
-| 编号 | SDK 修复内容 | 影响 provider 文件数 |
-|---|---|---|
-| **SDK-FIX-001** | `PutWithRespKey` 调用处补传 `"inventory"` （或在底层默认走 inventory 解析） | 23 |
-| **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | 1 (Primary Storage) + 潜在 32 个 |
-| **SDK-FIX-003** | `DeleteIAM2Project` 增加 purge 参数或新增 `DeleteAndExpungeIAM2Project` 一站式方法 | 1 |
-| **SDK-FIX-004** | l3network Delete URL 修复（BUG-059，待 SDK 团队复现） | 1 |
+| 编号 | SDK 修复内容 | 上游状态 | 影响 provider 文件数 |
+|---|---|---|---|
+| **SDK-FIX-001** | `PutWithRespKey` 在底层默认走 inventory envelope 兜底 | ✅ Fixed in v0.0.5（同时修了 `PostWithAsync`） | 23 |
+| **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | 🔲 Open | 1 (Primary Storage) + 潜在 32 个 |
+| **SDK-FIX-003** | `DeleteIAM2Project` 加 purge 参数或新增 `DeleteAndExpungeIAM2Project` 一站式方法 | ✅ Fixed in v0.0.5（采用方案 B：新增 `DeleteAndExpungeIAM2Project`） | 1 |
+| **SDK-FIX-004** | l3network Delete URL 修复（原 BUG-059） | 🔲 待复现 | 1 |
 
 每条 SDK 修复对应的 provider 回收 PR 都很简单（删几行 re-query），但要注意：
 - 不要在 SDK 上线**前**回收，否则破坏当前 provider 的正确性。
 - 推荐：SDK release 后跟一个 `chore: clean up SDK workarounds (closes SDK-WA-001..003)` 的 PR。
+
+### v0.0.5 联动落地计划
+
+- **PR-A（本 PR）**：tracker hygiene + 入账 BUG-064/065 + 关闭 BUG-059 链至 SDK-BUG-004 + 标记 SDK-WA-001/003 上游已修。**纯文档**，不动 go.mod 也不动 provider 代码。
+- **PR-B（后续）**：升 `zstack-sdk-go-v2` 到 v0.0.5；SDK-WA-003 改单步调用；全仓清 `// SDK bug:` / `// SDK-WA-001:` / `// SDK-BUG-003:` 注释；保留 SDK-WA-001 的 23 处 re-query 当一致性兜底（不动逻辑）。
