@@ -1,9 +1,9 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-04-26（tracker hygiene + 新增 BUG-064/065 + SDK v0.0.5 联动）  
+> Updated: 2026-04-27（real-env sweep against `.env.test` cluster — 入账 BUG-066..083，对应 18 条 BUG-NEW-100..117；新增 SDK-BUG-005 / SDK-WA-005 / SDK-FIX-005；2026-04-27 后续：BUG-069/071 修复落地；新登 BUG-084 / SDK-WA-006 / SDK-FIX-006，对应 BUG-NEW-118 SDK UpdateVmInstance 时间戳 decode；附带 network_interfaces schema 重设计 + os 字段 platform/guest_os_type/architecture；BUG-085 修复 — `zstack_image` Update 路径打开（lift RequiresReplace + 实装 Update，复用 SDK-WA-006）；10-image-storage Create+Update+Destroy 全过；SDK 端：用户本地修了 `pkg/client/http_client.go` PostWithAsync/PutWithAsync（SDK-FIX-006 落地），SDK-WA-005/006 标记 Fixed in SDK 等 release；新登 SDK-FIX-007（11 处 RPC 风格残留 URL 待核） + SDK-AUDIT-001 — `client.go` 内 stdlib `json.Unmarshal/NewDecoder` 候选位点（line 460/535/562/585/589）经核实是 `/* … */` 注释块内的死代码，无活动影响）；2026-04-27 收尾：SDK v0.0.6 正式发布，provider `go.mod` 升 v0.0.5→v0.0.6（移除 local `replace`），`isSDKTimeParseError` helper + `resource_zstack_instance.go` / `resource_zstack_image.go` Update swallow 分支全部移除，10-image-storage + 05-compute-vm Create+Update（双向）+ Destroy real-env 复跑全过，SDK-WA-005/006 状态由 Open → Released  
 > Branch: `test/progress`  
-> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning
+> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**
 
 ---
 
@@ -69,6 +69,27 @@
 | BUG-064 | P1 | ✅ Fixed (2026-04-26, commit `1275c54`) | `reserved_ips` ZQL envelope decode 错位（SDK Zql 把 varargs 当 unmarshal-key 钻进 JSON envelope，但 ZQL 响应是 `{"results":[{"inventories":[...]}]}`），导致 Read 失败；同 commit 给 `testdata/generate_tf` 加 `try(length)` guard |
 | BUG-065 | P1 | ✅ Fixed (2026-04-26, commit `d3aafc6`) | 24 处 Optional+Computed 空字符串清洗：引入 `stringValueOrNull()` 让空 API 响应 → state null（消除 plan-time `""` vs null drift）；instance Update 后 `findResourceByGet` re-read 重建 state（BUG-019 后续 + SDK-WA-001 模式扩展） |
 | **F1/F4 followup** | TBD | 🔲 待 QA | MR #31 最终验证 F1（Plan Compliance）/ F4（Scope Fidelity）reject；具体要求待 QA 下周给报告，到时再编号入账 |
+| BUG-066 | P1 | 🔲 Open（real-env, RUN_ID `r144465c0a`） | `zstack_access_key.user_uuid` 漂移：API 把 key 挂在调用者（admin），provider 把 plan 值写回 state → "inconsistent result"。原 BUG-NEW-100。 |
+| BUG-067 | P3 | 🔲 Open | `zstack_role.identity` 枚举无文档/无 OneOf 校验：`Customized` 失败但 docs 不写。原 BUG-NEW-101。 |
+| BUG-068 | P1 | ✅ Fixed in SDK v0.0.6 (2026-04-27) | `CreateVipQos` 响应 `lastOpDate` 是 `Apr 26, 2026 11:05:50 PM`，SDK 期望 RFC3339 → decode 崩。根因 `pkg/client/http_client.go` PostWithAsync/PutWithAsync 走 stdlib json.Unmarshal 解 inventory 子树。SDK v0.0.6 改成 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils。原 BUG-NEW-102 / SDK-BUG-005。 |
+| BUG-069 | P0 | ✅ Fixed (2026-04-27) | `zstack_instance` Create 始终发 `instanceOfferingUuid: ""`（unset 时也发空字符串），API SYS.1003 拒绝；同模式还有 `rootDiskOfferingUuid` / `defaultL3NetworkUuid` / `strategy`。修复：把 4 处 `stringPtr(...)` 改为 `stringPtrOrNil(...)`（resource_zstack_instance.go 的 Create 入参组装段）。real-env RUN_ID `r144465c0a` 全跑通：vm_offering_path（带 instance_offering_uuid）+ vm_cpu_mem_path（cpu_num+memory_size）Create+Update+Destroy 均成功。原 BUG-NEW-103。 |
+| BUG-070 | P2 | 🔲 Open | `zstack_volume_backup` 对 `SftpBackupStorage` 不可用（SFTP BS 不托管 volume backup）；provider 应 plan-time 校验或文档。原 BUG-NEW-104。 |
+| BUG-071 | P0 | ✅ Fixed (2026-04-27) | `zstack_instance.root_disk` Schema 与 `diskModel` 结构体不一致：`tfsdk:"volume_uuid"` 在 struct 但不在 schema → "Value Conversion Error"。设置 `root_disk` 必崩。修复：root_disk 与 data_disks 两个 SingleNested/ListNested 都加上 `volume_uuid`（Computed+UseStateForUnknown）；root_disk 的 `primary_storage_uuid` 升级为 Optional+Computed（API 自动填充时不再 drift）；Create+Read 把服务端 `AllVolumes` 按 `Type=="Root"` 切给 root_disk，其余切给 data_disks（plan 里没写 data_disks 时不写 state，避免引入空列表 drift）。real-env RUN_ID `r144465c0a` 验证通过。原 BUG-NEW-105。 |
+| BUG-072 | P2 | 🔲 Open | `zstack_instance_scripts.script_content`：API 去尾 `\n`，provider 不重读 → drift。原 BUG-NEW-106。 |
+| BUG-073 | P2 | 🔲 Open | `zstack_log_server.configuration` 是 freeform string，appender/plugin 嵌套 schema 全无文档；`Log4j2`/`FluentBit` 简单 host/port 都被拒。原 BUG-NEW-107。 |
+| BUG-074 | P1 | 🔲 Open | `zstack_vpc.enable_ipam` Optional 但缺 Computed，API 总是回 `false` → drift。需加 `Computed: true`。原 BUG-NEW-108。 |
+| BUG-075 | P0 | 🔲 Open（**blocker**） | `zstack_iam2_organization.type` API 返回空字符串，provider Create 用空值覆盖 plan.Type，Required 字段非空 → 永远 drift。资源端到端不可用。原 BUG-NEW-109。 |
+| BUG-076 | P0 | 🔁 Moved → SDK ([`SDK-BUG-006`](#sdk-bug-006)) | `DeleteDirectory` SDK URL 用 `v1/delete/directory/{uuid}`（应该是 directory 资源根 URL）→ 404，每次 Apply 都泄漏 directory（本轮残留 1 个 orphan）。原 BUG-NEW-110。 |
+| BUG-077 | P2 | 🔲 Open | `zstack_certificate.certificate` 服务端去尾空白，provider 不重读 → drift。同 BUG-072 / BUG-065 模式 4 扩展。原 BUG-NEW-111。 |
+| BUG-078 | P3 | 🔲 Open | `zstack_global_config` 没有 data source 列举合法 (category, name)；任意未知键全是黑盒错误。需新增 `data zstack_global_configs`。原 BUG-NEW-112。 |
+| BUG-079 | P3 | 🔲 Open | `zstack_stack_template.template_content` 必须含 `ZStackTemplateFormatVersion` marker，但 schema/docs/examples 均无。原 BUG-NEW-113。 |
+| BUG-080 | P1 | 🔲 Open | `zstack_pci_device_offering` schema 只声明 vendor_id+device_id，但 DB 还有 NOT NULL 列（name 等），不传就 ConstraintViolationException。原 BUG-NEW-114。 |
+| BUG-081 | P0 | 🔲 Open（**blocker**） | `zstack_price_table` 必填字段 `prices` 在 schema 完全缺失，资源不可创建。原 BUG-NEW-115。 |
+| BUG-082 | P3 | 🔲 Open | `zstack_resource_stack` 同 BUG-079；空 template 还会触发服务端未格式化的 `invalid decoder: %s!`（API 侧也有小 bug）。原 BUG-NEW-116。 |
+| BUG-083 | P1 | 🔲 Open | `zstack_preconfiguration_template` 双层无文档校验：(1) `type` 枚举强制小写 `[kickstart, preseed, autoyast, autoinstall]`；(2) `content` 必须含未文档化的 "common params" markers。原 BUG-NEW-117。 |
+| BUG-084 | P1 | ✅ Fixed in SDK v0.0.6 + Provider workaround removed (2026-04-27) | `UpdateVmInstance` 同 BUG-068 的根因（PostWithAsync/PutWithAsync 用 stdlib `json.Unmarshal` 解 inventory 子树）。SDK v0.0.6 修好后 provider 端 `isSDKTimeParseError` helper + Update 里的 swallow 分支已删除（resource_zstack_instance.go），保留 `findResourceByGet(GetVmInstance)` 兜底（成本忽略，作为 state 一致性保险）。real-env RUN_ID `r144465c0a` v0.0.6 + 清理后 Create(4) + Update v1↔v2 双向各 2 changed + Destroy(4) 全过。原 BUG-NEW-118 / SDK-WA-006。 |
+| BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
+| **NEW-SCHEMA-NOTE** | — | ✅ 落地 (2026-04-27) | `zstack_instance.network_interfaces` 重设计：`default_l3` 改 Optional+Computed（多 NIC 仅允许一个真值；全省略时 provider 在 Create 自动选第一个 NIC；服务端解析后 echo 回 state，UseStateForUnknown 防 plan drift），`static_ip` 改 Optional+Computed。同步新增顶层 `platform` / `guest_os_type` / `architecture`（前两个 Optional+Computed 走 Update，`architecture` 因 SDK UpdateVmInstanceParamDetail 没有该字段、必须 RequiresReplace）。real-env 用例：`vm_offering_default_l3=[false,true]`、`vm_cpu_default_l3=[true]`、`platform=Linux`、`guest_os_type` 在 Update 里 `CentOS 7.6 ↔ CentOS 7.9` 成功 flip。 |
 
 ---
 
@@ -1171,6 +1192,8 @@ func stringPtrOrNil(s string) *string {
 | **SDK-WA-002** | 🔲 Open ([`SDK-BUG-002`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-002-ZSClient-Post-URL-Template.md)) | 7 资源已绕过；待 SDK 修后回收 |
 | **SDK-WA-003** | ✅ Fixed (v0.0.5, [`SDK-BUG-003`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-003-IAM2Project-Soft-Delete.md)) — 新增 `DeleteAndExpungeIAM2Project` | provider 仍走两步；升 SDK 后改单步调用（PR-B 一并做） |
 | **SDK-WA-004** | — (设计差异，非 bug) | 保留作 adapter 层 |
+| **SDK-WA-005** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround N/A (vip_qos was skipped, 可重新启用) | 13-misc-ops 跳过 vip_qos 的注释可去除，加回真实 Create+Destroy 用例 |
+| **SDK-WA-006** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround **REMOVED** | `isSDKTimeParseError` helper + `resource_zstack_instance.go` / `resource_zstack_image.go` Update 路径的 swallow-then-`findResourceByGet` 分支已清除；保留 `findResourceByGet(GetVmInstance)` / `findResourceByGet(GetImage)` 作 state 一致性兜底 |
 
 ---
 
@@ -1302,6 +1325,75 @@ SDK 修不修都建议保留。
 
 ---
 
+## SDK-WA-005 — `CreateVipQos` 响应 `lastOpDate` 解码失败
+
+### 上游状态
+✅ **Released in SDK v0.0.6 (2026-04-27)** — `pkg/client/http_client.go` 的 `PostWithAsync` (`:312`) 与 `PutWithAsync` (`:380`) 不再用 `json.Unmarshal([]byte(inventory.String()), retVal)`（stdlib 不识别 `ZStackTimeFormat`），改成 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils 解码层。Provider 已升至 `github.com/zstackio/zstack-sdk-go-v2 v0.0.6`，`replace` 指令已撤除。Provider-side workaround N/A（vip_qos 走的是跳过路径，没有具体 swallow 代码可清；只需在 13-misc-ops 重新启用真实用例）。
+
+### SDK Bug
+ZStack 管理面 `CreateVipQos` 响应里 `lastOpDate` 用 `Apr 26, 2026 11:05:50 PM` 这种 Java `SimpleDateFormat` 风格，但 SDK 解码层硬绑 RFC3339 `2006-01-02T15:04:05Z07:00` → 直接解码崩。Create call 实际成功，但 SDK 抛错让 provider 走错误路径。
+
+### 影响范围
+| 文件 | 影响 |
+|---|---|
+| `resource_zstack_vip_qos.go` Create | Create 拿到响应解不开 → 报错 → provider 没机会写 state；vip_qos 资源对此 cluster 完全不可用 |
+
+### Provider 现状
+13-misc-ops 这次跑直接跳过了 vip_qos（log 里写了 BUG-068）。
+
+### SDK 修复后回收
+SDK-FIX-006 落地后，去掉 13-misc-ops 里跳过 vip_qos 的注释，加回真实 Create+Destroy 用例。
+
+---
+
+## SDK-WA-006 — `UpdateVmInstance` 响应 `lastOpDate` 解码失败
+
+### 上游状态
+✅ **Released in SDK v0.0.6 (2026-04-27)** — 同 SDK-WA-005，根因 `pkg/client/http_client.go` 的 `PostWithAsync` / `PutWithAsync` 在空 responseKey 兜底分支里用 stdlib `json.Unmarshal` 解 `inventory` 子树，丢失 `ZStackTimeFormat` 解析能力。改用 `resp.Unmarshal(retVal, responseKeyInventory)` 后 `Apr 27, 2026 3:10:09 PM` 这种格式可正确入 `time.Time`。Provider 已升至 `github.com/zstackio/zstack-sdk-go-v2 v0.0.6`，`replace` 指令已撤除。
+
+### Provider-side workaround：✅ **REMOVED (2026-04-27)**
+- 删除 `zstack/provider/resource_zstack_instance.go` 内 `isSDKTimeParseError` helper；
+- 删除 `resource_zstack_instance.go` Update 路径的 swallow 分支（`if isSDKTimeParseError(err) { tflog.Warn(...) ... } else { resp.Diagnostics.AddError(...) }` 直接退化为 `if err != nil { return error }`）；
+- 删除 `resource_zstack_image.go` Update 路径的同款 swallow 分支；
+- 删除 `resource_zstack_instance.go` 不再使用的 `"strings"` 导入；
+- 保留 `findResourceByGet(GetVmInstance)` / `findResourceByGet(GetImage)` 这一段 refresh，作为 Update / Read 之间 state-construction 的一致性兜底（成本忽略）。
+
+### 验证（2026-04-27 v0.0.6 + workaround removed real-env 复测）
+1. provider `go.mod` 升 `zstack-sdk-go-v2` v0.0.5 → v0.0.6，`go.sum` 经 `go mod tidy` 重生（`v0.0.6 h1:ZbIcdmEc6HvxXH54AdU2dMysdAYKl5omzOw6x9Ekvo8=`），原本指向 `/Users/.../zstack-sdk-go-v2` 的 `replace` 已删；
+2. `go build ./...` + `go vet ./...` 全 clean；
+3. **10-image-storage**（RUN_ID `r1444xxxx-img-006`）：Phase 1 Create 2 added → Phase 2a Update v1→v2 1 changed → Phase 2b Update v2→v1 1 changed → Phase 3 Destroy 2 destroyed，全程无 decode error；
+4. **05-compute-vm**（同 RUN_ID）：Phase 1 Create 4 added → Phase 2a Update v2→v1 2 changed → Phase 2b Update v1→v2 2 changed → Phase 3 Destroy 4 destroyed，全程无 decode error；
+5. server cross-check：cluster 内无残留 vm/image。
+
+### SDK Bug
+`UpdateVmInstance` 实际在服务端已经成功（curl 验证 VM 名/描述/guestOsType 全已更新），但 SDK 解响应时 `lastOpDate` 也是 `Apr 27, 2026 3:10:09 PM` 格式 → `parsing time "Apr 27, 2026 3:10:09 PM" as "2006-01-02T15:04:05Z07:00": cannot parse "Apr 27, 2026" as "2006"`，让 SDK 把成功的调用当失败抛出。
+
+### Provider 侧 workaround（历史记录，已于 2026-04-27 移除）
+~~`zstack/provider/resource_zstack_instance.go`~~：
+1. ~~在 Update 里调 `r.client.UpdateVmInstance(...)` 后用 `isSDKTimeParseError(err)` helper 识别这个特定 decode error；~~
+2. ~~是的话吞掉并 `tflog.Warn`，再走 `findResourceByGet(r.client.GetVmInstance, uuid)` 拿真实 state；~~
+3. ~~不是的话照常走错误路径。~~
+
+~~`isSDKTimeParseError` 直接定义在同文件末尾，只匹配 `"parsing time"` + `"2006-01-02T15:04:05Z07:00"` 两段子串，不会误吞别的解码错。~~
+
+→ 2026-04-27 SDK v0.0.6 release 后已全部清除（详见 "Provider-side workaround：✅ REMOVED" 段落）。
+
+### 影响范围
+| 文件 | 影响 |
+|---|---|
+| `resource_zstack_instance.go` Update | 任何 in-place 修改（重命名 / description / platform / guest_os_type / cpu_num / memory_size 等）都会先撞上 SDK decode error，走 workaround 兜底 |
+
+### 验证
+real-env RUN_ID `r144465c0a` Phase 2：v2→v1 + v1→v2 双向 in-place Update 各 2 changed，0 errors；Phase 3 destroy 4 destroyed；server cross-check 无残留。
+
+### SDK 修复后回收（已完成 2026-04-27）
+SDK-FIX-006 v0.0.6 release 后已落地：
+1. ✅ 删掉 `isSDKTimeParseError` helper 与 Update 里的 swallow 分支；
+2. ✅ 让 Update 直接信任 SDK 错误码；
+3. ✅ `findResourceByGet(GetVmInstance)` / `findResourceByGet(GetImage)` 保留当一致性兜底。
+
+---
+
 ## SDK 修复跟进列表（请提给 SDK 团队）
 
 | 编号 | SDK 修复内容 | 上游状态 | 影响 provider 文件数 |
@@ -1310,6 +1402,9 @@ SDK 修不修都建议保留。
 | **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | 🔲 Open | 1 (Primary Storage) + 潜在 32 个 |
 | **SDK-FIX-003** | `DeleteIAM2Project` 加 purge 参数或新增 `DeleteAndExpungeIAM2Project` 一站式方法 | ✅ Fixed in v0.0.5（采用方案 B：新增 `DeleteAndExpungeIAM2Project`） | 1 |
 | **SDK-FIX-004** | l3network Delete URL 修复（原 BUG-059） | 🔲 待复现 | 1 |
+| **SDK-FIX-005** | directory Delete URL 修复（原 BUG-076 / BUG-NEW-110，`v1/delete/directory/{uuid}` → 应该是 directory 资源根 URL） | 🔲 待 SDK 复现 | 1 |
+| **SDK-FIX-006** | `pkg/client/http_client.go` `PostWithAsync` (:312) / `PutWithAsync` (:380) 在 `len(responseKey) == 0` 且响应包含 `inventory` 子树时，原本用 `json.Unmarshal([]byte(inventory.String()), retVal)`（stdlib），不识别 ZStack 自家 `ZStackTimeFormat`（`Apr 27, 2026 3:10:09 PM`），导致 `CreateVipQos`（BUG-068）/ `UpdateVmInstance`（BUG-084）/ `UpdateImage`（BUG-085）等响应解码崩。修复：替换为 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils。同时移除文件里不再需要的 `encoding/json` 导入。| ✅ Released in v0.0.6 (2026-04-27)，provider 端 workaround 已于 2026-04-27 全部移除 | 3+（CreateVipQos / UpdateVmInstance / UpdateImage / 任何空 responseKey 走 inventory 兜底的资源） |
+| **SDK-FIX-007** | `pkg/client/directory_actions.go:53` `DeleteDirectory` URL 用 `v1/delete/directory`，与同文件其他方法（`v1/directories`）和 SDK 主流 REST 风格不符；同类 RPC 风格遗留路径还有：`ssoclient_actions.go:16` `Post v1/delete/sso/client`、`ssoclient_actions.go:24` `Get v1/get/sso/client`、`ssoredirect_template_actions.go:{16,24,32}` `v1/{create,update,delete}/sso/...`、`other_actions.go:{4647,5930}` `v1/{add,remove}/resources/directory`、`oauth2token_actions.go:16` `v1/get/oauth2/token`、`saml2client_actions.go:{16,24}` `v1/{update,create}/saml2/client`、`cas_client_actions.go:{16,24}` `v1/{create,update}/cas/client`、`other_actions.go:{1466,4899}` `v1/{create,update}/oauth2/client`、`other_actions.go:{1843,7058}` `v1/get/vmSchedulingRules/...`。需要 SDK 团队对照 ZStack 官方 REST 路径核对。原 BUG-076 / BUG-NEW-110 提到的 directory 是该家族首例。| 🔲 待 SDK 团队按服务端实际 URL 校验 | 至少 11 处 RPC 风格 URL（仅 directory 在 real-env 触发） |
 
 每条 SDK 修复对应的 provider 回收 PR 都很简单（删几行 re-query），但要注意：
 - 不要在 SDK 上线**前**回收，否则破坏当前 provider 的正确性。
@@ -1319,3 +1414,4 @@ SDK 修不修都建议保留。
 
 - **PR-A（本 PR）**：tracker hygiene + 入账 BUG-064/065 + 关闭 BUG-059 链至 SDK-BUG-004 + 标记 SDK-WA-001/003 上游已修。**纯文档**，不动 go.mod 也不动 provider 代码。
 - **PR-B（后续）**：升 `zstack-sdk-go-v2` 到 v0.0.5；SDK-WA-003 改单步调用；全仓清 `// SDK bug:` / `// SDK-WA-001:` / `// SDK-BUG-003:` 注释；保留 SDK-WA-001 的 23 处 re-query 当一致性兜底（不动逻辑）。
+- **PR-C（2026-04-27 落地，本 session）**：BUG-069 / BUG-071 修复 + `zstack_instance.network_interfaces` Schema 重设计（default_l3 / static_ip 改 Optional+Computed，多 NIC 校验 + 自动选首 NIC）+ 顶层 `platform` / `guest_os_type` / `architecture` 增列（前两走 Update，后者 RequiresReplace）+ SDK-WA-006（UpdateVmInstance 时间戳解码兜底）+ BUG-085 修复（`zstack_image` Update 路径打开，lift RequiresReplace 4 字段 + 实装 Update，复用 SDK-WA-006 的 `isSDKTimeParseError` swallow workaround）。real-env RUN_ID `r144465c0a` Create + Update（双向）+ Destroy 全过（05-compute-vm 4+2+2+4，10-image-storage 2+1+1+2）。

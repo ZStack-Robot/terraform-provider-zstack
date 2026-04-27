@@ -169,13 +169,13 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 
 	imagePlan.Uuid = types.StringValue(image.UUID)
 	imagePlan.Name = types.StringValue(image.Name)
-	imagePlan.Description = types.StringValue(image.Description)
+	imagePlan.Description = stringValueOrNull(image.Description)
 	imagePlan.Url = types.StringValue(image.Url)
-	imagePlan.GuestOsType = types.StringValue(image.GuestOsType)
+	imagePlan.GuestOsType = stringValueOrNull(image.GuestOsType)
 	imagePlan.System = types.StringValue(fmt.Sprintf("%t", image.System))
-	imagePlan.Platform = types.StringValue(image.Platform)
+	imagePlan.Platform = stringValueOrNull(image.Platform)
 	//imagePlan.Type = types.StringValue(image.Type)
-	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.String())
+	imagePlan.LastUpdated = types.StringValue(image.LastOpDate.GoString())
 	ctx = tflog.SetField(ctx, "url", image.Url)
 	diags = resp.State.Set(ctx, imagePlan)
 	resp.Diagnostics.Append(diags...)
@@ -248,17 +248,10 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Name = types.StringValue(image.Name)
 	state.Url = types.StringValue(image.Url)
 	state.LastUpdated = types.StringValue(image.LastOpDate.GoString())
-	//state.Description = types.StringValue(image.Description)
-
-	if !state.Description.IsNull() {
-		state.Description = types.StringValue(image.Description)
-	}
-	if !state.GuestOsType.IsNull() {
-		state.GuestOsType = types.StringValue(image.GuestOsType)
-	}
-	if !state.Platform.IsNull() {
-		state.Platform = types.StringValue(image.Platform)
-	}
+	state.Description = stringValueOrNull(image.Description)
+	state.GuestOsType = stringValueOrNull(image.GuestOsType)
+	state.Platform = stringValueOrNull(image.Platform)
+	state.System = types.StringValue(fmt.Sprintf("%t", image.System))
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -284,24 +277,20 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"last_updated": schema.StringAttribute{
 				Computed:    true,
 				Description: "The timestamp of the last update to the image resource.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				// Intentionally no UseStateForUnknown — UpdateImage bumps the
+				// server-side lastOpDate, so we must let the framework treat
+				// this as "known after apply" whenever anything else changes.
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
-				Description: "The name of the image. This is a mandatory field.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
+				Description: "The name of the image. Updatable in-place via the SDK UpdateImage endpoint.",
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "A description of the image, providing additional context or details.",
+				Description: "A description of the image, providing additional context or details. Updatable in-place via the SDK UpdateImage endpoint.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"url": schema.StringAttribute{
@@ -324,10 +313,9 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"guest_os_type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The guest operating system type that the image is optimized for.",
+				Description: "The guest operating system type that the image is optimized for. Updatable in-place via the SDK UpdateImage endpoint.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"system": schema.StringAttribute{
@@ -340,10 +328,9 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 			"platform": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The platform that the image is intended for, such as 'Linux', 'Windows', or others.",
+				Description: "The platform that the image is intended for, such as 'Linux', 'Windows', or others. Updatable in-place via the SDK UpdateImage endpoint.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
 					stringvalidator.OneOf("Linux", "Windows", "Other"),
@@ -412,10 +399,82 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 }
 
 func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError(
-		"Update not supported",
-		"Image resource does not support updates. Please recreate the resource instead.",
-	)
+	var plan, state imageResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	uuid := state.Uuid.ValueString()
+	updateNeeded := false
+	updateParam := param.UpdateImageParam{
+		BaseParam: param.BaseParam{},
+		Params:    param.UpdateImageParamDetail{},
+	}
+
+	if !plan.Name.IsNull() && !plan.Name.IsUnknown() && plan.Name.ValueString() != state.Name.ValueString() {
+		updateParam.Params.Name = plan.Name.ValueString()
+		updateNeeded = true
+	}
+	if !plan.Description.IsNull() && !plan.Description.IsUnknown() && plan.Description.ValueString() != state.Description.ValueString() {
+		v := plan.Description.ValueString()
+		updateParam.Params.Description = &v
+		updateNeeded = true
+	}
+	if !plan.GuestOsType.IsNull() && !plan.GuestOsType.IsUnknown() && plan.GuestOsType.ValueString() != state.GuestOsType.ValueString() {
+		v := plan.GuestOsType.ValueString()
+		updateParam.Params.GuestOsType = &v
+		updateNeeded = true
+	}
+	if !plan.Platform.IsNull() && !plan.Platform.IsUnknown() && plan.Platform.ValueString() != state.Platform.ValueString() {
+		v := plan.Platform.ValueString()
+		updateParam.Params.Platform = &v
+		updateNeeded = true
+	}
+
+	if !updateNeeded {
+		// Only Computed-only / unchanged fields differ — pass-through.
+		diags = resp.State.Set(ctx, &plan)
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	if _, err := r.client.UpdateImage(uuid, updateParam); err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating Image",
+			"Could not update image, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Refresh from server: UpdateImage's response inventory is already correct,
+	// but reading via GetImage keeps Update / Read state-construction in lockstep.
+	image, err := findResourceByGet(r.client.GetImage, uuid)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating Image",
+			"Could not refresh image after update: "+err.Error(),
+		)
+		return
+	}
+
+	plan.Uuid = types.StringValue(image.UUID)
+	plan.Name = types.StringValue(image.Name)
+	plan.Url = types.StringValue(image.Url)
+	plan.Description = stringValueOrNull(image.Description)
+	plan.GuestOsType = stringValueOrNull(image.GuestOsType)
+	plan.Platform = stringValueOrNull(image.Platform)
+	plan.System = types.StringValue(fmt.Sprintf("%t", image.System))
+	plan.LastUpdated = types.StringValue(image.LastOpDate.GoString())
+
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 }
 
 func (r *imageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
