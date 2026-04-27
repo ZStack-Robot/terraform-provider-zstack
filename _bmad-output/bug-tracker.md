@@ -1,9 +1,9 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-04-26（tracker hygiene + 新增 BUG-064/065 + SDK v0.0.5 联动）  
+> Updated: 2026-04-27（real-env sweep against `.env.test` cluster — 入账 BUG-066..083，对应 18 条 BUG-NEW-100..117；新增 SDK-BUG-005 / SDK-WA-005 / SDK-FIX-005）  
 > Branch: `test/progress`  
-> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning
+> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**
 
 ---
 
@@ -69,6 +69,24 @@
 | BUG-064 | P1 | ✅ Fixed (2026-04-26, commit `1275c54`) | `reserved_ips` ZQL envelope decode 错位（SDK Zql 把 varargs 当 unmarshal-key 钻进 JSON envelope，但 ZQL 响应是 `{"results":[{"inventories":[...]}]}`），导致 Read 失败；同 commit 给 `testdata/generate_tf` 加 `try(length)` guard |
 | BUG-065 | P1 | ✅ Fixed (2026-04-26, commit `d3aafc6`) | 24 处 Optional+Computed 空字符串清洗：引入 `stringValueOrNull()` 让空 API 响应 → state null（消除 plan-time `""` vs null drift）；instance Update 后 `findResourceByGet` re-read 重建 state（BUG-019 后续 + SDK-WA-001 模式扩展） |
 | **F1/F4 followup** | TBD | 🔲 待 QA | MR #31 最终验证 F1（Plan Compliance）/ F4（Scope Fidelity）reject；具体要求待 QA 下周给报告，到时再编号入账 |
+| BUG-066 | P1 | 🔲 Open（real-env, RUN_ID `r144465c0a`） | `zstack_access_key.user_uuid` 漂移：API 把 key 挂在调用者（admin），provider 把 plan 值写回 state → "inconsistent result"。原 BUG-NEW-100。 |
+| BUG-067 | P3 | 🔲 Open | `zstack_role.identity` 枚举无文档/无 OneOf 校验：`Customized` 失败但 docs 不写。原 BUG-NEW-101。 |
+| BUG-068 | P1 | 🔁 Moved → SDK ([`SDK-BUG-005`](#sdk-bug-005)) | `CreateVipQos` 响应 `lastOpDate` 是 `Apr 26, 2026 11:05:50 PM`，SDK 期望 RFC3339 → decode 崩。原 BUG-NEW-102。 |
+| BUG-069 | P0 | 🔲 Open（**blocker**） | `zstack_instance` Create 始终发 `instanceOfferingUuid: ""`（unset 时也发空字符串），API SYS.1003 拒绝；同模式还有 `rootDiskOfferingUuid`。`stringPtr → stringPtrOrNil` sweep。原 BUG-NEW-103。 |
+| BUG-070 | P2 | 🔲 Open | `zstack_volume_backup` 对 `SftpBackupStorage` 不可用（SFTP BS 不托管 volume backup）；provider 应 plan-time 校验或文档。原 BUG-NEW-104。 |
+| BUG-071 | P0 | 🔲 Open（**blocker**） | `zstack_instance.root_disk` Schema 与 `diskModel` 结构体不一致：`tfsdk:"volume_uuid"` 在 struct 但不在 schema → "Value Conversion Error"。设置 `root_disk` 必崩。原 BUG-NEW-105。 |
+| BUG-072 | P2 | 🔲 Open | `zstack_instance_scripts.script_content`：API 去尾 `\n`，provider 不重读 → drift。原 BUG-NEW-106。 |
+| BUG-073 | P2 | 🔲 Open | `zstack_log_server.configuration` 是 freeform string，appender/plugin 嵌套 schema 全无文档；`Log4j2`/`FluentBit` 简单 host/port 都被拒。原 BUG-NEW-107。 |
+| BUG-074 | P1 | 🔲 Open | `zstack_vpc.enable_ipam` Optional 但缺 Computed，API 总是回 `false` → drift。需加 `Computed: true`。原 BUG-NEW-108。 |
+| BUG-075 | P0 | 🔲 Open（**blocker**） | `zstack_iam2_organization.type` API 返回空字符串，provider Create 用空值覆盖 plan.Type，Required 字段非空 → 永远 drift。资源端到端不可用。原 BUG-NEW-109。 |
+| BUG-076 | P0 | 🔁 Moved → SDK ([`SDK-BUG-006`](#sdk-bug-006)) | `DeleteDirectory` SDK URL 用 `v1/delete/directory/{uuid}`（应该是 directory 资源根 URL）→ 404，每次 Apply 都泄漏 directory（本轮残留 1 个 orphan）。原 BUG-NEW-110。 |
+| BUG-077 | P2 | 🔲 Open | `zstack_certificate.certificate` 服务端去尾空白，provider 不重读 → drift。同 BUG-072 / BUG-065 模式 4 扩展。原 BUG-NEW-111。 |
+| BUG-078 | P3 | 🔲 Open | `zstack_global_config` 没有 data source 列举合法 (category, name)；任意未知键全是黑盒错误。需新增 `data zstack_global_configs`。原 BUG-NEW-112。 |
+| BUG-079 | P3 | 🔲 Open | `zstack_stack_template.template_content` 必须含 `ZStackTemplateFormatVersion` marker，但 schema/docs/examples 均无。原 BUG-NEW-113。 |
+| BUG-080 | P1 | 🔲 Open | `zstack_pci_device_offering` schema 只声明 vendor_id+device_id，但 DB 还有 NOT NULL 列（name 等），不传就 ConstraintViolationException。原 BUG-NEW-114。 |
+| BUG-081 | P0 | 🔲 Open（**blocker**） | `zstack_price_table` 必填字段 `prices` 在 schema 完全缺失，资源不可创建。原 BUG-NEW-115。 |
+| BUG-082 | P3 | 🔲 Open | `zstack_resource_stack` 同 BUG-079；空 template 还会触发服务端未格式化的 `invalid decoder: %s!`（API 侧也有小 bug）。原 BUG-NEW-116。 |
+| BUG-083 | P1 | 🔲 Open | `zstack_preconfiguration_template` 双层无文档校验：(1) `type` 枚举强制小写 `[kickstart, preseed, autoyast, autoinstall]`；(2) `content` 必须含未文档化的 "common params" markers。原 BUG-NEW-117。 |
 
 ---
 
