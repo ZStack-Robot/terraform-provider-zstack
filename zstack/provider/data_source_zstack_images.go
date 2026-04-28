@@ -155,19 +155,12 @@ func (d *imageDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching images",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter images. For example, to filter by status, use `Status = \"Ready\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"images": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"images": schema.ListNestedAttribute{
 				Description: "List of Images",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

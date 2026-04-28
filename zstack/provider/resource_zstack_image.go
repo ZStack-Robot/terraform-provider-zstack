@@ -359,18 +359,12 @@ func (r *imageResource) Schema(_ context.Context, req resource.SchemaRequest, re
 				Description: "The architecture of the image, such as 'x86_64' or 'aarch64'.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
-				},
-				Validators: []validator.String{
-					stringvalidator.OneOf("x86_64", "aarch64", "mips64el", "loongarch64"),
-				},
 			},
-			/*
-				"type": schema.StringAttribute{
-					Computed:    true,
-					Description: "The type of the image, for example, 'ISO' or 'RootVolumeTemplate'.",
-				},
-			*/
-			"virtio": schema.StringAttribute{
+			Validators: []validator.String{
+				stringvalidator.OneOf("x86_64", "aarch64", "mips64el", "loongarch64"),
+			},
+		},
+		"virtio": schema.StringAttribute{
 				Optional:    true,
 				Description: "Indicates if the VirtIO drivers are required for the image.",
 				PlanModifiers: []planmodifier.String{
@@ -480,16 +474,3 @@ func (r *imageResource) Update(ctx context.Context, req resource.UpdateRequest, 
 func (r *imageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
-
-/*
-
-func removeStringFromSlice(slice []string, s string) []string {
-	for i, v := range slice {
-		if v == s {
-			slice = append(slice[:i], slice[i+1:]...)
-			break
-		}
-	}
-	return slice
-}
-*/

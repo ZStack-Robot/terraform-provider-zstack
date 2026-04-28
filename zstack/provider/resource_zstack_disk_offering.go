@@ -199,20 +199,13 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 			},
 			"disk_size": schema.Int64Attribute{
 				Required:    true,
-				Description: "The amount of disk size allocated to the disk offering. This is a mandatory field, in gigabytes (GB).",
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.RequiresReplace(),
-				},
+			Description: "The amount of disk size allocated to the disk offering. This is a mandatory field, in gigabytes (GB).",
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.RequiresReplace(),
 			},
-			/*
-				"allocator_strategy": schema.StringAttribute{
-					Optional:    true,
-					Computed:    true,
-					Description: "The type of the allocator_strategy. ",
-				},
-			*/
 		},
-	}
+	},
+}
 }
 
 func (r *diskOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {

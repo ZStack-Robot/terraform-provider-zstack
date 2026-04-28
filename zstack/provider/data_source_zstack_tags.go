@@ -111,14 +111,6 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 	}
 
-	/*
-		if !state.Name.IsNull() && state.Name.ValueString() != "" {
-			params.AddQ("name=" + state.Name.ValueString())
-		} else if !state.NamePattern.IsNull() && state.NamePattern.ValueString() != "" {
-			params.AddQ("name~=" + state.NamePattern.ValueString())
-		}
-	*/
-
 	// Apply filters
 	filters := make(map[string][]string)
 	for _, filter := range state.Filter {
@@ -302,18 +294,9 @@ func (d *tagDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 					Attributes: map[string]schema.Attribute{
 						"uuid": schema.StringAttribute{
 							Description: "Unique identifier of the system tag.",
-							Computed:    true,
-						},
-						/*
-							"name": schema.StringAttribute{
-								Description: "Name of the system tag.",
-								Computed:    true,
-							},
-							"description": schema.StringAttribute{
-								Description: "Description of the system tag.",
-								Computed:    true,
-							},*/
-						"inherent": schema.BoolAttribute{
+						Computed:    true,
+					},
+					"inherent": schema.BoolAttribute{
 							Description: "Indicates if the tag is inherent (built-in) or user-defined.",
 							Computed:    true,
 						},

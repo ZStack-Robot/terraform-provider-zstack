@@ -88,19 +88,12 @@ func (d *zoneDataSource) Schema(_ context.Context, req datasource.SchemaRequest,
 			"name": schema.StringAttribute{
 				Description: "Exact name for Searching  zones",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter Zones . For example, to filter by State, use `State = \"Enabled\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"zones": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"zones": schema.ListNestedAttribute{
 				Description: "",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

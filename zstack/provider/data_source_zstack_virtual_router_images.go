@@ -183,19 +183,12 @@ func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasourc
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router images",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"images": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"images": schema.ListNestedAttribute{
 				Description: "List of virtual router Images",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

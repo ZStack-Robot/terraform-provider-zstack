@@ -1,0 +1,43 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+type check2aBadClient struct{}
+
+func (c *check2aBadClient) UpdateVolume(uuid string, payload any) (any, error) {
+	return nil, nil
+}
+
+func (c *check2aBadClient) UpdateInstance(uuid string, payload any) (any, error) {
+	return nil, nil
+}
+
+type check2aBadVolumeResource struct {
+	client *check2aBadClient
+}
+
+type check2aBadInstanceResource struct {
+	client *check2aBadClient
+}
+
+func (r *check2aBadVolumeResource) Update() {
+	_, err := r.client.UpdateVolume("volume-uuid", nil)
+	if err != nil {
+		return
+	}
+
+	markDirty("volume")
+}
+
+func (r *check2aBadInstanceResource) Update() {
+	if _, err := r.client.UpdateInstance("instance-uuid", nil); err != nil {
+		return
+	}
+
+	recordAudit("instance updated")
+}
+
+func markDirty(kind string) {}
+
+func recordAudit(message string) {}

@@ -88,19 +88,12 @@ func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaReque
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching Cluster",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = \"x86_64\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"clusters": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"clusters": schema.ListNestedAttribute{
 				Description: "List of clusters matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
@@ -177,24 +170,6 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		)
 		return
 	}
-	/*
-	   filters := make(map[string]string)
-
-	   	if !state.Filter.IsNull() {
-	   		diags := state.Filter.ElementsAs(ctx, &filters, false)
-	   		resp.Diagnostics.Append(diags...)
-	   		if resp.Diagnostics.HasError() {
-	   			return
-	   		}
-	   	}
-
-	   filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters)
-	   resp.Diagnostics.Append(filterDiags...)
-
-	   	if resp.Diagnostics.HasError() {
-	   		return
-	   	}
-	*/
 	filters := make(map[string][]string)
 	for _, filter := range state.Filter {
 		values := make([]string, 0, len(filter.Values.Elements()))

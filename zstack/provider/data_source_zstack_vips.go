@@ -159,19 +159,12 @@ func (d *vipsDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching VIPs",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter L2 networks . For example, to filter by State, use `State = \"Enabled\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"vips": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"vips": schema.ListNestedAttribute{
 				Description: "List of VIP entries matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

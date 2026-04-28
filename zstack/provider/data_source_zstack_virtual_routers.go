@@ -196,19 +196,12 @@ func (d *vrouterDataSource) Schema(ctx context.Context, req datasource.SchemaReq
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router instance",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter virtual router instances . For example, to filter by State, use `State = \"Running\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"virtual_router": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"virtual_router": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

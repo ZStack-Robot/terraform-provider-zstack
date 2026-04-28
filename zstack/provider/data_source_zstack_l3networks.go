@@ -191,19 +191,12 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching L3 Network.",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter L3 networks . For example, to filter by Category, use `Category = \"Private\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"l3networks": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"l3networks": schema.ListNestedAttribute{
 				Description: "List of L3 networks matching the specified filters.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
