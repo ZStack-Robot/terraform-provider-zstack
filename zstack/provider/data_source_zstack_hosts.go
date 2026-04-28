@@ -155,19 +155,12 @@ func (d *hostsDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching hosts",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter hosts. For example, to filter by State, use `State = \"Enabled\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"hosts": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"hosts": schema.ListNestedAttribute{
 				Description: "List of host entries matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

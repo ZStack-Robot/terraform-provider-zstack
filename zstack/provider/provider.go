@@ -397,18 +397,12 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 			"host": schema.StringAttribute{
 				Description: "ZStack Cloud MN HOST ip address. May also be provided via ZSTACK_HOST environment variable.",
 				Optional:    true,
-			},
-			"port": schema.Int64Attribute{
-				Description: "ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",
-				Optional:    true,
-			},
-			/*
-				"session_id": schema.StringAttribute{
-					Description: "ZStack Cloud Session id.",
-					Optional:    true,
-				},
-			*/
-			"account_name": schema.StringAttribute{
+		},
+		"port": schema.Int64Attribute{
+			Description: "ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",
+			Optional:    true,
+		},
+		"account_name": schema.StringAttribute{
 				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUNT_NAME environment variable. " +
 					"Required if using Account authentication.  Only supports the platform administrator account (`admin`). " +
 					"Mutually exclusive with `access_key_id` and `access_key_secret`. " +

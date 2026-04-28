@@ -160,19 +160,12 @@ func (d *instanceOfferingDataSource) Schema(ctx context.Context, req datasource.
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching  instance offer",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter instance offering. For example, to filter by State, use `State = \"Enabled\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"instance_offers": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"instance_offers": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{

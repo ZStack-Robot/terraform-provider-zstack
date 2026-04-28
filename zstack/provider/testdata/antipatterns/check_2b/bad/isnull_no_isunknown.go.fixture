@@ -1,0 +1,50 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
+type check2bBadPlan struct {
+	MemorySize types.Int64
+	Enabled    types.Bool
+	Config     struct {
+		Timeout types.Int64
+	}
+}
+
+func badIsNullInt64(plan check2bBadPlan) int64 {
+	var payload struct {
+		MemorySize int64
+	}
+
+	if !plan.MemorySize.IsNull() {
+		payload.MemorySize = plan.MemorySize.ValueInt64()
+	}
+
+	return payload.MemorySize
+}
+
+func badIsNullBool(plan check2bBadPlan) bool {
+	var payload struct {
+		Enabled bool
+	}
+
+	if !plan.Enabled.IsNull() {
+		payload.Enabled = plan.Enabled.ValueBool()
+	}
+
+	return payload.Enabled
+}
+
+func badNestedIsNull(plan check2bBadPlan) int64 {
+	var payload struct {
+		Timeout int64
+	}
+
+	if !plan.Config.Timeout.IsNull() {
+		payload.Timeout = plan.Config.Timeout.ValueInt64()
+	}
+
+	return payload.Timeout
+}

@@ -51,7 +51,7 @@
 |-----|----------|--------|-------------|
 | BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
 | BUG-024 | P3 | 🟡 In Progress | Add update steps to acceptance tests |
-| BUG-025 | P2 | 🔲 Open | Clean up commented-out code blocks in 19+ files |
+| BUG-025 | P2 | ✅ Fixed (2026-04-28) | Clean up commented-out code blocks in 19+ files |
 | BUG-040 | P1 | ✅ Fixed (2026-04-24) | TypeName 改为 `zstack_virtual_routers` (与文件名/SDK 一致) |
 | BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
 | BUG-047–052 | P3 | ✅ Fixed (2026-04-24) | Resource TypeName 已对齐 SDK 命名 (6 处) |
@@ -69,7 +69,7 @@
 | BUG-064 | P1 | ✅ Fixed (2026-04-26, commit `1275c54`) | `reserved_ips` ZQL envelope decode 错位（SDK Zql 把 varargs 当 unmarshal-key 钻进 JSON envelope，但 ZQL 响应是 `{"results":[{"inventories":[...]}]}`），导致 Read 失败；同 commit 给 `testdata/generate_tf` 加 `try(length)` guard |
 | BUG-065 | P1 | ✅ Fixed (2026-04-26, commit `d3aafc6`) | 24 处 Optional+Computed 空字符串清洗：引入 `stringValueOrNull()` 让空 API 响应 → state null（消除 plan-time `""` vs null drift）；instance Update 后 `findResourceByGet` re-read 重建 state（BUG-019 后续 + SDK-WA-001 模式扩展） |
 | **F1/F4 followup** | TBD | 🔲 待 QA | MR #31 最终验证 F1（Plan Compliance）/ F4（Scope Fidelity）reject；具体要求待 QA 下周给报告，到时再编号入账 |
-| BUG-066 | P1 | 🔲 Open（real-env, RUN_ID `r144465c0a`） | `zstack_access_key.user_uuid` 漂移：API 把 key 挂在调用者（admin），provider 把 plan 值写回 state → "inconsistent result"。原 BUG-NEW-100。 |
+| BUG-066 | P1 | ✅ Fixed (2026-04-28) | `zstack_access_key.user_uuid` 漂移：schema 改 Optional+Computed+UseStateForUnknown，API 返回的 owner UUID 写回 state，消除 "inconsistent result"。原 BUG-NEW-100。 |
 | BUG-067 | P3 | 🔲 Open | `zstack_role.identity` 枚举无文档/无 OneOf 校验：`Customized` 失败但 docs 不写。原 BUG-NEW-101。 |
 | BUG-068 | P1 | ✅ Fixed in SDK v0.0.6 (2026-04-27) | `CreateVipQos` 响应 `lastOpDate` 是 `Apr 26, 2026 11:05:50 PM`，SDK 期望 RFC3339 → decode 崩。根因 `pkg/client/http_client.go` PostWithAsync/PutWithAsync 走 stdlib json.Unmarshal 解 inventory 子树。SDK v0.0.6 改成 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils。原 BUG-NEW-102 / SDK-BUG-005。 |
 | BUG-069 | P0 | ✅ Fixed (2026-04-27) | `zstack_instance` Create 始终发 `instanceOfferingUuid: ""`（unset 时也发空字符串），API SYS.1003 拒绝；同模式还有 `rootDiskOfferingUuid` / `defaultL3NetworkUuid` / `strategy`。修复：把 4 处 `stringPtr(...)` 改为 `stringPtrOrNil(...)`（resource_zstack_instance.go 的 Create 入参组装段）。real-env RUN_ID `r144465c0a` 全跑通：vm_offering_path（带 instance_offering_uuid）+ vm_cpu_mem_path（cpu_num+memory_size）Create+Update+Destroy 均成功。原 BUG-NEW-103。 |
@@ -83,7 +83,7 @@
 | BUG-077 | P2 | ✅ Fixed (2026-04-28) | `zstack_certificate.certificate` 服务端去尾空白，provider 不重读 → drift。修复：复用 BUG-072 引入的 `preserveIfEquivAfterTrim()` helper，Create/Read/Update 三处统一处理（虽然 `certificate` 字段是 RequiresReplace，Update 路径也加上以防御）。原 BUG-NEW-111。 |
 | BUG-078 | P3 | 🔲 Open | `zstack_global_config` 没有 data source 列举合法 (category, name)；任意未知键全是黑盒错误。需新增 `data zstack_global_configs`。原 BUG-NEW-112。 |
 | BUG-079 | P3 | 🔲 Open | `zstack_stack_template.template_content` 必须含 `ZStackTemplateFormatVersion` marker，但 schema/docs/examples 均无。原 BUG-NEW-113。 |
-| BUG-080 | P1 | 🔲 Open | `zstack_pci_device_offering` schema 只声明 vendor_id+device_id，但 DB 还有 NOT NULL 列（name 等），不传就 ConstraintViolationException。原 BUG-NEW-114。 |
+| BUG-080 | P1 | ✅ Fixed (2026-04-28) | `zstack_pci_device_offering.name` 改为 Required（API 非指针 string + DB NOT NULL）。原 BUG-NEW-114。 |
 | BUG-081 | P0 | 🔲 Open（**blocker**） | `zstack_price_table` 必填字段 `prices` 在 schema 完全缺失，资源不可创建。原 BUG-NEW-115。 |
 | BUG-082 | P3 | 🔲 Open | `zstack_resource_stack` 同 BUG-079；空 template 还会触发服务端未格式化的 `invalid decoder: %s!`（API 侧也有小 bug）。原 BUG-NEW-116。 |
 | BUG-083 | P1 | 🔲 Open | `zstack_preconfiguration_template` 双层无文档校验：(1) `type` 枚举强制小写 `[kickstart, preseed, autoyast, autoinstall]`；(2) `content` 必须含未文档化的 "common params" markers。原 BUG-NEW-117。 |
