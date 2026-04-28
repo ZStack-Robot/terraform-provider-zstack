@@ -84,6 +84,17 @@ func stringPtrOrNil(s string) *string {
 	return &s
 }
 
+// preserveIfEquivAfterTrim returns prefer if it equals server after right-trimming
+// whitespace; otherwise returns server. Used for fields where the API strips
+// trailing whitespace/newlines but the user's HCL retains them (e.g., certificate
+// PEM content, script_content), to avoid spurious drift on every plan.
+func preserveIfEquivAfterTrim(prefer, server string) string {
+	if strings.TrimRight(prefer, " \t\r\n") == strings.TrimRight(server, " \t\r\n") {
+		return prefer
+	}
+	return server
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }
