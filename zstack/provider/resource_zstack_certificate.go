@@ -132,7 +132,7 @@ func (r *certificateResource) Create(ctx context.Context, request resource.Creat
 
 	plan.Uuid = types.StringValue(certificate.UUID)
 	plan.Name = types.StringValue(certificate.Name)
-	plan.Certificate = types.StringValue(certificate.Certificate)
+	plan.Certificate = types.StringValue(preserveIfEquivAfterTrim(plan.Certificate.ValueString(), certificate.Certificate))
 	plan.Description = stringValueOrNull(certificate.Description)
 
 	diags = response.State.Set(ctx, plan)
@@ -165,7 +165,7 @@ func (r *certificateResource) Read(ctx context.Context, request resource.ReadReq
 
 	state.Uuid = types.StringValue(certificate.UUID)
 	state.Name = types.StringValue(certificate.Name)
-	state.Certificate = types.StringValue(certificate.Certificate)
+	state.Certificate = types.StringValue(preserveIfEquivAfterTrim(state.Certificate.ValueString(), certificate.Certificate))
 	state.Description = stringValueOrNull(certificate.Description)
 
 	diags = response.State.Set(ctx, &state)
@@ -205,7 +205,7 @@ func (r *certificateResource) Update(ctx context.Context, request resource.Updat
 
 	plan.Uuid = types.StringValue(certificate.UUID)
 	plan.Name = types.StringValue(certificate.Name)
-	plan.Certificate = types.StringValue(certificate.Certificate)
+	plan.Certificate = types.StringValue(preserveIfEquivAfterTrim(plan.Certificate.ValueString(), certificate.Certificate))
 	plan.Description = stringValueOrNull(certificate.Description)
 
 	diags = response.State.Set(ctx, plan)

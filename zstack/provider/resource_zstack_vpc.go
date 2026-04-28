@@ -114,8 +114,10 @@ func (r *vpcResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			},
 			"enable_ipam": schema.BoolAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Enable IP Address Management (IPAM) for this VPC network.",
 				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
 					boolplanmodifier.RequiresReplace(),
 				},
 			},
