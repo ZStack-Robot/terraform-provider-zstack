@@ -88,6 +88,8 @@ func TestAccSchedulerJobResource(t *testing.T) {
 		t.Skip("no vm_instances in env data, required for scheduler job")
 	}
 	vmUUID := envStr(env.VmInstances[0], "uuid")
+	name := testAccName("scheduler-job")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -96,14 +98,30 @@ func TestAccSchedulerJobResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_scheduler_job" "test" {
-  name                 = "acc-test-scheduler-job"
+  name                 = %q
+  description          = "acceptance scheduler job"
   target_resource_uuid = %q
   type                 = "stopVm"
 }
-`, vmUUID),
+`, name, vmUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-scheduler-job")),
+					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance scheduler job")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_scheduler_job" "test" {
+  name                 = %q
+  description          = "acceptance scheduler job updated"
+  target_resource_uuid = %q
+  type                 = "stopVm"
+}
+`, updatedName, vmUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_scheduler_job.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance scheduler job updated")),
 				},
 			},
 		},

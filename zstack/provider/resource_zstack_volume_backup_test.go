@@ -54,28 +54,31 @@ func TestVolumeBackupResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestIsVolumeBackupStorageTypeSupported(t *testing.T) {
+	tests := map[string]bool{
+		"ImageStoreBackupStorage": true,
+		"SftpBackupStorage":       false,
+		"CephBackupStorage":       false,
+		"":                        false,
+	}
+
+	for backupStorageType, want := range tests {
+		if got := isVolumeBackupStorageTypeSupported(backupStorageType); got != want {
+			t.Fatalf("isVolumeBackupStorageTypeSupported(%q) = %t, want %t", backupStorageType, got, want)
+		}
+	}
+}
+
 func TestAccVolumeBackupResource(t *testing.T) {
 	env := loadEnvData(t)
-	if len(env.BackupStorages) == 0 && len(env.ImageStoreBackupStorages) == 0 {
-		t.Skip("no backup_storages in env data")
+	if len(env.ImageStoreBackupStorages) == 0 {
+		t.Skip("volume_backup requires ImageStoreBackupStorage in env data")
 	}
 	if len(env.DiskOfferings) == 0 {
 		t.Skip("no disk_offerings in env data")
 	}
 
-	// Pick backup storage UUID — prefer ImageStoreBackupStorage.
-	var backupStorageUUID string
-	for _, bs := range env.ImageStoreBackupStorages {
-		backupStorageUUID = envStr(bs, "uuid")
-		break
-	}
-	if backupStorageUUID == "" {
-		for _, bs := range env.BackupStorages {
-			backupStorageUUID = envStr(bs, "uuid")
-			break
-		}
-	}
-
+	backupStorageUUID := envStr(env.ImageStoreBackupStorages[0], "uuid")
 	diskOfferingUUID := envStr(env.DiskOfferings[0], "uuid")
 
 	// ZStack volume backup requires the volume to be attached to a running VM.

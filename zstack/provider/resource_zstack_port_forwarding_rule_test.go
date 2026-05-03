@@ -217,6 +217,7 @@ resource "zstack_port_forwarding_rule" "test" {
 func TestAccPortForwardingRuleResource(t *testing.T) {
 	env := loadEnvData(t)
 	name := testAccName("pf-rule")
+	updatedName := name + "-updated"
 
 	// Port forwarding requires a VIP. Try to find one from env.json.
 	// If VIPs are not available, we create a minimal config that references a VIP data source.
@@ -236,6 +237,7 @@ data "zstack_vips" "test" {
 
 resource "zstack_port_forwarding_rule" "test" {
   name           = %q
+  description    = "acceptance port forwarding rule"
   vip_uuid       = data.zstack_vips.test.vips.0.uuid
   vip_port_start = 8080
   protocol_type  = "TCP"
@@ -245,15 +247,37 @@ resource "zstack_port_forwarding_rule" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance port forwarding rule")),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("protocol_type"), knownvalue.StringExact("TCP")),
 					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("vip_port_start"), knownvalue.StringExact("8080")),
 				},
 			},
 			{
-				ResourceName:      "zstack_port_forwarding_rule.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_port_forwarding_rule.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_vips" "test" {
+}
+
+resource "zstack_port_forwarding_rule" "test" {
+  name           = %q
+  description    = "acceptance port forwarding rule updated"
+  vip_uuid       = data.zstack_vips.test.vips.0.uuid
+  vip_port_start = 8080
+  protocol_type  = "TCP"
+  allowed_cidr   = "0.0.0.0/0"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance port forwarding rule updated")),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("protocol_type"), knownvalue.StringExact("TCP")),
+					statecheck.ExpectKnownValue("zstack_port_forwarding_rule.test", tfjsonpath.New("vip_port_start"), knownvalue.StringExact("8080")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_port_forwarding_rule.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_port_forwarding_rule.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

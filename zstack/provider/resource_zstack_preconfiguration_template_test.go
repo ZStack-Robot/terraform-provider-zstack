@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -53,6 +54,19 @@ func TestPreconfigurationTemplateResource_Metadata(t *testing.T) {
 	}
 }
 
+const testPreconfigurationTemplateContent = `# Preconfiguration template smoke test
+# Base ZStack system variables required by the API:
+# REPO_URL
+# USERNAME
+# PASSWORD
+# NETWORK_CFGS
+# FORCE_INSTALL
+# PRE_SCRIPTS
+# POST_SCRIPTS
+install
+text
+`
+
 func TestAccPreconfigurationTemplateResource(t *testing.T) {
 	_ = loadEnvData(t)
 
@@ -62,14 +76,14 @@ func TestAccPreconfigurationTemplateResource(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			// Step 1: Create
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_preconfiguration_template" "test" {
   name         = "acc-test-preconfig-template"
   distribution = "CentOS7"
   type         = "kickstart"
-  content      = "install\ntext\n"
+  content      = %q
 }
-`,
+`, testPreconfigurationTemplateContent),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-preconfig-template")),
@@ -77,14 +91,14 @@ resource "zstack_preconfiguration_template" "test" {
 			},
 			// Step 2: Update name (note: RequiresReplace pending story-07, triggers destroy+recreate)
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_preconfiguration_template" "test" {
   name         = "acc-test-preconfig-template-updated"
   distribution = "CentOS7"
   type         = "kickstart"
-  content      = "install\ntext\n"
+  content      = %q
 }
-`,
+`, testPreconfigurationTemplateContent),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_preconfiguration_template.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-preconfig-template-updated")),
 				},

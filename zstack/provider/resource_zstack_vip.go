@@ -79,9 +79,6 @@ func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VIP network service.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
@@ -92,7 +89,6 @@ func (r *vipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "A description for the VIP network service.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"l3_network_uuid": schema.StringAttribute{
@@ -215,10 +211,42 @@ func (r *vipResource) Read(ctx context.Context, request resource.ReadRequest, re
 }
 
 func (r *vipResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	response.Diagnostics.AddError(
-		"Update not supported",
-		"VIP resource does not support updates. Please recreate the resource instead.",
-	)
+	var plan vipModel
+	var state vipModel
+
+	diags := request.Plan.Get(ctx, &plan)
+	response.Diagnostics.Append(diags...)
+	diags = request.State.Get(ctx, &state)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	p := param.UpdateVipParam{
+		BaseParam: param.BaseParam{},
+		Params: param.UpdateVipParamDetail{
+			Name:        plan.Name.ValueString(),
+			Description: stringPtrOrNil(plan.Description.ValueString()),
+		},
+	}
+
+	vip, err := r.client.UpdateVip(state.Uuid.ValueString(), p)
+	if err != nil {
+		response.Diagnostics.AddError(
+			"Error updating VIP",
+			"Could not update VIP, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	plan.Uuid = types.StringValue(vip.UUID)
+	plan.Name = types.StringValue(vip.Name)
+	plan.Description = stringValueOrNull(vip.Description)
+	plan.L3NetworkUuid = types.StringValue(vip.L3NetworkUuid)
+	plan.VIP = types.StringValue(vip.Ip)
+
+	diags = response.State.Set(ctx, plan)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *vipResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {

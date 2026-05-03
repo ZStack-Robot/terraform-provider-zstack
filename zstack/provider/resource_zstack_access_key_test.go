@@ -22,7 +22,7 @@ func TestAccessKeyResource_Schema(t *testing.T) {
 		t.Fatal("schema should not be empty")
 	}
 
-	required := []string{"account_uuid", "user_uuid"}
+	required := []string{"account_uuid"}
 	for _, attr := range required {
 		a, ok := resp.Schema.Attributes[attr]
 		if !ok {
@@ -30,6 +30,17 @@ func TestAccessKeyResource_Schema(t *testing.T) {
 		}
 		if !a.IsRequired() {
 			t.Errorf("attribute %q should be required", attr)
+		}
+	}
+
+	optionalComputed := []string{"user_uuid"}
+	for _, attr := range optionalComputed {
+		a, ok := resp.Schema.Attributes[attr]
+		if !ok {
+			t.Fatalf("schema missing optional+computed attribute %q", attr)
+		}
+		if !a.IsOptional() || !a.IsComputed() {
+			t.Errorf("attribute %q should be optional and computed", attr)
 		}
 	}
 

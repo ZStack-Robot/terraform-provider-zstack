@@ -87,19 +87,34 @@ func TestAccCertificateResource(t *testing.T) {
 				Config: providerConfig() + `
 resource "zstack_certificate" "test" {
   name        = "acc-test-certificate"
+  description = "acceptance certificate"
   certificate = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIUEh8m0yZ4X1GbWOKQoSqxVh7gkfUwDQYJKoZIhvcNAQELBQAwEjEQ\nMA4GA1UEAwwHdGVzdC1jYTAeFw0yNDA0MTMwMDAwMDBaFw0zNDA0MTMwMDAwMDBa\nMBIxEDAOBgNVBAMMB3Rlc3QtY2EwXDANBgkqhkiG9w0BAQEFAANLADBIAkEA0Z3V\nS3MwRXfHOVMnz0pHRvPqNsLffO9DeXSGPnkHMWVFnkFPnAGI+ZhouBnfZMwBY0Mj\nJmpRGsXSlYMsqDMNFwIDAQABoyMwITAfBgNVHREEGDAWhwR/AAABhwTAqAEBhwQK\nAAEBMA0GCSqGSIb4DQEBCQUAA0EAkcPGWFv43IkajKMmp/CjTOrLEMFSiHBr7hIK\nBGVEkVDqMe/dIYMe+bpFZ23LalFa4p27iE1uchIMjjkE2adkJQ==\n-----END CERTIFICATE-----"
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_certificate.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_certificate.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-certificate")),
+					statecheck.ExpectKnownValue("zstack_certificate.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance certificate")),
 				},
 			},
 			{
-				ResourceName:                        "zstack_certificate.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_certificate.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + `
+resource "zstack_certificate" "test" {
+  name        = "acc-test-certificate-updated"
+  description = "acceptance certificate updated"
+  certificate = "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIUEh8m0yZ4X1GbWOKQoSqxVh7gkfUwDQYJKoZIhvcNAQELBQAwEjEQ\nMA4GA1UEAwwHdGVzdC1jYTAeFw0yNDA0MTMwMDAwMDBaFw0zNDA0MTMwMDAwMDBa\nMBIxEDAOBgNVBAMMB3Rlc3QtY2EwXDANBgkqhkiG9w0BAQEFAANLADBIAkEA0Z3V\nS3MwRXfHOVMnz0pHRvPqNsLffO9DeXSGPnkHMWVFnkFPnAGI+ZhouBnfZMwBY0Mj\nJmpRGsXSlYMsqDMNFwIDAQABoyMwITAfBgNVHREEGDAWhwR/AAABhwTAqAEBhwQK\nAAEBMA0GCSqGSIb4DQEBCQUAA0EAkcPGWFv43IkajKMmp/CjTOrLEMFSiHBr7hIK\nBGVEkVDqMe/dIYMe+bpFZ23LalFa4p27iE1uchIMjjkE2adkJQ==\n-----END CERTIFICATE-----"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_certificate.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-certificate-updated")),
+					statecheck.ExpectKnownValue("zstack_certificate.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance certificate updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_certificate.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_certificate.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore:              []string{"certificate"},
 			},

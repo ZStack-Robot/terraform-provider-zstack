@@ -17,10 +17,10 @@ This resource allows you to manage preconfiguration templates in ZStack.
 
 ### Required
 
-- `content` (String) Template content.
+- `content` (String) Template content. Custom templates must include the base ZStack system variable markers: REPO_URL, USERNAME, PASSWORD, NETWORK_CFGS, FORCE_INSTALL, PRE_SCRIPTS, and POST_SCRIPTS.
 - `distribution` (String) Distribution of the preconfiguration template.
 - `name` (String) The name of the preconfiguration template.
-- `type` (String) Type of the preconfiguration template.
+- `type` (String) Type of the preconfiguration template. Must be one of: kickstart, preseed, autoyast, autoinstall.
 
 ### Optional
 

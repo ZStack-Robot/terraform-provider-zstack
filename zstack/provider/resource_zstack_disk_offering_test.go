@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -77,24 +78,41 @@ resource "zstack_disk_offering" "test" {
 	})
 }
 
-// Note: Update Step not applicable — all user-settable attributes have RequiresReplace.
 func TestAccDiskOfferingResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("disk-offer")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckDiskOfferingDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_disk_offering" "test" {
-  name      = "acc-test-disk-offer"
-  disk_size = 10
+  name        = %q
+  description = "acceptance disk offering"
+  disk_size   = 10
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-disk-offer")),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance disk offering")),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("disk_size"), knownvalue.Int64Exact(10)),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_disk_offering" "test" {
+  name        = %q
+  description = "acceptance disk offering updated"
+  disk_size   = 10
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance disk offering updated")),
 					statecheck.ExpectKnownValue("zstack_disk_offering.test", tfjsonpath.New("disk_size"), knownvalue.Int64Exact(10)),
 				},
 			},

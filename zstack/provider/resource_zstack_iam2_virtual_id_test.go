@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -80,30 +81,47 @@ resource "zstack_iam2_virtual_id" "test" {
 func TestAccIAM2VirtualIDResource(t *testing.T) {
 	// Requires project-management addon license
 	_ = loadEnvData(t)
+	name := testAccName("virtual-id")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2VirtualIDDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_virtual_id" "test" {
-  name     = "acc-test-virtual-id"
-  password = "Test@12345"
+  name        = %q
+  password    = "Test@12345"
+  description = "acceptance virtual ID"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-virtual-id")),
+					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance virtual ID")),
 				},
 			},
 			{
-				ResourceName:                        "zstack_iam2_virtual_id.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_iam2_virtual_id.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_iam2_virtual_id" "test" {
+  name        = %q
+  password    = "Test@12345"
+  description = "acceptance virtual ID updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_iam2_virtual_id.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance virtual ID updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_iam2_virtual_id.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_iam2_virtual_id.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerifyIgnore:             []string{"password"},
+				ImportStateVerifyIgnore:              []string{"password"},
 			},
 		},
 	})

@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -78,21 +79,38 @@ resource "zstack_user" "test" {
 
 func TestAccUserResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("user")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckUserDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_user" "test" {
-  name     = "acc-test-user"
-  password = "Test@12345"
+  name        = %q
+  password    = "Test@12345"
+  description = "acceptance user"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-user")),
+					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance user")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_user" "test" {
+  name        = %q
+  password    = "Test@12345"
+  description = "acceptance user updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_user.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance user updated")),
 				},
 			},
 			{

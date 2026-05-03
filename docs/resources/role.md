@@ -22,7 +22,7 @@ Manages a Role in ZStack.
 ### Optional
 
 - `description` (String) The description of the role
-- `identity` (String) The identity of the role
+- `identity` (String) The ZStack role identity/type marker. Valid values are version-dependent and are validated by the ZStack API. If unsure, omit this field or use a value accepted by your target ZStack version.
 
 ### Read-Only
 

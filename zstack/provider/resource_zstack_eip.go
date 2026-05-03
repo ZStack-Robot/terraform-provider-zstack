@@ -81,9 +81,6 @@ func (r *eipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -91,7 +88,6 @@ func (r *eipResource) Schema(_ context.Context, request resource.SchemaRequest, 
 				Description: "A description for the VIP network service.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"vip_uuid": schema.StringAttribute{
@@ -194,10 +190,42 @@ func (r *eipResource) Read(ctx context.Context, request resource.ReadRequest, re
 }
 
 func (r *eipResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {
-	response.Diagnostics.AddError(
-		"Update not supported",
-		"EIP resource does not support updates. Please recreate the resource instead.",
-	)
+	var plan eipModel
+	var state eipModel
+
+	diags := request.Plan.Get(ctx, &plan)
+	response.Diagnostics.Append(diags...)
+	diags = request.State.Get(ctx, &state)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	p := param.UpdateEipParam{
+		BaseParam: param.BaseParam{},
+		Params: param.UpdateEipParamDetail{
+			Name:        plan.Name.ValueString(),
+			Description: stringPtrOrNil(plan.Description.ValueString()),
+		},
+	}
+
+	eip, err := r.client.UpdateEip(state.Uuid.ValueString(), p)
+	if err != nil {
+		response.Diagnostics.AddError(
+			"Error updating EIP",
+			"Could not update EIP, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	plan.Uuid = types.StringValue(eip.UUID)
+	plan.Name = types.StringValue(eip.Name)
+	plan.Description = stringValueOrNull(eip.Description)
+	plan.VipUuid = types.StringValue(eip.VipUuid)
+	plan.VmNicUuid = types.StringValue(eip.VmNicUuid)
+
+	diags = response.State.Set(ctx, plan)
+	response.Diagnostics.Append(diags...)
 }
 
 func (r *eipResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
@@ -207,7 +235,6 @@ func (r *eipResource) Delete(ctx context.Context, request resource.DeleteRequest
 	if response.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DeleteEip(state.Uuid.ValueString(), param.DeleteModePermissive)
 

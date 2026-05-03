@@ -103,6 +103,8 @@ func TestAccL3NetworkResource(t *testing.T) {
 	if l2UUID == "" {
 		l2UUID = envStr(env.L2Networks[0], "uuid")
 	}
+	name := testAccName("l3network")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -112,27 +114,42 @@ func TestAccL3NetworkResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l3network" "test" {
-  name            = "acc-test-l3network"
+  name            = %q
+  description     = "acceptance l3 network"
   l2_network_uuid = %q
   category        = "Private"
   ip_version      = 4
 }
-`, l2UUID),
+`, name, l2UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-l3network")),
+					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l3 network")),
 					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("l2_network_uuid"), knownvalue.StringExact(l2UUID)),
 				},
 			},
-			// NOTE: Update step omitted — UpdateL3Network API returns incomplete inventory
-			// (missing type, category, l2_network_uuid, zone_uuid fields), causing
-			// "provider produced inconsistent result" errors. This is a provider bug.
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_l3network" "test" {
+  name            = %q
+  description     = "acceptance l3 network updated"
+  l2_network_uuid = %q
+  category        = "Private"
+  ip_version      = 4
+}
+`, updatedName, l2UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l3 network updated")),
+					statecheck.ExpectKnownValue("zstack_l3network.test", tfjsonpath.New("l2_network_uuid"), knownvalue.StringExact(l2UUID)),
+				},
+			},
 			// Import step
 			{
-				ResourceName:                        "zstack_l3network.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_l3network.test"),
-				ImportStateVerify:                   true,
+				ResourceName:                         "zstack_l3network.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_l3network.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

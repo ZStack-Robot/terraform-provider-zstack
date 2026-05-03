@@ -45,12 +45,12 @@
 | BUG-023 | P2 | ✅ Fixed | Randomize test resource names |
 | BUG-019 | P2 | ✅ Fixed | Move disk state logic to Read() per TODO |
 
-### Remaining (3 bugs — deferred / lower priority)
+### Remaining (deferred followups only)
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
-| BUG-018 | P3 | 🔲 Open | Standardize acronym casing (UUID/Uuid/IP/Ip) |
-| BUG-024 | P3 | 🟡 In Progress | Add update steps to acceptance tests |
+| BUG-018 | P3 | ⏸ Deferred / Won't Fix for now (2026-05-03) | Standardize acronym casing (UUID/Uuid/IP/Ip)；仅属内部 Go 命名风格问题，不影响 HCL schema 或 provider 行为。当前修复会产生大范围低价值 diff，留到未来生成器/大规模命名重构时再统一处理。 |
+| BUG-024 | P3 | ✅ Fixed (2026-05-03) | Add update steps to acceptance tests；已覆盖所有有明确 in-place Update 行为的 acceptance resources，剩余仅显式不支持 Update/no-op/环境或 API 限制项 |
 | BUG-025 | P2 | ✅ Fixed (2026-04-28) | Clean up commented-out code blocks in 19+ files |
 | BUG-040 | P1 | ✅ Fixed (2026-04-24) | TypeName 改为 `zstack_virtual_routers` (与文件名/SDK 一致) |
 | BUG-041–046 | P3 | ✅ Fixed (2026-04-24) | DataSource TypeName 已对齐 SDK 命名 (6 处) |
@@ -61,7 +61,7 @@
 | BUG-056 | P0 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround: vm_cdrom/l3network/global_config Update 后用 findResourceByQuery；instance Update 已有该模式 |
 | BUG-057 | P0 | ✅ Fixed (2026-04-24) | `l2vxlan_network.vni` 加 `int64planmodifier.RequiresReplace` |
 | BUG-058 | P0 | ✅ Fixed (已在代码中) | `l3network` Create ipVersion 已有 IsUnknown guard (line 185-187)，核对后确认修过 |
-| BUG-059 | P0 | 🔁 Moved → SDK | `l3network` Delete URL 缺 UUID 参数；属 SDK 侧 bug，已迁移至 SDK 仓库 [`SDK-BUG-004`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-004-L3Network-Delete-URL.md)（待 SDK 团队复现） |
+| BUG-059 | P0 | ✅ Closed as Not Reproducible (2026-05-03) | `l3network` Delete URL 缺 UUID 参数的判断按当前 SDK 代码不成立：`DeleteL3Network` 调用 `Delete("v1/l3-networks", uuid, ...)`，底层 `getURL` 会拼 `/v1/l3-networks/{uuid}`。 |
 | BUG-060 | P1 | ✅ Fixed (2026-04-24) | `instance` Create Description 改用 `stringPtrOrNil` |
 | BUG-061 | P1 | ✅ Fixed (2026-04-25) | Provider 侧 re-query workaround：global_config Create+Update 后用 QueryGlobalConfig 重读 |
 | BUG-062 | P2 | ✅ Fixed (2026-04-24) | 子缺陷 a/b 核实已修；c (encoding_type Read 映射) 新修 |
@@ -70,23 +70,23 @@
 | BUG-065 | P1 | ✅ Fixed (2026-04-26, commit `d3aafc6`) | 24 处 Optional+Computed 空字符串清洗：引入 `stringValueOrNull()` 让空 API 响应 → state null（消除 plan-time `""` vs null drift）；instance Update 后 `findResourceByGet` re-read 重建 state（BUG-019 后续 + SDK-WA-001 模式扩展） |
 | **F1/F4 followup** | TBD | 🔲 待 QA | MR #31 最终验证 F1（Plan Compliance）/ F4（Scope Fidelity）reject；具体要求待 QA 下周给报告，到时再编号入账 |
 | BUG-066 | P1 | ✅ Fixed (2026-04-28) | `zstack_access_key.user_uuid` 漂移：schema 改 Optional+Computed+UseStateForUnknown，API 返回的 owner UUID 写回 state，消除 "inconsistent result"。原 BUG-NEW-100。 |
-| BUG-067 | P3 | 🔲 Open | `zstack_role.identity` 枚举无文档/无 OneOf 校验：`Customized` 失败但 docs 不写。原 BUG-NEW-101。 |
+| BUG-067 | P3 | ✅ Fixed (2026-05-03) | `zstack_role.identity` 不硬编码 OneOf；schema/docs 明确说明该字段是 ZStack 角色身份/类型标识且合法值依赖版本，并在 CreateRole 因 identity 被服务端拒绝时返回清晰 diagnostic。原 BUG-NEW-101。 |
 | BUG-068 | P1 | ✅ Fixed in SDK v0.0.6 (2026-04-27) | `CreateVipQos` 响应 `lastOpDate` 是 `Apr 26, 2026 11:05:50 PM`，SDK 期望 RFC3339 → decode 崩。根因 `pkg/client/http_client.go` PostWithAsync/PutWithAsync 走 stdlib json.Unmarshal 解 inventory 子树。SDK v0.0.6 改成 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils。原 BUG-NEW-102 / SDK-BUG-005。 |
 | BUG-069 | P0 | ✅ Fixed (2026-04-27) | `zstack_instance` Create 始终发 `instanceOfferingUuid: ""`（unset 时也发空字符串），API SYS.1003 拒绝；同模式还有 `rootDiskOfferingUuid` / `defaultL3NetworkUuid` / `strategy`。修复：把 4 处 `stringPtr(...)` 改为 `stringPtrOrNil(...)`（resource_zstack_instance.go 的 Create 入参组装段）。real-env RUN_ID `r144465c0a` 全跑通：vm_offering_path（带 instance_offering_uuid）+ vm_cpu_mem_path（cpu_num+memory_size）Create+Update+Destroy 均成功。原 BUG-NEW-103。 |
-| BUG-070 | P2 | 🔲 Open | `zstack_volume_backup` 对 `SftpBackupStorage` 不可用（SFTP BS 不托管 volume backup）；provider 应 plan-time 校验或文档。原 BUG-NEW-104。 |
+| BUG-070 | P2 | ✅ Fixed (2026-05-02) | `zstack_volume_backup` Create 前查询 `backup_storage_uuid` 类型，仅允许 `ImageStoreBackupStorage`；`SftpBackupStorage`/`CephBackupStorage` 在 provider 侧返回 attribute diagnostic。acceptance fixture 不再 fallback 到普通 BackupStorages，docs/example 同步说明。原 BUG-NEW-104。 |
 | BUG-071 | P0 | ✅ Fixed (2026-04-27) | `zstack_instance.root_disk` Schema 与 `diskModel` 结构体不一致：`tfsdk:"volume_uuid"` 在 struct 但不在 schema → "Value Conversion Error"。设置 `root_disk` 必崩。修复：root_disk 与 data_disks 两个 SingleNested/ListNested 都加上 `volume_uuid`（Computed+UseStateForUnknown）；root_disk 的 `primary_storage_uuid` 升级为 Optional+Computed（API 自动填充时不再 drift）；Create+Read 把服务端 `AllVolumes` 按 `Type=="Root"` 切给 root_disk，其余切给 data_disks（plan 里没写 data_disks 时不写 state，避免引入空列表 drift）。real-env RUN_ID `r144465c0a` 验证通过。原 BUG-NEW-105。 |
 | BUG-072 | P2 | ✅ Fixed (2026-04-28) | `zstack_instance_scripts.script_content`：API 去尾 `\n`，provider 不重读 → drift。修复：在 `state_helpers.go` 新增 `preserveIfEquivAfterTrim()`，Create/Read 后用 helper 做 TrimRight 等价比较，相等则保留用户原值，不等则用服务端值。原 BUG-NEW-106。 |
-| BUG-073 | P2 | 🔲 Open | `zstack_log_server.configuration` 是 freeform string，appender/plugin 嵌套 schema 全无文档；`Log4j2`/`FluentBit` 简单 host/port 都被拒。原 BUG-NEW-107。 |
+| BUG-073 | P2 | ✅ Fixed (2026-05-03) | `zstack_log_server` 增加 `category`/`type`/`level` 枚举校验；`configuration` 改为兼容 raw nested JSON，并新增 `appender_type` + `appender_configuration` 结构化输入，由 provider 生成 `{"appenderType": "...", "configuration": {...}}`。flat host/port JSON 在 provider 侧报清晰 diagnostic。同步更新 acceptance fixture、docs、example。原 BUG-NEW-107。 |
 | BUG-074 | P1 | ✅ Fixed (2026-04-28) | `zstack_vpc.enable_ipam` Optional 但缺 Computed，API 总是回 `false` → drift。修复：加 `Computed: true` + `boolplanmodifier.UseStateForUnknown()`，保留现有 RequiresReplace。原 BUG-NEW-108。 |
-| BUG-075 | P0 | 🔲 Open（**blocker**） | `zstack_iam2_organization.type` API 返回空字符串，provider Create 用空值覆盖 plan.Type，Required 字段非空 → 永远 drift。资源端到端不可用。原 BUG-NEW-109。 |
-| BUG-076 | P0 | 🔁 Moved → SDK ([`SDK-BUG-006`](#sdk-bug-006)) | `DeleteDirectory` SDK URL 用 `v1/delete/directory/{uuid}`（应该是 directory 资源根 URL）→ 404，每次 Apply 都泄漏 directory（本轮残留 1 个 orphan）。原 BUG-NEW-110。 |
+| BUG-075 | P0 | ✅ Fixed (2026-04-30) | `zstack_iam2_organization.type` API 返回空字符串，provider Create/Read/Update 遇到空 Type 时保留配置/既有 state，避免 Required 字段被空响应覆盖导致永久 drift。原 BUG-NEW-109。 |
+| BUG-076 | P0 | ✅ Fixed in SDK v0.0.7 (2026-05-03) | `DeleteDirectory` 是动作式 DELETE：`v0.0.7` 保持 `DeleteDirectory(uuid, deleteMode)` 签名，内部改为 `DeleteWithBody("v1/delete/directory", DeleteDirectoryParam{...})`，会发 `DELETE /zstack/v1/delete/directory` 且 body 为 `{"deleteDirectory":{"uuid":"...","deleteMode":"Permissive"}}`。provider 已升级 SDK 至 `v0.0.7`。原 BUG-NEW-110。 |
 | BUG-077 | P2 | ✅ Fixed (2026-04-28) | `zstack_certificate.certificate` 服务端去尾空白，provider 不重读 → drift。修复：复用 BUG-072 引入的 `preserveIfEquivAfterTrim()` helper，Create/Read/Update 三处统一处理（虽然 `certificate` 字段是 RequiresReplace，Update 路径也加上以防御）。原 BUG-NEW-111。 |
-| BUG-078 | P3 | 🔲 Open | `zstack_global_config` 没有 data source 列举合法 (category, name)；任意未知键全是黑盒错误。需新增 `data zstack_global_configs`。原 BUG-NEW-112。 |
-| BUG-079 | P3 | 🔲 Open | `zstack_stack_template.template_content` 必须含 `ZStackTemplateFormatVersion` marker，但 schema/docs/examples 均无。原 BUG-NEW-113。 |
+| BUG-078 | P3 | ✅ Fixed (2026-05-03) | 新增 `data zstack_global_configs` 查询合法 global config `(category, name)` 及当前/default/description；`zstack_global_config` 服务端失败 diagnostic 增加用 data source 发现合法键的提示。原 BUG-NEW-112。 |
+| BUG-079 | P3 | ✅ Fixed (2026-05-03) | `zstack_stack_template.template_content` 改为 Required，并增加 `ZStackTemplateFormatVersion` marker 校验；Create/Update 前补 attribute diagnostic，docs/example 同步最小合法模板。原 BUG-NEW-113。 |
 | BUG-080 | P1 | ✅ Fixed (2026-04-28) | `zstack_pci_device_offering.name` 改为 Required（API 非指针 string + DB NOT NULL）。原 BUG-NEW-114。 |
-| BUG-081 | P0 | 🔲 Open（**blocker**） | `zstack_price_table` 必填字段 `prices` 在 schema 完全缺失，资源不可创建。原 BUG-NEW-115。 |
-| BUG-082 | P3 | 🔲 Open | `zstack_resource_stack` 同 BUG-079；空 template 还会触发服务端未格式化的 `invalid decoder: %s!`（API 侧也有小 bug）。原 BUG-NEW-116。 |
-| BUG-083 | P1 | 🔲 Open | `zstack_preconfiguration_template` 双层无文档校验：(1) `type` 枚举强制小写 `[kickstart, preseed, autoyast, autoinstall]`；(2) `content` 必须含未文档化的 "common params" markers。原 BUG-NEW-117。 |
+| BUG-081 | P0 | ✅ Fixed (2026-04-30) | `zstack_price_table` 补齐必填 `prices` 嵌套 schema，并在 Create 中真实发送到 SDK；因 QueryPriceTable 不返回 price 明细，`prices` 标记 RequiresReplace 并在 Read 中保留配置 state。原 BUG-NEW-115。 |
+| BUG-082 | P3 | ✅ Fixed (2026-05-03) | `zstack_resource_stack` Create/Update 前校验必须提供 `template_content` 或 `template_uuid`；直接使用 `template_content` 时必须含 `ZStackTemplateFormatVersion`，否则 provider 返回清晰 attribute diagnostic，避免服务端 `invalid decoder: %s!`。docs/example 同步。原 BUG-NEW-116。 |
+| BUG-083 | P1 | ✅ Fixed (2026-05-02) | `zstack_preconfiguration_template` 增加 plan-time 校验：`type` 仅允许小写 `[kickstart, preseed, autoyast, autoinstall]`；`content` 必须包含基础系统变量 markers（REPO_URL/USERNAME/PASSWORD/NETWORK_CFGS/FORCE_INSTALL/PRE_SCRIPTS/POST_SCRIPTS）。同步更新 acceptance fixture、example 和 docs。原 BUG-NEW-117。 |
 | BUG-084 | P1 | ✅ Fixed in SDK v0.0.6 + Provider workaround removed (2026-04-27) | `UpdateVmInstance` 同 BUG-068 的根因（PostWithAsync/PutWithAsync 用 stdlib `json.Unmarshal` 解 inventory 子树）。SDK v0.0.6 修好后 provider 端 `isSDKTimeParseError` helper + Update 里的 swallow 分支已删除（resource_zstack_instance.go），保留 `findResourceByGet(GetVmInstance)` 兜底（成本忽略，作为 state 一致性保险）。real-env RUN_ID `r144465c0a` v0.0.6 + 清理后 Create(4) + Update v1↔v2 双向各 2 changed + Destroy(4) 全过。原 BUG-NEW-118 / SDK-WA-006。 |
 | BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
 | **NEW-SCHEMA-NOTE** | — | ✅ 落地 (2026-04-27) | `zstack_instance.network_interfaces` 重设计：`default_l3` 改 Optional+Computed（多 NIC 仅允许一个真值；全省略时 provider 在 Create 自动选第一个 NIC；服务端解析后 echo 回 state，UseStateForUnknown 防 plan drift），`static_ip` 改 Optional+Computed。同步新增顶层 `platform` / `guest_os_type` / `architecture`（前两个 Optional+Computed 走 Update，`architecture` 因 SDK UpdateVmInstanceParamDetail 没有该字段、必须 RequiresReplace）。real-env 用例：`vm_offering_default_l3=[false,true]`、`vm_cpu_default_l3=[true]`、`platform=Linux`、`guest_os_type` 在 Update 里 `CentOS 7.6 ↔ CentOS 7.9` 成功 flip。 |
@@ -591,7 +591,7 @@ name := fmt.Sprintf("acc-test-volume-%s", acctest.RandString(8))
 
 ## BUG-024 — Acceptance tests lack update steps (Test Infrastructure)
 
-- **Status**: 🟡 In Progress (2026-04-21)
+- **Status**: ✅ Fixed (2026-05-03)
 
 - **Severity**: Low
 - **File**: All acceptance tests
@@ -599,7 +599,9 @@ name := fmt.Sprintf("acc-test-volume-%s", acctest.RandString(8))
 
 **Problem**: All existing acceptance tests only exercise Create → (optional Import) → Destroy. None test attribute updates. If Update logic has bugs, they go undetected.
 
-**Current progress**: Added explicit create → update → import coverage to `TestAccZoneResource`, including assertions for updated `name`, `description`, and `state`. This establishes a concrete update-step pattern in the suite, but additional high-value resources still need the same coverage before BUG-024 can be considered fully closed.
+**Resolution**: Added explicit create → update → import coverage to `TestAccZoneResource`, `TestAccClusterResource`, `TestAccCreateImageResource`, `TestAccVolumeResource`, `TestAccBackupStorageResource`, `TestAccLogServerResource`, `TestAccL3NetworkResource`, `TestAccL2VlanNetworkResource`, `TestAccLoadBalancerResource`, `TestAccInstanceResource`, `TestAccLoadBalancerListenerResource`, `TestAccPortForwardingRuleResource`, `TestAccUserResource`, `TestAccRoleResource`, `TestAccIAM2ProjectResource`, `TestAccIAM2VirtualIDResource`, `TestAccIAM2OrganizationResource`, `TestAccCertificateResource`, `TestAccSchedulerJobResource`, `TestAccSchedulerTriggerResource`, `TestAccWebhookResource`, `TestAccAffinityGroupResource`, `TestAccAutoScalingGroupResource`, `TestAccGlobalConfigResource`, `TestAccSNSTopicResource`, `TestAccSNSHttpEndpointResource`, `TestAccSshKeyPairResource`, `TestAccDiskOfferingResource`, `TestAccEIPResource`, and `TestAccVipResource`. Covered update paths include image/VM metadata and guest OS fields, network/load-balancer/listener/PF metadata, IAM2/user/role/certificate/scheduler/webhook metadata, auto scaling sizing/removal policy, global config value, SNS endpoint fields, SSH key pair metadata, disk offering/EIP/VIP metadata, cluster metadata, and zone name/description/state.
+
+**Excluded from update-step coverage**: Resources whose provider/SDK semantics are explicitly no-update or no-op (`access_key`, `guest_tool_attachment`, `instance_offering`, `instance_scripts_execution`, `l2vxlan_network`, `policy`, `reserved_ip`, `sns_email_endpoint`, `subnet_ip_range`, `tag_attachment`, `virtual_router_image`, `virtual_router_offering`, `vm_nic`, `volume_backup`, plus similar create/delete-only resources), and `account` where current environment reports `UpdateAccount` as 404. These are not acceptance update coverage gaps.
 
 ---
 
@@ -714,7 +716,7 @@ Full output from `golangci-lint run ./...`:
 |-----|-------------|--------|
 | BUG-017 | Align vmResource/InstanceResource naming | 30 min |
 | BUG-018 | Standardize acronym casing (UUID/Uuid/IP/Ip) | 3-4 hrs |
-| BUG-024 | Add update steps to acceptance tests | Ongoing |
+| BUG-024 | Add update steps to acceptance tests | Done |
 | BUG-041–052 | File name ↔ TypeName drift (12 处批量) | 2-3 hrs |
 
 ---
@@ -1032,13 +1034,13 @@ if !plan.Bandwidth.IsNull() && !plan.Bandwidth.IsUnknown() { ... }
 ## BUG-059 — l3network Delete URL 缺 UUID
 
 - **Severity**: P0 (CRITICAL)
-- **Status**: 🔁 Moved → SDK ([`SDK-BUG-004`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-004-L3Network-Delete-URL.md), 2026-04-26)
+- **Status**: ✅ Closed as Not Reproducible (2026-05-03)
 - **File**: `zstack/provider/resource_zstack_l3network.go` Delete
-- **Category**: SDK Usage Bug
+- **Category**: Invalid / stale tracker entry
 
-**Problem**: `DeleteL3Network` 调用时 URL 模板拼接没把 UUID 放对位置，导致 DELETE 请求打到错误 endpoint。
+**Original problem**: `DeleteL3Network` 调用时 URL 模板拼接没把 UUID 放对位置，导致 DELETE 请求打到错误 endpoint。
 
-**Disposition**: 经审视确认根因在 SDK `getDeleteURL` / `DeleteWithSpec` 拼接逻辑（见 `docs/sdk-url-template-bug.md` 与 SDK 仓库 `pkg/docs/SDK-BUG-004-...md`）。本条已迁移至 SDK 仓库由 SDK 团队按"复现步骤"复现并修；provider 侧暂保持调用 `DeleteL3Network` 不绕过，等 SDK 修复后升 SDK 即可。
+**Disposition**: Re-checked against the current SDK code in use by this provider. `pkg/client/l3network_actions.go` calls `cli.Delete("v1/l3-networks", uuid, string(deleteMode))`; `pkg/client/http_client.go` routes that through `getDeleteURL()` → `getURL()`, and `getURL()` appends `/{resourceId}` when `resourceId` is non-empty. The resulting endpoint is `/v1/l3-networks/{uuid}?deleteMode=...`, so the tracker entry is stale and no provider or SDK fix is required for this claim.
 
 ---
 

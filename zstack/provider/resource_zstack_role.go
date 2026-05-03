@@ -93,7 +93,7 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"identity": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The identity of the role",
+				Description: "The ZStack role identity/type marker. Valid values are version-dependent and are validated by the ZStack API. If unsure, omit this field or use a value accepted by your target ZStack version.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
@@ -136,6 +136,17 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	result, err := r.client.CreateRole(createParam)
 	if err != nil {
+		if !plan.Identity.IsNull() && !plan.Identity.IsUnknown() && plan.Identity.ValueString() != "" {
+			resp.Diagnostics.AddError(
+				"Error creating Role",
+				fmt.Sprintf(
+					"Could not create role because ZStack rejected identity %q. The identity field is a ZStack role identity/type marker and valid values depend on the ZStack version. Omit identity or use a value accepted by your target ZStack version. Original error: %s",
+					plan.Identity.ValueString(),
+					err.Error(),
+				),
+			)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Error creating Role",
 			"Could not create role, unexpected error: "+err.Error(),

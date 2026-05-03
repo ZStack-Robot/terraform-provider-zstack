@@ -1006,6 +1006,15 @@ output "uuid" {
 				return `resource "zstack_price_table" "test" {
   name        = "tf-batch-test-price-table"
   description = "[batch-test] price table"
+
+  prices = [
+    {
+      resource_name = "cpu"
+      resource_unit = "Core"
+      time_unit     = "s"
+      price         = 0.01
+    }
+  ]
 }
 
 output "uuid" {

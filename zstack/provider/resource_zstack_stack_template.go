@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -102,9 +103,15 @@ func (r *stackTemplateResource) Schema(_ context.Context, request resource.Schem
 				},
 			},
 			"template_content": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "The template content.",
+				Required:    true,
+				Description: "The template content. Must contain ZStackTemplateFormatVersion.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(regexp.QuoteMeta(stackTemplateFormatVersionMarker)),
+						"template_content must contain ZStackTemplateFormatVersion",
+					),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -144,6 +151,15 @@ func (r *stackTemplateResource) Create(ctx context.Context, request resource.Cre
 
 	if r.client == nil {
 		response.Diagnostics.AddWarning("Client Not Configured", "The client was not properly configured.")
+		return
+	}
+
+	if !hasStackTemplateFormatVersionMarker(plan.TemplateContent.ValueString()) {
+		response.Diagnostics.AddAttributeError(
+			path.Root("template_content"),
+			"Invalid stack template content",
+			"template_content must contain ZStackTemplateFormatVersion.",
+		)
 		return
 	}
 
@@ -230,6 +246,15 @@ func (r *stackTemplateResource) Update(ctx context.Context, request resource.Upd
 		return
 	}
 
+	if !hasStackTemplateFormatVersionMarker(plan.TemplateContent.ValueString()) {
+		response.Diagnostics.AddAttributeError(
+			path.Root("template_content"),
+			"Invalid stack template content",
+			"template_content must contain ZStackTemplateFormatVersion.",
+		)
+		return
+	}
+
 	p := param.UpdateStackTemplateParam{
 		BaseParam: param.BaseParam{},
 		Params: param.UpdateStackTemplateParamDetail{
@@ -272,7 +297,6 @@ func (r *stackTemplateResource) Delete(ctx context.Context, request resource.Del
 	if response.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DeleteStackTemplate(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
