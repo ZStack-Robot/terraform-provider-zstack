@@ -1264,9 +1264,9 @@ ZStack API 的 PUT 响应实际是 `{"inventory": {...}}`，缺少 `"inventory"`
 ## SDK-WA-002 — `ZSClient.Post()` 不解析 URL 模板占位符
 
 ### 上游状态
-🔲 **Open** — 详见 [`SDK-BUG-002`](https://github.com/zstackio/zstack-sdk-go-v2/blob/master/pkg/docs/SDK-BUG-002-ZSClient-Post-URL-Template.md)（待 SDK 团队修；v0.0.5 未包含此修复）。
+✅ **Resolved / stale as of SDK v0.0.7 (2026-05-03)** — 当前 provider 已升级到 `github.com/zstackio/zstack-sdk-go-v2 v0.0.7`。`ZSClient.Post()` 的活跃实现已委托给 `ZSHttpClient.Post(context.Background(), ...)`，并且当前 SDK action 文件中未再发现 `cli.Post("v1/...{placeholder}...")` 形式的未替换模板调用。
 
-### SDK Bug
+### Original SDK Bug
 SDK 嵌入了两个 HTTP client：
 - `ZSHttpClient.Post(resource, params, retVal)` — 通过 `getPostURL()` 正确解析占位符
 - `ZSClient.Post(path, params, result)` — 直接 `fmt.Sprintf("%s/%s", baseURL, path)`，**不替换 `{xxx}` 占位符**
@@ -1276,12 +1276,8 @@ SDK 嵌入了两个 HTTP client：
 ### 影响范围（部分确认）
 | 文件 | 受影响方法 | Provider 状态 |
 |---|---|---|
-| `pkg/client/other_actions.go` | 全 101 个 | provider 暂未触发；触发时手动调 `ZSHttpClient.Post()` |
-| `resource_zstack_primary_storage.go:218,234` | `AddLocalPrimaryStorage` / `AddNfsPrimaryStorage` | provider 直接 `r.client.Post("v1/primary-storage/local-storage", ...)` 绕过 SDK 包装函数 |
-
-### 已记录文档
-- `docs/SDK_URL_TEMPLATE_BUG.md` — 中文版完整报告
-- `docs/sdk-url-template-bug.md` — 同根
+| `pkg/client/other_actions.go` | 全 101 个 | stale historical note; current SDK v0.0.7 no longer has active `cli.Post("v1/...{placeholder}...")` matches |
+| `resource_zstack_primary_storage.go:218,234` | `AddLocalPrimaryStorage` / `AddNfsPrimaryStorage` | provider still directly calls `r.client.Post("v1/primary-storage/...", ...)`; this is no longer tied to the URL-template bug and can be revisited only if SDK typed methods become preferable |
 
 ### SDK 修复后的回收清单
 SDK 给 `ZSClient.Post()` 加占位符替换后，provider 侧可：
@@ -1401,10 +1397,10 @@ SDK-FIX-006 v0.0.6 release 后已落地：
 | 编号 | SDK 修复内容 | 上游状态 | 影响 provider 文件数 |
 |---|---|---|---|
 | **SDK-FIX-001** | `PutWithRespKey` 在底层默认走 inventory envelope 兜底 | ✅ Fixed in v0.0.5（同时修了 `PostWithAsync`） | 23 |
-| **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | 🔲 Open | 1 (Primary Storage) + 潜在 32 个 |
+| **SDK-FIX-002** | `ZSClient.Post()` 接管 URL 模板替换 | ✅ Resolved/stale in v0.0.7；当前 SDK action 中未发现活跃 `cli.Post("v1/...{placeholder}...")` 调用 | 0 confirmed active provider blockers |
 | **SDK-FIX-003** | `DeleteIAM2Project` 加 purge 参数或新增 `DeleteAndExpungeIAM2Project` 一站式方法 | ✅ Fixed in v0.0.5（采用方案 B：新增 `DeleteAndExpungeIAM2Project`） | 1 |
-| **SDK-FIX-004** | l3network Delete URL 修复（原 BUG-059） | 🔲 待复现 | 1 |
-| **SDK-FIX-005** | directory Delete URL 修复（原 BUG-076 / BUG-NEW-110，`v1/delete/directory/{uuid}` → 应该是 directory 资源根 URL） | 🔲 待 SDK 复现 | 1 |
+| **SDK-FIX-004** | l3network Delete URL 修复（原 BUG-059） | ✅ Closed as not reproducible；当前 SDK `DeleteL3Network` 会发 `/v1/l3-networks/{uuid}?deleteMode=...` | 0 |
+| **SDK-FIX-005** | directory Delete body 修复（原 BUG-076 / BUG-NEW-110） | ✅ Fixed in SDK v0.0.7；`DeleteDirectory` 走 `DeleteWithBody("v1/delete/directory", DeleteDirectoryParam{...})` | 0 |
 | **SDK-FIX-006** | `pkg/client/http_client.go` `PostWithAsync` (:312) / `PutWithAsync` (:380) 在 `len(responseKey) == 0` 且响应包含 `inventory` 子树时，原本用 `json.Unmarshal([]byte(inventory.String()), retVal)`（stdlib），不识别 ZStack 自家 `ZStackTimeFormat`（`Apr 27, 2026 3:10:09 PM`），导致 `CreateVipQos`（BUG-068）/ `UpdateVmInstance`（BUG-084）/ `UpdateImage`（BUG-085）等响应解码崩。修复：替换为 `resp.Unmarshal(retVal, responseKeyInventory)` 走 jsonutils。同时移除文件里不再需要的 `encoding/json` 导入。| ✅ Released in v0.0.6 (2026-04-27)，provider 端 workaround 已于 2026-04-27 全部移除 | 3+（CreateVipQos / UpdateVmInstance / UpdateImage / 任何空 responseKey 走 inventory 兜底的资源） |
 | **SDK-FIX-007** | `pkg/client/directory_actions.go:53` `DeleteDirectory` URL 用 `v1/delete/directory`，与同文件其他方法（`v1/directories`）和 SDK 主流 REST 风格不符；同类 RPC 风格遗留路径还有：`ssoclient_actions.go:16` `Post v1/delete/sso/client`、`ssoclient_actions.go:24` `Get v1/get/sso/client`、`ssoredirect_template_actions.go:{16,24,32}` `v1/{create,update,delete}/sso/...`、`other_actions.go:{4647,5930}` `v1/{add,remove}/resources/directory`、`oauth2token_actions.go:16` `v1/get/oauth2/token`、`saml2client_actions.go:{16,24}` `v1/{update,create}/saml2/client`、`cas_client_actions.go:{16,24}` `v1/{create,update}/cas/client`、`other_actions.go:{1466,4899}` `v1/{create,update}/oauth2/client`、`other_actions.go:{1843,7058}` `v1/get/vmSchedulingRules/...`。需要 SDK 团队对照 ZStack 官方 REST 路径核对。原 BUG-076 / BUG-NEW-110 提到的 directory 是该家族首例。| 🔲 待 SDK 团队按服务端实际 URL 校验 | 至少 11 处 RPC 风格 URL（仅 directory 在 real-env 触发） |
 
