@@ -36,7 +36,7 @@ Required:
 - `price` (Number) The price for this resource and time unit.
 - `resource_name` (String) The billable resource name, for example cpu, memory, rootVolume, dataVolume, or publicIp.
 - `resource_unit` (String) The billable resource unit.
-- `time_unit` (String) The billing time unit, for example `s`.
+- `time_unit` (String) The billing time unit.
 
 Optional:
 

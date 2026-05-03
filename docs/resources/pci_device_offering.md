@@ -18,12 +18,12 @@ This resource allows you to manage PCI device offerings in ZStack.
 ### Required
 
 - `device_id` (String) Device ID.
+- `name` (String) The offering name.
 - `vendor_id` (String) Vendor ID.
 
 ### Optional
 
 - `description` (String) A description.
-- `name` (String) The offering name.
 - `ram_size` (String) RAM size.
 - `subdevice_id` (String) Subdevice ID.
 - `subvendor_id` (String) Subvendor ID.

@@ -1,0 +1,26 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  {{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description }}
+
+`backup_storage_uuid` must point to an `ImageStoreBackupStorage`. `SftpBackupStorage` is not supported for `zstack_volume_backup`.
+
+## Example Usage
+
+{{tffile "examples/resources/volume_backup/resource.tf"}}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_volume_backup.example <uuid>
+```

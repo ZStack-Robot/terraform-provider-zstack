@@ -46,7 +46,7 @@ output "zstack_image" {
 ### Required
 
 - `format` (String) The format of the image file, such as 'qcow2', 'raw', or 'vmdk'.
-- `name` (String) The name of the image. This is a mandatory field.
+- `name` (String) The name of the image. Updatable in-place via the SDK UpdateImage endpoint.
 - `url` (String) The URL where the image is located. This can be a file path or an HTTP link.
 
 ### Optional
@@ -54,11 +54,11 @@ output "zstack_image" {
 - `architecture` (String) The architecture of the image, such as 'x86_64' or 'aarch64'.
 - `backup_storage_uuids` (List of String) A list of UUIDs for the backup storages where the image is stored.
 - `boot_mode` (String) The boot mode supported by the image, such as 'Legacy' or 'UEFI'.
-- `description` (String) A description of the image, providing additional context or details.
+- `description` (String) A description of the image, providing additional context or details. Updatable in-place via the SDK UpdateImage endpoint.
 - `expunge` (Boolean) Indicates if the image should be expunged after deletion.
-- `guest_os_type` (String) The guest operating system type that the image is optimized for.
+- `guest_os_type` (String) The guest operating system type that the image is optimized for. Updatable in-place via the SDK UpdateImage endpoint.
 - `media_type` (String) The type of media for the image. Examples include 'ISO' or 'RootVolumeTemplate' or DataVolumeTemplate.
-- `platform` (String) The platform that the image is intended for, such as 'Linux', 'Windows', or others.
+- `platform` (String) The platform that the image is intended for, such as 'Linux', 'Windows', or others. Updatable in-place via the SDK UpdateImage endpoint.
 - `virtio` (String) Indicates if the VirtIO drivers are required for the image.
 
 ### Read-Only

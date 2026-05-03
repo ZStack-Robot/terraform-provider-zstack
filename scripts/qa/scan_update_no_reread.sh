@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) ZStack.io, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 set -euo pipefail
 
 # Scan all resource Update methods to detect if they trust SDK return values
