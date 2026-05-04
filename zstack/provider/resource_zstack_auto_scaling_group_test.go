@@ -92,6 +92,7 @@ resource "zstack_auto_scaling_group" "test" {
 func TestAccAutoScalingGroupResource(t *testing.T) {
 	_ = loadEnvData(t)
 	name := testAccName("scaling-group")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -101,6 +102,7 @@ func TestAccAutoScalingGroupResource(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_auto_scaling_group" "test" {
   name                  = %q
+  description           = "acceptance auto scaling group"
   scaling_resource_type = "VmInstance"
   default_cooldown      = 60
   min_resource_size     = 0
@@ -111,16 +113,37 @@ resource "zstack_auto_scaling_group" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance auto scaling group")),
 					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("scaling_resource_type"), knownvalue.StringExact("VmInstance")),
 					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("min_resource_size"), knownvalue.StringExact("0")),
 					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("max_resource_size"), knownvalue.StringExact("5")),
 				},
 			},
 			{
-				ResourceName:      "zstack_auto_scaling_group.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_auto_scaling_group.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_auto_scaling_group" "test" {
+  name                  = %q
+  description           = "acceptance auto scaling group updated"
+  scaling_resource_type = "VmInstance"
+  default_cooldown      = 60
+  min_resource_size     = 1
+  max_resource_size     = 6
+  removal_policy        = "NewestInstance"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance auto scaling group updated")),
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("min_resource_size"), knownvalue.StringExact("1")),
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("max_resource_size"), knownvalue.StringExact("6")),
+					statecheck.ExpectKnownValue("zstack_auto_scaling_group.test", tfjsonpath.New("removal_policy"), knownvalue.StringExact("NewestInstance")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_auto_scaling_group.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_auto_scaling_group.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

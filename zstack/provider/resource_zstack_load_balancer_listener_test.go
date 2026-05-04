@@ -105,6 +105,7 @@ func TestAccLoadBalancerListenerResource(t *testing.T) {
 	env := loadEnvData(t)
 	lbName := testAccName("lb-for-listener")
 	listenerName := testAccName("lb-listener")
+	updatedListenerName := listenerName + "-updated"
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer listener acceptance test")
@@ -126,6 +127,7 @@ resource "zstack_load_balancer" "test" {
 
 resource "zstack_load_balancer_listener" "test" {
   name               = %q
+  description        = "acceptance load balancer listener"
   load_balancer_uuid = zstack_load_balancer.test.uuid
   protocol           = "tcp"
   load_balancer_port = 80
@@ -135,6 +137,7 @@ resource "zstack_load_balancer_listener" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("name"), knownvalue.StringExact(listenerName)),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance load balancer listener")),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("protocol"), knownvalue.StringExact("tcp")),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("load_balancer_port"), knownvalue.StringExact("80")),
 					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("instance_port"), knownvalue.StringExact("8080")),
@@ -142,10 +145,37 @@ resource "zstack_load_balancer_listener" "test" {
 				},
 			},
 			{
-				ResourceName:      "zstack_load_balancer_listener.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_load_balancer_listener.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_vips" "test" {
+}
+
+resource "zstack_load_balancer" "test" {
+  name     = %q
+  vip_uuid = data.zstack_vips.test.vips.0.uuid
+}
+
+resource "zstack_load_balancer_listener" "test" {
+  name               = %q
+  description        = "acceptance load balancer listener updated"
+  load_balancer_uuid = zstack_load_balancer.test.uuid
+  protocol           = "tcp"
+  load_balancer_port = 80
+  instance_port      = 8080
+}
+`, lbName, updatedListenerName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedListenerName)),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance load balancer listener updated")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("protocol"), knownvalue.StringExact("tcp")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("load_balancer_port"), knownvalue.StringExact("80")),
+					statecheck.ExpectKnownValue("zstack_load_balancer_listener.test", tfjsonpath.New("instance_port"), knownvalue.StringExact("8080")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_load_balancer_listener.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_load_balancer_listener.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

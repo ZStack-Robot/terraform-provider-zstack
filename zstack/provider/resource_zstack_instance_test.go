@@ -86,6 +86,8 @@ func TestAccInstanceResource(t *testing.T) {
 	}
 
 	offeringUUID := envStr(env.InstanceOfferings[0], "uuid")
+	name := testAccName("instance")
+	updatedName := name + "-updated"
 
 	// Prefer Public L3 network; fall back to first available L3.
 	var l3UUID string
@@ -99,12 +101,15 @@ func TestAccInstanceResource(t *testing.T) {
 		l3UUID = envStr(env.L3Networks[0], "uuid")
 	}
 
-	createConfig := func(name string) string {
+	createConfig := func(name, description, platform, guestOsType string) string {
 		return providerConfig() + fmt.Sprintf(`
 resource "zstack_instance" "test" {
   name                   = %q
+  description            = %q
   image_uuid             = %q
   instance_offering_uuid = %q
+  platform               = %q
+  guest_os_type          = %q
   expunge                = true
   network_interfaces = [
     {
@@ -113,7 +118,7 @@ resource "zstack_instance" "test" {
     }
   ]
 }
-`, name, imageUUID, offeringUUID, l3UUID)
+`, name, description, imageUUID, offeringUUID, platform, guestOsType, l3UUID)
 	}
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
@@ -122,16 +127,28 @@ resource "zstack_instance" "test" {
 		Steps: []tfresource.TestStep{
 			// Step 1: Create
 			{
-				Config: createConfig("acc-test-instance"),
+				Config: createConfig(name, "acceptance instance", "Linux", "CentOS 7.6"),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-instance")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance instance")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("platform"), knownvalue.StringExact("Linux")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("guest_os_type"), knownvalue.StringExact("CentOS 7.6")),
 				},
 			},
-			// Step 2: Update name — SKIPPED: BUG-9 (UpdateVmInstance SDK returns empty struct)
+			// Step 2: Update mutable VM metadata
+			{
+				Config: createConfig(updatedName, "acceptance instance updated", "Linux", "CentOS 7.9"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance instance updated")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("platform"), knownvalue.StringExact("Linux")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("guest_os_type"), knownvalue.StringExact("CentOS 7.9")),
+				},
+			},
 			// Step 3: Import
 			{
-				Config:                               createConfig("acc-test-instance"),
+				Config:                               createConfig(updatedName, "acceptance instance updated", "Linux", "CentOS 7.9"),
 				ResourceName:                         "zstack_instance.test",
 				ImportState:                          true,
 				ImportStateIdFunc:                    importStateIdFromUUID("zstack_instance.test"),

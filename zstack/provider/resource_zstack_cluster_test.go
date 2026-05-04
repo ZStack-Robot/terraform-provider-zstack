@@ -57,6 +57,7 @@ func TestClusterResource_Metadata(t *testing.T) {
 func TestAccClusterResource(t *testing.T) {
 	env := loadEnvData(t)
 	name := testAccName("cluster")
+	updatedName := name + "-updated"
 
 	if len(env.Zones) == 0 {
 		t.Skip("no zones in env.json, skipping cluster acceptance test")
@@ -70,6 +71,7 @@ func TestAccClusterResource(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_cluster" "test" {
   name            = %q
+  description     = "acceptance cluster"
   zone_uuid       = "%s"
   hypervisor_type = "KVM"
 }
@@ -77,14 +79,30 @@ resource "zstack_cluster" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance cluster")),
 					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("hypervisor_type"), knownvalue.StringExact("KVM")),
 				},
 			},
 			{
-				ResourceName:      "zstack_cluster.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_cluster.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_cluster" "test" {
+  name            = %q
+  description     = "acceptance cluster updated"
+  zone_uuid       = "%s"
+  hypervisor_type = "KVM"
+}
+`, updatedName, envStr(env.Zones[0], "uuid")),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance cluster updated")),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("hypervisor_type"), knownvalue.StringExact("KVM")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_cluster.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_cluster.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

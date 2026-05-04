@@ -64,6 +64,7 @@ func TestIAM2ProjectResource_Metadata(t *testing.T) {
 func TestAccIAM2ProjectResource(t *testing.T) {
 	_ = loadEnvData(t)
 	name := testAccName("iam2-project")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -79,13 +80,26 @@ resource "zstack_iam2_project" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance test IAM2 project")),
 				},
 			},
 			{
-				ResourceName:      "zstack_iam2_project.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_iam2_project.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_iam2_project" "test" {
+  name        = %q
+  description = "acceptance test IAM2 project updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance test IAM2 project updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_iam2_project.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_iam2_project.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

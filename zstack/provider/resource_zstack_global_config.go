@@ -126,7 +126,7 @@ func (r *globalConfigResource) Create(ctx context.Context, req resource.CreateRe
 	if _, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Global Config",
-			"Could not create global config, unexpected error: "+err.Error(),
+			"Could not create global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
 		)
 		return
 	}
@@ -225,7 +225,7 @@ func (r *globalConfigResource) Update(ctx context.Context, req resource.UpdateRe
 	if _, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Global Config",
-			"Could not update global config, unexpected error: "+err.Error(),
+			"Could not update global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
 		)
 		return
 	}
@@ -283,7 +283,7 @@ func (r *globalConfigResource) Delete(ctx context.Context, req resource.DeleteRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Global Config",
-			"Could not delete global config, unexpected error: "+err.Error(),
+			"Could not delete global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
 		)
 		return
 	}

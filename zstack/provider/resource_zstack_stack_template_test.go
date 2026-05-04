@@ -53,6 +53,20 @@ func TestStackTemplateResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestHasStackTemplateFormatVersionMarker(t *testing.T) {
+	if !hasStackTemplateFormatVersionMarker(testStackTemplateContent) {
+		t.Fatal("expected test template content to contain ZStackTemplateFormatVersion")
+	}
+	if hasStackTemplateFormatVersionMarker(`{"Resources":{}}`) {
+		t.Fatal("expected template content without marker to be rejected")
+	}
+}
+
+const testStackTemplateContent = `{
+  "ZStackTemplateFormatVersion": "2018-06-18",
+  "Resources": {}
+}`
+
 func TestAccStackTemplateResource(t *testing.T) {
 	_ = loadEnvData(t)
 
@@ -64,7 +78,13 @@ func TestAccStackTemplateResource(t *testing.T) {
 			{
 				Config: providerConfig() + `
 resource "zstack_stack_template" "test" {
-  name = "acc-test-stack-template"
+  name             = "acc-test-stack-template"
+  template_content = <<EOT
+{
+  "ZStackTemplateFormatVersion": "2018-06-18",
+  "Resources": {}
+}
+EOT
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -76,7 +96,13 @@ resource "zstack_stack_template" "test" {
 			{
 				Config: providerConfig() + `
 resource "zstack_stack_template" "test" {
-  name = "acc-test-stack-template-updated"
+  name             = "acc-test-stack-template-updated"
+  template_content = <<EOT
+{
+  "ZStackTemplateFormatVersion": "2018-06-18",
+  "Resources": {}
+}
+EOT
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{

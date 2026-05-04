@@ -68,6 +68,7 @@ func TestAccVolumeResource(t *testing.T) {
 	}
 	doUUID := envStr(env.DiskOfferings[0], "uuid")
 	name := testAccName("volume")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -77,19 +78,34 @@ func TestAccVolumeResource(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_volume" "test" {
   name               = %q
+  description        = "acceptance volume"
   disk_offering_uuid = %q
 }
 `, name, doUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance volume")),
 				},
 			},
 			{
-				ResourceName:      "zstack_volume.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_volume.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_volume" "test" {
+  name               = %q
+  description        = "acceptance volume updated"
+  disk_offering_uuid = %q
+}
+`, updatedName, doUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_volume.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance volume updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_volume.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_volume.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -77,27 +78,43 @@ resource "zstack_sns_topic" "test" {
 
 func TestAccSNSTopicResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("sns-topic")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSNSTopicDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_sns_topic" "test" {
-  name = "acc-test-sns-topic"
+  name        = %q
+  description = "acceptance SNS topic"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-sns-topic")),
+					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance SNS topic")),
 				},
 			},
 			{
-				ResourceName:                        "zstack_sns_topic.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_sns_topic.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_sns_topic" "test" {
+  name        = %q
+  description = "acceptance SNS topic updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_sns_topic.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance SNS topic updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_sns_topic.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_sns_topic.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

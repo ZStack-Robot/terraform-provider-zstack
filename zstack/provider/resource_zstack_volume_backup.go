@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -105,7 +106,7 @@ func (r *volumeBackupResource) Schema(_ context.Context, request resource.Schema
 			},
 			"backup_storage_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "The UUID of the backup storage.",
+				Description: "The UUID of an ImageStoreBackupStorage. SftpBackupStorage is not supported for volume backups.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -140,6 +141,10 @@ func (r *volumeBackupResource) Create(ctx context.Context, request resource.Crea
 
 	if r.client == nil {
 		response.Diagnostics.AddWarning("Client Not Configured", "The client was not properly configured.")
+		return
+	}
+
+	if !isSupportedVolumeBackupStorageType(r.client, plan.BackupStorageUuid.ValueString(), &response.Diagnostics) {
 		return
 	}
 
@@ -235,7 +240,6 @@ func (r *volumeBackupResource) Delete(ctx context.Context, request resource.Dele
 		return
 	}
 
-
 	err := r.client.DeleteVolumeBackup(state.Uuid.ValueString(), param.DeleteModePermissive)
 
 	if err != nil {
@@ -249,4 +253,31 @@ func (r *volumeBackupResource) Delete(ctx context.Context, request resource.Dele
 
 func (r *volumeBackupResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
+}
+
+func isSupportedVolumeBackupStorageType(client *client.ZSClient, backupStorageUuid string, diags *diag.Diagnostics) bool {
+	backupStorage, err := findResourceByQuery(client.QueryBackupStorage, backupStorageUuid)
+	if err != nil {
+		diags.AddAttributeError(
+			path.Root("backup_storage_uuid"),
+			"Invalid backup storage for Volume Backup",
+			"Could not read backup storage UUID "+backupStorageUuid+": "+err.Error(),
+		)
+		return false
+	}
+
+	if !isVolumeBackupStorageTypeSupported(backupStorage.Type) {
+		diags.AddAttributeError(
+			path.Root("backup_storage_uuid"),
+			"Unsupported backup storage type for Volume Backup",
+			"Volume backups require ImageStoreBackupStorage. Backup storage UUID "+backupStorageUuid+" has type "+backupStorage.Type+", which is not supported for zstack_volume_backup.",
+		)
+		return false
+	}
+
+	return true
+}
+
+func isVolumeBackupStorageTypeSupported(backupStorageType string) bool {
+	return backupStorageType == "ImageStoreBackupStorage"
 }

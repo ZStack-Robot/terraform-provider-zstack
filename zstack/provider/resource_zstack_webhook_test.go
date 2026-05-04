@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -79,30 +80,52 @@ resource "zstack_webhook" "test" {
 
 func TestAccWebhookResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("webhook")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckWebhookDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_webhook" "test" {
-  name = "acc-test-webhook"
-  url  = "http://example.com/webhook"
-  type = "custom"
+  name        = %q
+  description = "acceptance webhook"
+  url         = "http://example.com/webhook"
+  type        = "custom"
+  opaque      = "create"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-webhook")),
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance webhook")),
 					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("url"), knownvalue.StringExact("http://example.com/webhook")),
 				},
 			},
 			{
-				ResourceName:                        "zstack_webhook.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_webhook.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_webhook" "test" {
+  name        = %q
+  description = "acceptance webhook updated"
+  url         = "http://example.com/webhook-updated"
+  type        = "custom"
+  opaque      = "update"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance webhook updated")),
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("url"), knownvalue.StringExact("http://example.com/webhook-updated")),
+					statecheck.ExpectKnownValue("zstack_webhook.test", tfjsonpath.New("opaque"), knownvalue.StringExact("update")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_webhook.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_webhook.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

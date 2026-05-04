@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -79,22 +80,41 @@ resource "zstack_scheduler_trigger" "test" {
 
 func TestAccSchedulerTriggerResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("trigger")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSchedulerTriggerDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_scheduler_trigger" "test" {
-  name           = "acc-test-trigger"
+  name           = %q
+  description    = "acceptance scheduler trigger"
   scheduler_type = "cron"
   cron           = "0 0 0 * * ?"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-trigger")),
+					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance scheduler trigger")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_scheduler_trigger" "test" {
+  name           = %q
+  description    = "acceptance scheduler trigger updated"
+  scheduler_type = "cron"
+  cron           = "0 5 0 * * ?"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance scheduler trigger updated")),
+					statecheck.ExpectKnownValue("zstack_scheduler_trigger.test", tfjsonpath.New("cron"), knownvalue.StringExact("0 5 0 * * ?")),
 				},
 			},
 			{

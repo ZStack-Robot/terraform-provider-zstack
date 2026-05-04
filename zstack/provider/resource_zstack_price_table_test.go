@@ -21,7 +21,7 @@ func TestPriceTableResource_Schema(t *testing.T) {
 		t.Fatal("schema should not be empty")
 	}
 	// Check required attributes
-	required := []string{"name"}
+	required := []string{"name", "prices"}
 	for _, attr := range required {
 		a, ok := resp.Schema.Attributes[attr]
 		if !ok {
@@ -65,11 +65,21 @@ func TestAccPriceTableResource(t *testing.T) {
 				Config: providerConfig() + `
 resource "zstack_price_table" "test" {
   name = "acc-test-price-table"
+
+  prices = [
+    {
+      resource_name = "cpu"
+      resource_unit = "Core"
+      time_unit     = "s"
+      price         = 0.01
+    }
+  ]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-price-table")),
+					statecheck.ExpectKnownValue("zstack_price_table.test", tfjsonpath.New("prices"), knownvalue.ListSizeExact(1)),
 				},
 			},
 			// Step 2: Update name (note: RequiresReplace pending story-07, triggers destroy+recreate)
@@ -77,6 +87,15 @@ resource "zstack_price_table" "test" {
 				Config: providerConfig() + `
 resource "zstack_price_table" "test" {
   name = "acc-test-price-table-updated"
+
+  prices = [
+    {
+      resource_name = "cpu"
+      resource_unit = "Core"
+      time_unit     = "s"
+      price         = 0.01
+    }
+  ]
 }
 `,
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -90,6 +109,7 @@ resource "zstack_price_table" "test" {
 				ImportStateIdFunc:                    importStateIdFromUUID("zstack_price_table.test"),
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIgnore:              []string{"prices"},
 			},
 		},
 	})

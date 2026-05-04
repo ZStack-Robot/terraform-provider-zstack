@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -100,20 +101,36 @@ func (r *preconfigurationTemplateResource) Schema(_ context.Context, _ resource.
 			"distribution": schema.StringAttribute{
 				Required:    true,
 				Description: "Distribution of the preconfiguration template.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"type": schema.StringAttribute{
 				Required:    true,
-				Description: "Type of the preconfiguration template.",
+				Description: "Type of the preconfiguration template. Must be one of: kickstart, preseed, autoyast, autoinstall.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("kickstart", "preseed", "autoyast", "autoinstall"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"content": schema.StringAttribute{
 				Required:    true,
-				Description: "Template content.",
+				Description: "Template content. Custom templates must include the base ZStack system variable markers: REPO_URL, USERNAME, PASSWORD, NETWORK_CFGS, FORCE_INSTALL, PRE_SCRIPTS, and POST_SCRIPTS.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bREPO_URL\b`), "must include the REPO_URL system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bUSERNAME\b`), "must include the USERNAME system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bPASSWORD\b`), "must include the PASSWORD system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bNETWORK_CFGS\b`), "must include the NETWORK_CFGS system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bFORCE_INSTALL\b`), "must include the FORCE_INSTALL system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bPRE_SCRIPTS\b`), "must include the PRE_SCRIPTS system variable marker"),
+					stringvalidator.RegexMatches(regexp.MustCompile(`\bPOST_SCRIPTS\b`), "must include the POST_SCRIPTS system variable marker"),
+				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -288,7 +305,6 @@ func (r *preconfigurationTemplateResource) Delete(ctx context.Context, request r
 	if response.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DeletePreconfigurationTemplate(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {

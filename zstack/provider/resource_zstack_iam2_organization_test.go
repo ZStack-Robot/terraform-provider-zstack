@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -80,29 +81,49 @@ resource "zstack_iam2_organization" "test" {
 func TestAccIAM2OrganizationResource(t *testing.T) {
 	// Requires project-management addon license
 	_ = loadEnvData(t)
+	name := testAccName("organization")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2OrganizationDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_organization" "test" {
-  name = "acc-test-organization"
-  type = "Company"
+  name        = %q
+  description = "acceptance organization"
+  type        = "Company"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-organization")),
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance organization")),
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("type"), knownvalue.StringExact("Company")),
 				},
 			},
 			{
-				ResourceName:                        "zstack_iam2_organization.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_iam2_organization.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_iam2_organization" "test" {
+  name        = %q
+  description = "acceptance organization updated"
+  type        = "Company"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance organization updated")),
+					statecheck.ExpectKnownValue("zstack_iam2_organization.test", tfjsonpath.New("type"), knownvalue.StringExact("Company")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_iam2_organization.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_iam2_organization.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIgnore:              []string{"type"},
 			},
 		},
 	})

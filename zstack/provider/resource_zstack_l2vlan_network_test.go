@@ -102,6 +102,7 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 
 	zoneUuid := envStr(env.Zones[0], "uuid")
 	name := testAccName("l2vlan")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -111,6 +112,7 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vlan_network" "test" {
   name              = %q
+  description       = "acceptance l2 vlan network"
   vlan              = 3999
   zone_uuid         = %q
   physical_interface = "eth0"
@@ -119,14 +121,31 @@ resource "zstack_l2vlan_network" "test" {
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network")),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.StringExact("3999")),
 				},
 			},
 			{
-				ResourceName:      "zstack_l2vlan_network.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_l2vlan_network.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_l2vlan_network" "test" {
+  name              = %q
+  description       = "acceptance l2 vlan network updated"
+  vlan              = 3999
+  zone_uuid         = %q
+  physical_interface = "eth0"
+}
+`, updatedName, zoneUuid),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network updated")),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.StringExact("3999")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_l2vlan_network.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_l2vlan_network.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

@@ -92,6 +92,7 @@ resource "zstack_vip" "test" {
 func TestAccVipResource(t *testing.T) {
 	env := loadEnvData(t)
 	name := testAccName("vip")
+	updatedName := name + "-updated"
 
 	// Find a Public L3 network
 	var l3UUID string
@@ -113,20 +114,36 @@ func TestAccVipResource(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_vip" "test" {
   name            = %q
+  description     = "acceptance VIP"
   l3_network_uuid = %q
 }
 `, name, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance VIP")),
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
 				},
 			},
 			{
-				ResourceName:      "zstack_vip.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_vip.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_vip" "test" {
+  name            = %q
+  description     = "acceptance VIP updated"
+  l3_network_uuid = %q
+}
+`, updatedName, l3UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance VIP updated")),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
+				},
+			},
+			{
+				ResourceName:                         "zstack_vip.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_vip.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

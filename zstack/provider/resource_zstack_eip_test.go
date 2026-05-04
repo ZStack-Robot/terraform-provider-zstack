@@ -86,33 +86,51 @@ func TestAccEIPResource(t *testing.T) {
 	// In the test environment, the L3 network (c420aa3f) does not have EIP enabled.
 	// This is an environment constraint — skip gracefully.
 	t.Skip("EIP network service not enabled on the L3 network in this env; skipping EIP acceptance test")
+	name := testAccName("eip")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckEipDestroy,
 		Steps: []tfresource.TestStep{
-			// Step 1: Create (all attrs are ForceNew, no update step)
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_eip" "test" {
-  name       = "acc-test-eip"
-  vip_uuid   = %q
+  name        = %q
+  description = "acceptance EIP"
+  vip_uuid    = %q
   vm_nic_uuid = %q
 }
-`, vipUUID, vmNicUUID),
+`, name, vipUUID, vmNicUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-eip")),
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance EIP")),
 					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("vip_uuid"), knownvalue.StringExact(vipUUID)),
 					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("vm_nic_uuid"), knownvalue.StringExact(vmNicUUID)),
 				},
 			},
-			// Step 2: Import
 			{
-				ResourceName:                        "zstack_eip.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_eip.test"),
-				ImportStateVerify:                   true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_eip" "test" {
+  name        = %q
+  description = "acceptance EIP updated"
+  vip_uuid    = %q
+  vm_nic_uuid = %q
+}
+`, updatedName, vipUUID, vmNicUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance EIP updated")),
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("vip_uuid"), knownvalue.StringExact(vipUUID)),
+					statecheck.ExpectKnownValue("zstack_eip.test", tfjsonpath.New("vm_nic_uuid"), knownvalue.StringExact(vmNicUUID)),
+				},
+			},
+			{
+				ResourceName:                         "zstack_eip.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_eip.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

@@ -74,6 +74,21 @@ resource "zstack_global_config" "test" {
 					statecheck.ExpectKnownValue("zstack_global_config.test", tfjsonpath.New("value"), knownvalue.StringExact("Delay")),
 				},
 			},
+			// Step 2: Update value in place
+			{
+				Config: providerConfig() + `
+resource "zstack_global_config" "test" {
+  category = "vm"
+  name     = "deletionPolicy"
+  value    = "Direct"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_global_config.test", tfjsonpath.New("name"), knownvalue.StringExact("deletionPolicy")),
+					statecheck.ExpectKnownValue("zstack_global_config.test", tfjsonpath.New("category"), knownvalue.StringExact("vm")),
+					statecheck.ExpectKnownValue("zstack_global_config.test", tfjsonpath.New("value"), knownvalue.StringExact("Direct")),
+				},
+			},
 		},
 	})
 }

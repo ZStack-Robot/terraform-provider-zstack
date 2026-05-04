@@ -161,7 +161,9 @@ func (r *iam2OrganizationResource) Create(ctx context.Context, req resource.Crea
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
 	plan.Description = stringValueOrNull(result.Description)
-	plan.Type = types.StringValue(result.Type)
+	if result.Type != "" {
+		plan.Type = types.StringValue(result.Type)
+	}
 	plan.ParentUuid = stringValueOrNull(result.ParentUuid)
 	plan.State = types.StringValue(result.State)
 	plan.SrcType = types.StringValue(result.SrcType)
@@ -199,7 +201,9 @@ func (r *iam2OrganizationResource) Read(ctx context.Context, req resource.ReadRe
 
 	state.Name = types.StringValue(org.Name)
 	state.Description = stringValueOrNull(org.Description)
-	state.Type = types.StringValue(org.Type)
+	if org.Type != "" {
+		state.Type = types.StringValue(org.Type)
+	}
 	state.ParentUuid = stringValueOrNull(org.ParentUuid)
 	state.State = types.StringValue(org.State)
 	state.SrcType = types.StringValue(org.SrcType)
@@ -244,7 +248,9 @@ func (r *iam2OrganizationResource) Update(ctx context.Context, req resource.Upda
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
 	plan.Description = stringValueOrNull(result.Description)
-	plan.Type = types.StringValue(result.Type)
+	if result.Type != "" {
+		plan.Type = types.StringValue(result.Type)
+	}
 	plan.ParentUuid = stringValueOrNull(result.ParentUuid)
 	plan.State = types.StringValue(result.State)
 	plan.SrcType = types.StringValue(result.SrcType)

@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -77,20 +78,36 @@ resource "zstack_role" "test" {
 
 func TestAccRoleResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("role")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckRoleDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_role" "test" {
-  name = "acc-test-role"
+  name        = %q
+  description = "acceptance role"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-role")),
+					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance role")),
+				},
+			},
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_role" "test" {
+  name        = %q
+  description = "acceptance role updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_role.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance role updated")),
 				},
 			},
 			{

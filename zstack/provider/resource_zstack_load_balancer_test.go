@@ -96,6 +96,7 @@ resource "zstack_load_balancer" "test" {
 func TestAccLoadBalancerResource(t *testing.T) {
 	env := loadEnvData(t)
 	name := testAccName("lb")
+	updatedName := name + "-updated"
 
 	if len(env.L3Networks) == 0 {
 		t.Skip("no l3_networks in env.json, skipping load balancer acceptance test")
@@ -111,21 +112,40 @@ data "zstack_vips" "test" {
 }
 
 resource "zstack_load_balancer" "test" {
-  name     = %q
-  vip_uuid = data.zstack_vips.test.vips.0.uuid
+  name        = %q
+  description = "acceptance load balancer"
+  vip_uuid    = data.zstack_vips.test.vips.0.uuid
 }
 `, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance load balancer")),
 					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("vip_uuid"), knownvalue.NotNull()),
 				},
 			},
 			{
-				ResourceName:      "zstack_load_balancer.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateIdFromUUID("zstack_load_balancer.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_vips" "test" {
+}
+
+resource "zstack_load_balancer" "test" {
+  name        = %q
+  description = "acceptance load balancer updated"
+  vip_uuid    = data.zstack_vips.test.vips.0.uuid
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance load balancer updated")),
+					statecheck.ExpectKnownValue("zstack_load_balancer.test", tfjsonpath.New("vip_uuid"), knownvalue.NotNull()),
+				},
+			},
+			{
+				ResourceName:                         "zstack_load_balancer.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_load_balancer.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

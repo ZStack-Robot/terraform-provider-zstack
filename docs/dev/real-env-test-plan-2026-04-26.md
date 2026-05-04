@@ -438,7 +438,7 @@ done
 | `container_management_endpoint` | 需 K8s 后端 |
 | `info_sec_security_machine` 等 5 个安全机 | 真实安全设备 |
 
-完整 list 在 `_bmad-output/test-status-overview.md` 里也有交叉对照。
+完整 list 以本节为准；旧的 `_bmad-output/test-status-overview.md` 已作为过期过程文档移除。
 
 ---
 

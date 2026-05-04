@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -30,9 +33,19 @@ type priceTableResource struct {
 }
 
 type priceTableModel struct {
-	Uuid        types.String `tfsdk:"uuid"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
+	Uuid        types.String           `tfsdk:"uuid"`
+	Name        types.String           `tfsdk:"name"`
+	Description types.String           `tfsdk:"description"`
+	Prices      []priceTablePriceModel `tfsdk:"prices"`
+}
+
+type priceTablePriceModel struct {
+	ResourceName types.String  `tfsdk:"resource_name"`
+	ResourceUnit types.String  `tfsdk:"resource_unit"`
+	TimeUnit     types.String  `tfsdk:"time_unit"`
+	Price        types.Float64 `tfsdk:"price"`
+	DateInLong   types.Int64   `tfsdk:"date_in_long"`
+	SystemTags   types.List    `tfsdk:"system_tags"`
 }
 
 func PriceTableResource() resource.Resource {
@@ -90,6 +103,54 @@ func (r *priceTableResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"prices": schema.ListNestedAttribute{
+				Required:    true,
+				Description: "Price entries to create with the price table. ZStack does not return these entries from QueryPriceTable, so changes force replacement.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.List{
+					listvalidator.SizeAtLeast(1),
+				},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"resource_name": schema.StringAttribute{
+							Required:    true,
+							Description: "The billable resource name, for example cpu, memory, rootVolume, dataVolume, or publicIp.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"resource_unit": schema.StringAttribute{
+							Required:    true,
+							Description: "The billable resource unit.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"time_unit": schema.StringAttribute{
+							Required:    true,
+							Description: "The billing time unit.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"price": schema.Float64Attribute{
+							Required:    true,
+							Description: "The price for this resource and time unit.",
+						},
+						"date_in_long": schema.Int64Attribute{
+							Optional:    true,
+							Description: "Optional effective timestamp in milliseconds since the Unix epoch.",
+						},
+						"system_tags": schema.ListAttribute{
+							Optional:    true,
+							ElementType: types.StringType,
+							Description: "Optional system tags for this price entry.",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -107,12 +168,18 @@ func (r *priceTableResource) Create(ctx context.Context, request resource.Create
 		return
 	}
 
+	prices, priceDiags := buildPriceTablePriceParams(ctx, plan.Prices)
+	response.Diagnostics.Append(priceDiags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
 	p := param.CreatePriceTableParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreatePriceTableParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: stringPtrOrNil(plan.Description.ValueString()),
-			Prices:      []param.CreatePriceTable_PriceParam{},
+			Prices:      prices,
 		},
 	}
 
@@ -161,6 +228,7 @@ func (r *priceTableResource) Read(ctx context.Context, request resource.ReadRequ
 	state.Uuid = types.StringValue(priceTable.UUID)
 	state.Name = types.StringValue(priceTable.Name)
 	state.Description = stringValueOrNull(priceTable.Description)
+	// QueryPriceTable does not return price entries; keep the configured state.
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -217,12 +285,38 @@ func (r *priceTableResource) Delete(ctx context.Context, request resource.Delete
 		return
 	}
 
-
 	err := r.client.DeletePriceTable(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError("Error deleting Price Table", "Could not delete price table UUID "+state.Uuid.ValueString()+": "+err.Error())
 		return
 	}
+}
+
+func buildPriceTablePriceParams(ctx context.Context, prices []priceTablePriceModel) ([]param.CreatePriceTable_PriceParam, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	result := make([]param.CreatePriceTable_PriceParam, 0, len(prices))
+	for _, price := range prices {
+		var systemTags []string
+		if !price.SystemTags.IsNull() && !price.SystemTags.IsUnknown() {
+			diags.Append(price.SystemTags.ElementsAs(ctx, &systemTags, false)...)
+			if diags.HasError() {
+				return nil, diags
+			}
+		}
+
+		entry := param.CreatePriceTable_PriceParam{
+			ResourceName: stringPtr(price.ResourceName.ValueString()),
+			ResourceUnit: stringPtr(price.ResourceUnit.ValueString()),
+			TimeUnit:     stringPtr(price.TimeUnit.ValueString()),
+			Price:        price.Price.ValueFloat64(),
+			SystemTags:   systemTags,
+		}
+		if !price.DateInLong.IsNull() && !price.DateInLong.IsUnknown() {
+			entry.DateInLong = price.DateInLong.ValueInt64Pointer()
+		}
+		result = append(result, entry)
+	}
+	return result, diags
 }
 
 func (r *priceTableResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
