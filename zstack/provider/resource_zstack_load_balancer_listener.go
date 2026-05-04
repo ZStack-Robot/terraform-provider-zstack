@@ -150,11 +150,6 @@ func (r *loadBalancerListenerResource) Schema(_ context.Context, _ resource.Sche
 }
 
 // Create implements resource.Resource.
-//
-// SDK Workaround: CreateLoadBalancerListener uses cli.Post("v1/load-balancers/{loadBalancerUuid}/listeners")
-// which has the URL template bug (ZSClient.Post shadows ZSHttpClient.Post, templates are not resolved).
-// We call ZSHttpClient.Post directly with the resolved URL.
-// See docs/SDK_URL_TEMPLATE_BUG.md for details.
 func (r *loadBalancerListenerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan loadBalancerListenerResourceModel
 	diags := req.Plan.Get(ctx, &plan)

@@ -64,7 +64,7 @@ func (r *scriptResource) Configure(ctx context.Context, request resource.Configu
 }
 
 func (r *scriptResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = request.ProviderTypeName + "_script"
+	response.TypeName = request.ProviderTypeName + "_instance_scripts"
 }
 
 func (r *scriptResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
@@ -162,7 +162,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	}
 
 	scriptTimeout := int64(300)
-	if !plan.ScriptTimeout.IsNull() {
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
 		scriptTimeout = plan.ScriptTimeout.ValueInt64()
 	}
 	renderParams := ""
@@ -221,7 +221,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 	plan.Uuid = types.StringValue(script.UUID)
 	plan.Name = types.StringValue(script.Name)
 	plan.Description = types.StringValue(script.Description)
-	plan.ScriptContent = types.StringValue(script.ScriptContent)
+	plan.ScriptContent = types.StringValue(preserveIfEquivAfterTrim(plan.ScriptContent.ValueString(), script.ScriptContent))
 	plan.RenderParams = types.StringValue(script.RenderParams)
 	plan.Platform = types.StringValue(script.Platform)
 	plan.ScriptType = types.StringValue(script.ScriptType)
@@ -265,19 +265,23 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 			"uuid":  state.Uuid.ValueString(),
 			"error": err.Error(),
 		})
-		response.Diagnostics.Append(diags...)
-		response.State.RemoveResource(ctx)
+		response.Diagnostics.AddError(
+			"Error reading Script",
+			"Could not read script UUID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 
 	state.Uuid = types.StringValue(scripts.UUID)
 	state.Name = types.StringValue(scripts.Name)
 	state.Description = types.StringValue(scripts.Description)
-	state.ScriptContent = types.StringValue(scripts.ScriptContent)
+	state.ScriptContent = types.StringValue(preserveIfEquivAfterTrim(state.ScriptContent.ValueString(), scripts.ScriptContent))
 	state.RenderParams = types.StringValue(scripts.RenderParams)
 	state.Platform = types.StringValue(scripts.Platform)
 	state.ScriptType = types.StringValue(scripts.ScriptType)
 	state.ScriptTimeout = types.Int64Value(int64(scripts.ScriptTimeout))
+	// BUG-062c: map encoding_type back to state (Create maps it but Read previously did not → drift)
+	state.EncodingType = types.StringValue(scripts.EncodingType)
 
 	diags = response.State.Set(ctx, state)
 	response.Diagnostics.Append(diags...)
@@ -307,7 +311,7 @@ func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequ
 	}
 
 	scriptTimeout := int64(300)
-	if !plan.ScriptTimeout.IsNull() {
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
 		scriptTimeout = plan.ScriptTimeout.ValueInt64()
 	}
 

@@ -1,0 +1,23 @@
+package provider
+
+import (
+	"context"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+// Bad: Read field from API but don't assign to state
+func badReadFieldNotAssigned(ctx context.Context, data *struct {
+	Name types.String
+	UUID types.String
+}) {
+	apiResp := map[string]interface{}{
+		"name": "test-name",
+		"uuid": "test-uuid",
+	}
+
+	// Read name from API but don't assign to state - VIOLATION
+	apiResp["name"]
+
+	// Properly assign UUID
+	data.UUID = types.StringValue(apiResp["uuid"].(string))
+}

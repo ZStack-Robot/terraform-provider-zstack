@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-func TestAccCreateImageResource(t *testing.T) {
+func TestAccImageResource_disappears(t *testing.T) {
 	env := loadEnvData(t)
 	if len(env.BackupStorages) == 0 {
 		t.Skip("no backup storages in env data")
@@ -37,9 +37,45 @@ func TestAccCreateImageResource(t *testing.T) {
 					backup_storage_uuids = [%q]
 					boot_mode   = "Legacy"
 				}`, bsUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckImageDisappears("zstack_image.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
+func TestAccCreateImageResource(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.BackupStorages) == 0 {
+		t.Skip("no backup storages in env data")
+	}
+	bsUUID := envStr(env.BackupStorages[0], "uuid")
+	name := testAccName("image")
+	updatedName := name + "-updated"
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckImageDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+				resource "zstack_image" "test" {
+					name        = %q
+					description = "A test image for creation"
+					url         = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+					guest_os_type = "Centos 7"
+					platform    = "Linux"
+					format      = "qcow2"
+					media_type  = "RootVolumeTemplate"
+					architecture = "x86_64"
+					backup_storage_uuids = [%q]
+					boot_mode   = "Legacy"
+				}`, name, bsUUID),
 
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("name"), knownvalue.StringExact("example-image")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("description"), knownvalue.StringExact("A test image for creation")),
 					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("guest_os_type"), knownvalue.StringExact("Centos 7")),
 					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("platform"), knownvalue.StringExact("Linux")),
@@ -51,12 +87,33 @@ func TestAccCreateImageResource(t *testing.T) {
 				},
 			},
 			{
-				ResourceName:            "zstack_image.test",
-				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_image.test"),
-				ImportStateVerify:       true,
+				Config: providerConfig() + fmt.Sprintf(`
+				resource "zstack_image" "test" {
+					name        = %q
+					description = "A test image after update"
+					url         = "http://192.168.200.100/mirror/diskimages/CentOS-7-x86_64-Cloudinit-8G-official.qcow2"
+					guest_os_type = "CentOS 7.9"
+					platform    = "Linux"
+					format      = "qcow2"
+					media_type  = "RootVolumeTemplate"
+					architecture = "x86_64"
+					backup_storage_uuids = [%q]
+					boot_mode   = "Legacy"
+				}`, updatedName, bsUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("description"), knownvalue.StringExact("A test image after update")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("guest_os_type"), knownvalue.StringExact("CentOS 7.9")),
+					statecheck.ExpectKnownValue("zstack_image.test", tfjsonpath.New("platform"), knownvalue.StringExact("Linux")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_image.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_image.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerifyIgnore: []string{"description", "guest_os_type", "platform", "format", "media_type", "backup_storage_uuids", "architecture", "virtio", "boot_mode", "expunge", "system", "last_updated"},
+				ImportStateVerifyIgnore:              []string{"description", "guest_os_type", "platform", "format", "media_type", "backup_storage_uuids", "architecture", "virtio", "boot_mode", "expunge", "system", "last_updated"},
 			},
 		},
 	})

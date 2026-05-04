@@ -183,9 +183,9 @@ func (r *sdnControllerResource) Create(ctx context.Context, request resource.Cre
 
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
+	plan.Description = stringValueOrNull(result.Description)
 	plan.VendorType = types.StringValue(result.VendorType)
-	plan.VendorVersion = types.StringValue(result.VendorVersion)
+	plan.VendorVersion = stringValueOrNull(result.VendorVersion)
 	plan.Ip = types.StringValue(result.Ip)
 	plan.Status = types.StringValue(result.Status)
 	// Keep the username/password from the plan since API may return empty
@@ -228,9 +228,9 @@ func (r *sdnControllerResource) Read(ctx context.Context, request resource.ReadR
 
 	state.Uuid = types.StringValue(item.UUID)
 	state.Name = types.StringValue(item.Name)
-	state.Description = types.StringValue(item.Description)
+	state.Description = stringValueOrNull(item.Description)
 	state.VendorType = types.StringValue(item.VendorType)
-	state.VendorVersion = types.StringValue(item.VendorVersion)
+	state.VendorVersion = stringValueOrNull(item.VendorVersion)
 	state.Ip = types.StringValue(item.Ip)
 	state.Status = types.StringValue(item.Status)
 	// Don't overwrite username/password from API since they're sensitive/write-only
@@ -282,9 +282,9 @@ func (r *sdnControllerResource) Update(ctx context.Context, request resource.Upd
 
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
+	plan.Description = stringValueOrNull(result.Description)
 	plan.VendorType = types.StringValue(result.VendorType)
-	plan.VendorVersion = types.StringValue(result.VendorVersion)
+	plan.VendorVersion = stringValueOrNull(result.VendorVersion)
 	plan.Ip = types.StringValue(result.Ip)
 	plan.Status = types.StringValue(result.Status)
 	// Keep the username/password from the plan since API may return empty

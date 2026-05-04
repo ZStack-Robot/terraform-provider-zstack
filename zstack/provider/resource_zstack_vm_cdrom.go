@@ -197,9 +197,15 @@ func (r *vmCdRomResource) Update(ctx context.Context, request resource.UpdateReq
 		},
 	}
 
-	cdrom, err := r.client.UpdateVmCdRom(state.Uuid.ValueString(), params)
-	if err != nil {
+	if _, err := r.client.UpdateVmCdRom(state.Uuid.ValueString(), params); err != nil {
 		response.Diagnostics.AddError("Error updating VM CD-ROM", err.Error())
+		return
+	}
+
+	// Re-query by UUID after Update to refresh state with the latest server-side values.
+	cdrom, err := findResourceByQuery(r.client.QueryVmCdRom, state.Uuid.ValueString())
+	if err != nil {
+		response.Diagnostics.AddError("Error re-reading VM CD-ROM after update", err.Error())
 		return
 	}
 

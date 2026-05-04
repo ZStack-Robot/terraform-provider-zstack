@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,28 +63,43 @@ func TestIAM2ProjectResource_Metadata(t *testing.T) {
 
 func TestAccIAM2ProjectResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("iam2-project")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_project" "test" {
-  name        = "acc-test-iam2-project"
+  name        = %q
   description = "acceptance test IAM2 project"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-iam2-project")),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance test IAM2 project")),
 				},
 			},
 			{
-				ResourceName:      "zstack_iam2_project.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_iam2_project.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_iam2_project" "test" {
+  name        = %q
+  description = "acceptance test IAM2 project updated"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_iam2_project.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance test IAM2 project updated")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_iam2_project.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_iam2_project.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
@@ -92,18 +108,19 @@ resource "zstack_iam2_project" "test" {
 
 func TestAccIAM2ProjectResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("project-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckIAM2ProjectDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_iam2_project" "test_disappears" {
-  name        = "acc-test-project-disappears"
+  name        = %q
   description = "Disappears test project"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_iam2_project.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckIAM2ProjectDisappears("zstack_iam2_project.test_disappears"),

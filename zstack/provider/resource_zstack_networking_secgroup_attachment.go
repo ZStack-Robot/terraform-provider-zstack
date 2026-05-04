@@ -5,7 +5,9 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -17,8 +19,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = &securityGroupAttachmentResource{}
-	_ resource.ResourceWithConfigure = &securityGroupAttachmentResource{}
+	_ resource.Resource                = &securityGroupAttachmentResource{}
+	_ resource.ResourceWithConfigure   = &securityGroupAttachmentResource{}
+	_ resource.ResourceWithImportState = &securityGroupAttachmentResource{}
 )
 
 type securityGroupAttachmentResource struct {
@@ -237,6 +240,19 @@ func (r *securityGroupAttachmentResource) Delete(ctx context.Context, request re
 	}
 
 	response.State.RemoveResource(ctx)
+}
+
+func (r *securityGroupAttachmentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.SplitN(req.ID, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		resp.Diagnostics.AddError(
+			"Invalid import ID format",
+			"Expected format: secgroup_uuid:nic_uuid (e.g. abc123:def456).",
+		)
+		return
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("secgroup_uuid"), parts[0])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("nic_uuid"), parts[1])...)
 }
 
 func (r *securityGroupAttachmentResource) isNicAttached(secgroupUUID, nicUUID string) (bool, error) {

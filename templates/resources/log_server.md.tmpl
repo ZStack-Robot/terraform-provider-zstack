@@ -1,0 +1,28 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  {{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description }}
+
+Use `appender_type` and `appender_configuration` for normal Terraform authoring. The provider converts them to the nested JSON required by ZStack, for example `{"appenderType":"Syslog","configuration":{...}}`.
+
+The raw `configuration` attribute is kept for compatibility. When using it directly, it must already be the nested JSON object with `appenderType` and `configuration`; a flat object such as `{"host":"127.0.0.1","port":9200}` is not valid for the ZStack API.
+
+## Example Usage
+
+{{tffile "examples/resources/log_server/resource.tf"}}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import zstack_log_server.example <uuid>
+```

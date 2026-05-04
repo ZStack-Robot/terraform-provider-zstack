@@ -1,0 +1,39 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
+type check2bListPlan struct {
+	Tags  types.List
+	Items types.List
+}
+
+func goodListElements(plan check2bListPlan) []types.String {
+	var payload struct {
+		Tags []types.String
+	}
+
+	if !plan.Tags.IsNull() {
+		for _, element := range plan.Tags.Elements() {
+			if str, ok := element.(types.String); ok {
+				payload.Tags = append(payload.Tags, str)
+			}
+		}
+	}
+
+	return payload.Tags
+}
+
+func goodListElementsAs(plan check2bListPlan) []string {
+	var payload struct {
+		Items []string
+	}
+
+	if !plan.Items.IsNull() {
+		_ = plan.Items.ElementsAs(nil, &payload.Items, false)
+	}
+
+	return payload.Items
+}

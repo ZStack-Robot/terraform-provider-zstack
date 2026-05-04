@@ -222,14 +222,14 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 	return []func() datasource.DataSource{
 		ZStackZoneDataSource,
 		ZStackImageDataSource,
-		ZStackl3NetworkDataSource,
-		ZStackvmsDataSource,
+		ZStackL3NetworkDataSource,
+		ZStackVMsDataSource,
 		ZStackClusterDataSource,
 		ZStackBackupStorageDataSource,
 		ZStackHostsDataSource,
-		ZStackmnNodeDataSource,
+		ZStackMNNodeDataSource,
 		ZStackl2NetworkDataSource,
-		ZStackvrouterDataSource,
+		ZStackVRouterDataSource,
 		ZStackVirtualRouterImageDataSource,
 		ZStackVRouterOfferingDataSource,
 		ZStackVIPsDataSource,
@@ -262,6 +262,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackUserTagDataSource,
 		ZStackLicenseAuthorizedNodeDataSource,
 		ZStackLicenseAuthorizedCapacityDataSource,
+		ZStackGlobalConfigsDataSource,
 	}
 
 }
@@ -402,12 +403,6 @@ func (p *ZStackProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Description: "ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.",
 				Optional:    true,
 			},
-			/*
-				"session_id": schema.StringAttribute{
-					Description: "ZStack Cloud Session id.",
-					Optional:    true,
-				},
-			*/
 			"account_name": schema.StringAttribute{
 				Description: "Username for ZStack API. May also be provided via ZSTACK_ACCOUNT_NAME environment variable. " +
 					"Required if using Account authentication.  Only supports the platform administrator account (`admin`). " +

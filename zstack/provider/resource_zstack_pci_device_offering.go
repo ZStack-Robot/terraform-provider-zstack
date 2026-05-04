@@ -76,7 +76,7 @@ func (r *pciDeviceOfferingResource) Schema(_ context.Context, _ resource.SchemaR
 				},
 			},
 			"name": schema.StringAttribute{
-				Optional:    true,
+				Required:    true,
 				Description: "The offering name.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

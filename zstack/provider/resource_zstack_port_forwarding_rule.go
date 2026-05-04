@@ -28,8 +28,17 @@ var (
 	_ resource.ResourceWithImportState = &portForwardingRuleResource{}
 )
 
+type portForwardingRuleClient interface {
+	CreatePortForwardingRule(p param.CreatePortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error)
+	GetPortForwardingRule(uuid string) (*view.PortForwardingRuleInventoryView, error)
+	UpdatePortForwardingRule(uuid string, p param.UpdatePortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error)
+	DetachPortForwardingRule(uuid string, deleteMode param.DeleteMode) error
+	DeletePortForwardingRule(uuid string, deleteMode param.DeleteMode) error
+	AttachPortForwardingRule(ruleUuid string, vmNicUuid string, p param.AttachPortForwardingRuleParam) (*view.PortForwardingRuleInventoryView, error)
+}
+
 type portForwardingRuleResource struct {
-	client *client.ZSClient
+	client portForwardingRuleClient
 }
 
 type portForwardingRuleResourceModel struct {
@@ -214,13 +223,13 @@ func (r *portForwardingRuleResource) Create(ctx context.Context, req resource.Cr
 	if !plan.Description.IsNull() && plan.Description.ValueString() != "" {
 		createParam.Params.Description = stringPtr(plan.Description.ValueString())
 	}
-	if !plan.VipPortEnd.IsNull() {
+	if !plan.VipPortEnd.IsNull() && !plan.VipPortEnd.IsUnknown() {
 		createParam.Params.VipPortEnd = intPtr(int(plan.VipPortEnd.ValueInt64()))
 	}
-	if !plan.PrivatePortStart.IsNull() {
+	if !plan.PrivatePortStart.IsNull() && !plan.PrivatePortStart.IsUnknown() {
 		createParam.Params.PrivatePortStart = intPtr(int(plan.PrivatePortStart.ValueInt64()))
 	}
-	if !plan.PrivatePortEnd.IsNull() {
+	if !plan.PrivatePortEnd.IsNull() && !plan.PrivatePortEnd.IsUnknown() {
 		createParam.Params.PrivatePortEnd = intPtr(int(plan.PrivatePortEnd.ValueInt64()))
 	}
 	if !plan.VmNicUuid.IsNull() && plan.VmNicUuid.ValueString() != "" {

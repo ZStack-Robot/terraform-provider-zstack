@@ -49,7 +49,7 @@ func (d *guestToolsDataSource) Configure(_ context.Context, req datasource.Confi
 }
 
 func (d *guestToolsDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_guest_tools"
+	resp.TypeName = req.ProviderTypeName + "_instance_guest_tools"
 }
 
 func (d *guestToolsDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {

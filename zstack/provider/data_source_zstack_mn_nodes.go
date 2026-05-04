@@ -18,7 +18,7 @@ var (
 	_ datasource.DataSourceWithConfigure = &mnNodeDataSource{}
 )
 
-func ZStackmnNodeDataSource() datasource.DataSource {
+func ZStackMNNodeDataSource() datasource.DataSource {
 	return &mnNodeDataSource{}
 }
 
@@ -54,7 +54,7 @@ func (d *mnNodeDataSource) Configure(_ context.Context, req datasource.Configure
 }
 
 func (d *mnNodeDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_mnnodes"
+	resp.TypeName = req.ProviderTypeName + "_mn_nodes"
 }
 
 func (d *mnNodeDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {

@@ -19,7 +19,8 @@ test-reports/
 .agent/
 .claude/
 bmad/
-_bmad-output/
+_bmad-output/*
+!_bmad-output/bug-tracker.md
 /coverage.out
 # Ignore docs 下除 resources 和 data-sources 目录外的内容
 docs/*
@@ -27,3 +28,8 @@ docs/*
 !docs/data-sources/
 
 .generate_env.DS_Store
+.sisyphus/
+.worktrees/
+# AI agent transient task logs (cycle evidence)
+task-*.log
+task-*.txt

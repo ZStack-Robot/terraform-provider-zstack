@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
@@ -34,6 +37,7 @@ type reservedIpItemModel struct {
 }
 
 type reservedIpDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String          `tfsdk:"name"`
 	NamePattern types.String          `tfsdk:"name_pattern"`
 	ReservedIps []reservedIpItemModel `tfsdk:"reserved_ips"`
@@ -79,21 +83,37 @@ func (d *reservedIpDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 
 	queryStr := "query reservedIpRange"
-	if !state.Name.IsNull() {
+	// AI / automation prefers exact uuid lookup; fall back to name / name_pattern for humans.
+	if !state.Uuid.IsNull() && !state.Uuid.IsUnknown() && state.Uuid.ValueString() != "" {
+		queryStr += " where uuid='" + state.Uuid.ValueString() + "'"
+	} else if !state.Name.IsNull() && state.Name.ValueString() != "" {
 		queryStr += " where name='" + state.Name.ValueString() + "'"
-	} else if !state.NamePattern.IsNull() {
+	} else if !state.NamePattern.IsNull() && state.NamePattern.ValueString() != "" {
 		queryStr += " where name like '%" + state.NamePattern.ValueString() + "%'"
 	}
 
-	var reservedIps []view.ReservedIpRangeInventoryView
-	_, err := d.client.Zql(ctx, queryStr, &reservedIps, "inventories")
-
+	// ZQL responses wrap the rows in {"results": [{"inventories": [...]}]} —
+	// passing only "inventories" as the unmarshal key drills into a top-level
+	// field that does not exist and the SDK raises "key not found". Decode the
+	// full envelope instead, mirroring the working pattern in
+	// data_source_zstack_virtual_router_images.go.
+	var zqlResponse struct {
+		Results []struct {
+			Inventories []view.ReservedIpRangeInventoryView `json:"inventories"`
+		} `json:"results"`
+	}
+	_, err := d.client.Zql(ctx, queryStr, &zqlResponse)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read ZStack Reserved IPs",
 			err.Error(),
 		)
 		return
+	}
+
+	var reservedIps []view.ReservedIpRangeInventoryView
+	for _, result := range zqlResponse.Results {
+		reservedIps = append(reservedIps, result.Inventories...)
 	}
 
 	filters := make(map[string][]string)
@@ -140,6 +160,16 @@ func (d *reservedIpDataSource) Schema(ctx context.Context, req datasource.Schema
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of reserved IP ranges and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching reserved IP ranges",
 				Optional:    true,

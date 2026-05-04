@@ -64,7 +64,7 @@ func (r *scriptExecutionResource) Configure(ctx context.Context, request resourc
 }
 
 func (r *scriptExecutionResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
-	response.TypeName = request.ProviderTypeName + "_script_execution"
+	response.TypeName = request.ProviderTypeName + "_instance_scripts_execution"
 }
 
 func (r *scriptExecutionResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
@@ -154,8 +154,11 @@ func (r *scriptExecutionResource) Create(ctx context.Context, request resource.C
 		return
 	}
 
-	scriptTimeout := int(plan.ScriptTimeout.ValueInt64())
-	if plan.ScriptTimeout.IsNull() {
+	// fixes ordering bug 2026-04-22 QA report — IsNull/IsUnknown must precede ValueInt64
+	var scriptTimeout int
+	if !plan.ScriptTimeout.IsNull() && !plan.ScriptTimeout.IsUnknown() {
+		scriptTimeout = int(plan.ScriptTimeout.ValueInt64())
+	} else {
 		scriptTimeout = 300
 	}
 
@@ -276,11 +279,22 @@ func (r *scriptExecutionResource) Read(ctx context.Context, request resource.Rea
 	record, err := r.client.GetGuestVmScriptExecutedRecord(state.Uuid.ValueString())
 
 	if err != nil {
+		if isZStackNotFoundError(err) {
+			tflog.Warn(ctx, "Unable to retrieve VM instance script execution record. It may have been deleted.", map[string]interface{}{
+				"id":    state.Uuid.ValueString(),
+				"error": err.Error(),
+			})
+			response.State.RemoveResource(ctx)
+			return
+		}
 		tflog.Warn(ctx, "Unable to retrieve VM instance script execution record. It may have been deleted.", map[string]interface{}{
 			"id":    state.Uuid.ValueString(),
 			"error": err.Error(),
 		})
-		response.State.RemoveResource(ctx)
+		response.Diagnostics.AddError(
+			"Error reading Script Execution",
+			"Could not read script execution record ID "+state.Uuid.ValueString()+": "+err.Error(),
+		)
 		return
 	}
 

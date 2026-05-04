@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_instance Resource - terraform-provider-zstack"
-subcategory: "Compute"
+subcategory: ""
 description: |-
     This resource allows you to manage virtual machine (VM) instances in ZStack. A VM instance represents a virtualized compute resource that can be created, updated, and deleted. You can define the VM's properties, such as its name, image, network configuration, disks, and GPU devices.
 ---
@@ -20,7 +20,7 @@ data "zstack_l3networks" "l3networks" {
   name = "public-net"
 }
 
-data "zstack_instance_offers" "offer" {
+data "zstack_instance_offerings" "offer" {
   name = "min"
 }
 
@@ -29,7 +29,7 @@ resource "zstack_instance" "example_vm" {
   image_uuid = data.zstack_images.centos.images[0].uuid
   # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
   description = "jumper server"
-  #  instance_offering_uuid = data.zstack_instance_offers.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
+  #  instance_offering_uuid = data.zstack_instance_offerings.offer.instance_offers[0].uuid #using Instance offering uuid or custom cpu and memory 
   network_interfaces = [
     {
       l3_network_uuid = data.zstack_l3networks.networks.l3networks.0.uuid
@@ -62,6 +62,7 @@ output "zstack_instance" {
 
 ### Optional
 
+- `architecture` (String) The CPU architecture of the guest (`x86_64`, `aarch64`, `mips64el`, etc.). Inherited from the image when unset. Changing it requires the VM to be replaced.
 - `cluster_uuid` (String) The UUID of the cluster where the VM instance is deployed.
 - `cpu_num` (Number) The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.
 - `data_disks` (Attributes List) The configuration for additional data disks. (see [below for nested schema](#nestedatt--data_disks))
@@ -69,6 +70,7 @@ output "zstack_instance" {
 - `expunge` (Boolean) Indicates if the instance should be expunged after deletion.
 - `gpu_device_specs` (Attributes) The GPU specifications for the VM instance. (see [below for nested schema](#nestedatt--gpu_device_specs))
 - `gpu_devices` (Attributes List) A list of GPU devices assigned to the VM instance. (see [below for nested schema](#nestedatt--gpu_devices))
+- `guest_os_type` (String) The guest OS type / distribution (free-form string, e.g. `CentOS 7`, `Windows Server 2019`). Server reports it back after Create. Updatable in place via `UpdateVmInstance`.
 - `hook_script` (String) The uuid of hook script. Create Instance with custom xml Hook.
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
@@ -76,6 +78,7 @@ output "zstack_instance" {
 - `memory_size` (Number) The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.
 - `network_interfaces` (Attributes List) Defines network interfaces attached to the VM. Each NIC corresponds to an L3 network, and optionally configures a static IP. (see [below for nested schema](#nestedatt--network_interfaces))
 - `never_stop` (Boolean) Whether the VM instance should never stop automatically.
+- `platform` (String) The platform of the guest OS (e.g. `Linux`, `Windows`, `Other`, `Paravirtualization`). If unset the server inherits it from the image. Updatable in place via the `UpdateVmInstance` API on a running cluster.
 - `root_disk` (Attributes) The configuration for the root disk of the VM instance. (see [below for nested schema](#nestedatt--root_disk))
 - `strategy` (String) The deployment strategy for the VM instance.
 - `user_data` (String) User data injected into the VM instance at boot time.
@@ -99,6 +102,7 @@ Optional:
 Read-Only:
 
 - `primary_storage_uuid` (String) The UUID of the primary storage for the data disk.
+- `volume_uuid` (String) The UUID of the data volume backing this disk (assigned by the server after the VM is created).
 
 
 <a id="nestedatt--gpu_device_specs"></a>
@@ -125,12 +129,12 @@ Optional:
 
 Required:
 
-- `default_l3` (Boolean) Whether this NIC is the default route NIC.
 - `l3_network_uuid` (String) The UUID of the L3 network for this NIC.
 
 Optional:
 
-- `static_ip` (String) Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.
+- `default_l3` (Boolean) Whether this NIC is the default route NIC. If omitted on every NIC, the first NIC is automatically chosen as the default. After Create the server-resolved value is reflected back into state.
+- `static_ip` (String) Static IP address to assign. Optional — if omitted, the server picks one and reports it back. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.
 
 
 <a id="nestedatt--root_disk"></a>
@@ -140,9 +144,13 @@ Optional:
 
 - `ceph_pool_name` (String) The Ceph pool name for the root disk.
 - `offering_uuid` (String) The UUID of the disk offering for the root disk.
-- `primary_storage_uuid` (String) The UUID of the primary storage for the root disk.
+- `primary_storage_uuid` (String) The UUID of the primary storage for the root disk. If not specified, the server picks one and returns it here.
 - `size` (Number) The size of the root disk in gigabytes (GB).
 - `virtio_scsi` (Boolean) Whether the root disk uses Virtio-SCSI.
+
+Read-Only:
+
+- `volume_uuid` (String) The UUID of the root volume backing this disk (assigned by the server after the VM is created).
 
 
 <a id="nestedatt--vm_nics"></a>

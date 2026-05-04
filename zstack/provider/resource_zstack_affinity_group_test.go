@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,29 +63,47 @@ func TestAffinityGroupResource_Metadata(t *testing.T) {
 
 func TestAccAffinityGroupResource(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("affinity-group")
+	updatedName := name + "-updated"
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckAffinityGroupDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_affinity_group" "test" {
-  name   = "acc-test-affinity-group"
-  policy = "antiSoft"
+  name        = %q
+  description = "acceptance affinity group"
+  policy      = "antiSoft"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-affinity-group")),
+					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance affinity group")),
 					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("policy"), knownvalue.StringExact("antiSoft")),
 				},
 			},
 			{
-				ResourceName:      "zstack_affinity_group.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_affinity_group.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_affinity_group" "test" {
+  name        = %q
+  description = "acceptance affinity group updated"
+  policy      = "antiSoft"
+}
+`, updatedName),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance affinity group updated")),
+					statecheck.ExpectKnownValue("zstack_affinity_group.test", tfjsonpath.New("policy"), knownvalue.StringExact("antiSoft")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_affinity_group.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_affinity_group.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
@@ -93,18 +112,19 @@ resource "zstack_affinity_group" "test" {
 
 func TestAccAffinityGroupResource_disappears(t *testing.T) {
 	_ = loadEnvData(t)
+	name := testAccName("ag-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckAffinityGroupDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_affinity_group" "test_disappears" {
-  name   = "acc-test-ag-disappears"
+  name   = %q
   policy = "antiSoft"
 }
-`,
+`, name),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_affinity_group.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckAffinityGroupDisappears("zstack_affinity_group.test_disappears"),

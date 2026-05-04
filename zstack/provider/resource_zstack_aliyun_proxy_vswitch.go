@@ -142,7 +142,7 @@ func (r *aliyunProxyVSwitchResource) Create(ctx context.Context, req resource.Cr
 	// Map response to model
 	plan.UUID = types.StringValue(view.UUID)
 	plan.Name = types.StringValue(view.Name)
-	plan.Status = types.StringValue(view.Status)
+	plan.Status = stringValueOrNull(view.Status)
 	plan.IsDefault = types.BoolValue(view.IsDefault)
 
 	tflog.Trace(ctx, "Created Aliyun Proxy VSwitch", map[string]any{"uuid": view.UUID})
@@ -186,7 +186,7 @@ func (r *aliyunProxyVSwitchResource) Read(ctx context.Context, req resource.Read
 	state.AliyunProxyVpcUuid = types.StringValue(view.AliyunProxyVpcUuid)
 	state.VpcL3NetworkUuid = types.StringValue(view.VpcL3NetworkUuid)
 	state.IsDefault = types.BoolValue(view.IsDefault)
-	state.Status = types.StringValue(view.Status)
+	state.Status = stringValueOrNull(view.Status)
 
 	tflog.Trace(ctx, "Read Aliyun Proxy VSwitch", map[string]any{"uuid": view.UUID})
 
@@ -239,7 +239,7 @@ func (r *aliyunProxyVSwitchResource) Update(ctx context.Context, req resource.Up
 	plan.Name = types.StringValue(view.Name)
 	plan.AliyunProxyVpcUuid = types.StringValue(view.AliyunProxyVpcUuid)
 	plan.VpcL3NetworkUuid = types.StringValue(view.VpcL3NetworkUuid)
-	plan.Status = types.StringValue(view.Status)
+	plan.Status = stringValueOrNull(view.Status)
 	plan.IsDefault = types.BoolValue(view.IsDefault)
 
 	tflog.Trace(ctx, "Updated Aliyun Proxy VSwitch", map[string]any{"uuid": view.UUID})

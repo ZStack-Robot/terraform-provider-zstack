@@ -21,4 +21,28 @@ Below is an example configuration:
 
 {{tffile "examples/provider/accesskey/provider.tf"}}
 
+## Automation / AI Usage Guide
+
+When generating Terraform configurations programmatically (e.g., via LLMs or CI scripts), prefer the `uuid` argument over `name` / `name_pattern` on data sources:
+
+- **Stable** — UUIDs survive renames, environment migrations, and name collisions.
+- **Deterministic** — exactly 0 or 1 match; no fuzzy semantics.
+- **Idempotent** — re-running an LLM-generated prompt produces an identical `.tf` file when the UUID is in scope.
+
+The `uuid` argument is mutually exclusive with `name` / `name_pattern`. Mixing them produces a plan-time validation error.
+
+```hcl
+# Recommended for AI / automation
+data "zstack_zone" "by_uuid" {
+  uuid = "abc123def456..."
+}
+
+# Recommended for human-authored configs
+data "zstack_zone" "by_name" {
+  name = "ZONE-1"
+}
+```
+
+UUID lookup is now supported on **all 38 list-style data sources** (Phase A: 5 core + Phase B: 33 remaining). The inherently-single data sources (e.g. `zstack_instance_guest_tools`, keyed by `instance_uuid`) keep their parent-resource UUID parameter.
+
 {{ .SchemaMarkdown }}

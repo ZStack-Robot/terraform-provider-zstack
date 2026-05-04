@@ -56,6 +56,8 @@ func TestClusterResource_Metadata(t *testing.T) {
 
 func TestAccClusterResource(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("cluster")
+	updatedName := name + "-updated"
 
 	if len(env.Zones) == 0 {
 		t.Skip("no zones in env.json, skipping cluster acceptance test")
@@ -68,22 +70,39 @@ func TestAccClusterResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_cluster" "test" {
-  name            = "acc-test-cluster"
+  name            = %q
+  description     = "acceptance cluster"
   zone_uuid       = "%s"
   hypervisor_type = "KVM"
 }
-`, envStr(env.Zones[0], "uuid")),
+`, name, envStr(env.Zones[0], "uuid")),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-cluster")),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance cluster")),
 					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("hypervisor_type"), knownvalue.StringExact("KVM")),
 				},
 			},
 			{
-				ResourceName:      "zstack_cluster.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_cluster.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_cluster" "test" {
+  name            = %q
+  description     = "acceptance cluster updated"
+  zone_uuid       = "%s"
+  hypervisor_type = "KVM"
+}
+`, updatedName, envStr(env.Zones[0], "uuid")),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance cluster updated")),
+					statecheck.ExpectKnownValue("zstack_cluster.test", tfjsonpath.New("hypervisor_type"), knownvalue.StringExact("KVM")),
+				},
+			},
+			{
+				ResourceName:                         "zstack_cluster.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_cluster.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},
@@ -96,6 +115,7 @@ func TestAccClusterResource_disappears(t *testing.T) {
 		t.Skip("no zones in env data")
 	}
 	zoneUUID := envStr(env.Zones[0], "uuid")
+	name := testAccName("cluster-disappears")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -104,12 +124,12 @@ func TestAccClusterResource_disappears(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_cluster" "test_disappears" {
-  name            = "acc-test-cluster-disappears"
+  name            = %q
   description     = "Disappears test cluster"
   hypervisor_type = "KVM"
   zone_uuid       = %q
 }
-`, zoneUUID),
+`, name, zoneUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_cluster.test_disappears", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					stateCheckClusterDisappears("zstack_cluster.test_disappears"),

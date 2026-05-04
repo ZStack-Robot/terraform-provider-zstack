@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_networking_secgroup_attachment Resource - terraform-provider-zstack"
-subcategory: "Networking"
+subcategory: ""
 description: |-
     Attach VM instance NICs to security groups in ZStack.
 ---

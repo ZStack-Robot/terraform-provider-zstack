@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 )
@@ -34,6 +37,7 @@ type virtualRouterImagesModel struct {
 }
 
 type virtualRouterImagesDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String               `tfsdk:"name"`
 	NamePattern types.String               `tfsdk:"name_pattern"`
 	Filter      []Filter                   `tfsdk:"filter"`
@@ -80,9 +84,12 @@ func (d *virtualRouterImageDataSource) Read(ctx context.Context, req datasource.
 	}
 
 	var query string
-	if !state.Name.IsNull() {
+	// AI / automation prefers exact uuid lookup; fall back to name / name_pattern for humans.
+	if !state.Uuid.IsNull() && !state.Uuid.IsUnknown() && state.Uuid.ValueString() != "" {
+		query = fmt.Sprintf("query Image where __systemTag__='applianceType::vrouter' and uuid='%s'", state.Uuid.ValueString())
+	} else if !state.Name.IsNull() && state.Name.ValueString() != "" {
 		query = fmt.Sprintf("query Image where __systemTag__='applianceType::vrouter' and name='%s'", state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
+	} else if !state.NamePattern.IsNull() && state.NamePattern.ValueString() != "" {
 		query = fmt.Sprintf("query Image where __systemTag__='applianceType::vrouter' and name like '%s'", state.NamePattern.ValueString())
 	} else {
 		query = "query Image where __systemTag__='applianceType::vrouter'"
@@ -163,22 +170,25 @@ func (d *virtualRouterImageDataSource) Schema(ctx context.Context, req datasourc
 	resp.Schema = schema.Schema{
 		Description: "Fetches a list of virtual router images and their associated attributes from the ZStack environment.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching virtual router images",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Filter conditions for virtual router images (e.g., state='Enabled', format='qcow2')",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"images": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"images": schema.ListNestedAttribute{
 				Description: "List of virtual router Images",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

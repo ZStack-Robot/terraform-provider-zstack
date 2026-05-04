@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -24,12 +25,20 @@ func TestQueryEnvironment(t *testing.T) {
 	port := 8080
 	akID := getEnvOrDefault("ZSTACK_ACCESS_KEY_ID", "")
 	akSecret := getEnvOrDefault("ZSTACK_ACCESS_KEY_SECRET", "")
+	accountName := getEnvOrDefault("ZSTACK_ACCOUNT_NAME", "")
+	accountPassword := getEnvOrDefault("ZSTACK_ACCOUNT_PASSWORD", "")
 
-	if akID == "" || akSecret == "" {
-		t.Skip("ZSTACK_ACCESS_KEY_ID and ZSTACK_ACCESS_KEY_SECRET must be set")
+	var cli *client.ZSClient
+	if akID != "" && akSecret != "" {
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
+	} else if accountName != "" && accountPassword != "" {
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(accountName, accountPassword).ReadOnly(true).Debug(false))
+		if _, err := cli.Login(context.Background()); err != nil {
+			t.Fatalf("Login failed: %v", err)
+		}
+	} else {
+		t.Skip("Either ZSTACK_ACCESS_KEY_ID/ZSTACK_ACCESS_KEY_SECRET or ZSTACK_ACCOUNT_NAME/ZSTACK_ACCOUNT_PASSWORD must be set")
 	}
-
-	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
 
 	fmt.Println("\n========================================")
 	fmt.Println("  ZStack Environment Resource Summary")

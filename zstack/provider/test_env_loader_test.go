@@ -171,3 +171,25 @@ func envStr(m map[string]interface{}, key string) string {
 	}
 	return ""
 }
+
+func envInt(m map[string]interface{}, key string) int {
+	if v, ok := m[key]; ok {
+		switch val := v.(type) {
+		case float64:
+			return int(val)
+		}
+	}
+	return 0
+}
+
+func envBool(m map[string]interface{}, key string) bool {
+	if v, ok := m[key]; ok {
+		switch val := v.(type) {
+		case bool:
+			return val
+		case string:
+			return val == "true"
+		}
+	}
+	return false
+}

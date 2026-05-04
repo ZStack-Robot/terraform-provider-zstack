@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -24,6 +27,7 @@ type l3NetworkDataSource struct {
 }
 
 type l3NetworkDataSourceModel struct {
+	Uuid        types.String      `tfsdk:"uuid"`
 	Name        types.String      `tfsdk:"name"`
 	NamePattern types.String      `tfsdk:"name_pattern"`
 	Filter      []Filter          `tfsdk:"filter"`
@@ -57,7 +61,7 @@ type freeIpModel struct {
 	Gateway     string `tfsdk:"gateway"`
 }
 
-func ZStackl3NetworkDataSource() datasource.DataSource {
+func ZStackL3NetworkDataSource() datasource.DataSource {
 	return &l3NetworkDataSource{}
 }
 
@@ -94,15 +98,8 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		return
 	}
 
-	//Create query parameters based on name
-
 	params := param.NewQueryParam()
-
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	//Query L3 networks with name filtering
 	l3networks, err := d.client.QueryL3Network(&params)
@@ -177,24 +174,29 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 // Schema implements datasource.DataSourceWithConfigure.
 func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a list of L3 networks and their associated attributes from the ZStack environment.",
+		Description: "Fetches a list of L3 networks and their associated attributes from the ZStack environment. " +
+			"For automation / AI-generated configurations, prefer `uuid` for stable, deterministic lookups.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, " +
+					"deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching L3 Network.",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter L3 networks . For example, to filter by Category, use `Category = \"Private\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"l3networks": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"l3networks": schema.ListNestedAttribute{
 				Description: "List of L3 networks matching the specified filters.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

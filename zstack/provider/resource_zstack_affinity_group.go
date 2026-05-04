@@ -249,10 +249,18 @@ func (r *affinityGroupResource) Update(ctx context.Context, req resource.UpdateR
 		},
 	}
 
-	affinityGroup, err := r.client.UpdateAffinityGroup(state.Uuid.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateAffinityGroup(state.Uuid.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Affinity Group", "Could not update affinity group, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the updated resource to get the full state
+	affinityGroup, err := r.client.GetAffinityGroup(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading Affinity Group", "Could not read affinity group after update, unexpected error: "+err.Error(),
 		)
 		return
 	}

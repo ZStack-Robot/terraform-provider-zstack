@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -33,6 +36,7 @@ type backupStorage struct {
 }
 
 type backupStorageDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String `tfsdk:"name"`
 	NamePattern types.String `tfsdk:"name_pattern"`
 	//Filter        types.Map       `tfsdk:"filter"`
@@ -64,7 +68,7 @@ func (d *backupStorageDataSource) Configure(_ context.Context, req datasource.Co
 
 // Metadata implements datasource.DataSourceWithConfigure.
 func (d *backupStorageDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_backupstorages"
+	resp.TypeName = req.ProviderTypeName + "_backup_storages"
 }
 
 // Read implements datasource.DataSourceWithConfigure.
@@ -80,11 +84,7 @@ func (d *backupStorageDataSource) Read(ctx context.Context, req datasource.ReadR
 	params := param.NewQueryParam()
 
 	// 优先检查 `name` 精确查询
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	backupstorages, err := d.client.QueryBackupStorage(&params)
 	if err != nil {
@@ -113,24 +113,6 @@ func (d *backupStorageDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	/*
-
-		filters := make(map[string]string)
-		if !state.Filter.IsNull() {
-			diags := state.Filter.ElementsAs(ctx, &filters, false)
-			resp.Diagnostics.Append(diags...)
-			if resp.Diagnostics.HasError() {
-				return
-			}
-		}
-
-		filterImageStorage, filterDiags := utils.FilterResource(ctx, backupstorages, filters)
-		resp.Diagnostics.Append(filterDiags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-	*/
-
 	for _, backupstorage := range filterImageStorage {
 		backupStorageState := backupStorage{
 			TotalCapacity:     types.Int64Value(backupstorage.TotalCapacity),
@@ -157,38 +139,25 @@ func (d *backupStorageDataSource) Schema(ctx context.Context, req datasource.Sch
 	resp.Schema = schema.Schema{
 		Description: "List all backup storages, or query backup storages by exact name match, or query backup storages by name pattern fuzzy match.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching backup storage.",
 				Optional:    true,
 			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-					"filter": schema.MapAttribute{
-						Description: "Key-value pairs to filter image Storages. For example, to filter by status, use `Status = \"Connected\"`.",
-						Optional:    true,
-						ElementType: types.StringType,
-					},
-				"filter": schema.SetNestedAttribute{
-					Description: "Key-value pairs to filter backup storages. For example, to filter by status, use `name = \"status\"` and `values = [\"Connected\"]`.",
-					Optional:    true,
-					NestedObject: schema.NestedAttributeObject{
-						Attributes: map[string]schema.Attribute{
-							"name": schema.StringAttribute{
-								Description: "Name of the filter field (e.g., status, state).",
-								Required:    true,
-							},
-							"values": schema.SetAttribute{
-								Description: "Values to filter by.",
-								Required:    true,
-								ElementType: types.StringType,
-							},
-						},
-					},
-				},*/
-			"backup_storages": schema.ListNestedAttribute{
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"backup_storages": schema.ListNestedAttribute{
 				Description: "List of backup storage entries",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

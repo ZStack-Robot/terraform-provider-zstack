@@ -195,11 +195,20 @@ func (r *iam2ProjectResource) Update(ctx context.Context, req resource.UpdateReq
 		},
 	}
 
-	project, err := r.client.UpdateIAM2Project(state.Uuid.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateIAM2Project(state.Uuid.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating IAM2 Project",
 			"Could not update IAM2 project, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the updated resource to get the full state
+	project, err := r.client.GetIAM2Project(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading IAM2 Project",
+			"Could not read IAM2 project after update, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -223,13 +232,23 @@ func (r *iam2ProjectResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 
 
-	err := r.client.DeleteIAM2Project(state.Uuid.ValueString(), param.DeleteModePermissive)
-	if err != nil {
+	uuid := state.Uuid.ValueString()
+	if err := r.client.DeleteIAM2Project(uuid, param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting IAM2 Project",
 			"Could not delete IAM2 project, unexpected error: "+err.Error(),
 		)
 		return
+	}
+
+	// BUG-053: Without expunge, the soft-deleted project lingers in recycle bin
+	// and blocks re-use of the same name. Expunge is purge-from-recycle-bin.
+	if err := r.client.ExpungeIAM2Project(uuid); err != nil {
+		resp.Diagnostics.AddWarning(
+			"IAM2 Project deleted but expunge failed",
+			"The IAM2 project was deleted but could not be expunged from the recycle bin. "+
+				"This may prevent re-using the same name until manual cleanup. Error: "+err.Error(),
+		)
 	}
 }
 

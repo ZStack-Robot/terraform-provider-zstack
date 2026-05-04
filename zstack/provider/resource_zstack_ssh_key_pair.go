@@ -197,11 +197,20 @@ func (r *sshKeyPairResource) Update(ctx context.Context, req resource.UpdateRequ
 		},
 	}
 
-	sshKeyPair, err := r.client.UpdateSshKeyPair(state.Uuid.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateSshKeyPair(state.Uuid.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating SSH Key Pair",
 			"Could not update ssh key pair, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Read back the updated resource to get the full state
+	sshKeyPair, err := r.client.GetSshKeyPair(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading SSH Key Pair",
+			"Could not read ssh key pair after update, unexpected error: "+err.Error(),
 		)
 		return
 	}

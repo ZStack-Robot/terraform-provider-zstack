@@ -1,0 +1,60 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+type check2aGoodClient struct{}
+
+func (c *check2aGoodClient) UpdateVolume(uuid string, payload any) (any, error) {
+	return nil, nil
+}
+
+func (c *check2aGoodClient) GetVolume(uuid string) (any, error) {
+	return nil, nil
+}
+
+func (c *check2aGoodClient) UpdateInstance(uuid string, payload any) (any, error) {
+	return nil, nil
+}
+
+func (c *check2aGoodClient) QueryInstance(uuid string) (any, error) {
+	return nil, nil
+}
+
+type check2aGoodVolumeResource struct {
+	client *check2aGoodClient
+}
+
+type check2aGoodInstanceResource struct {
+	client *check2aGoodClient
+}
+
+func (r *check2aGoodVolumeResource) Update() {
+	_, err := r.client.UpdateVolume("volume-uuid", nil)
+	if err != nil {
+		return
+	}
+
+	volume, err := r.client.GetVolume("volume-uuid")
+	if err != nil {
+		return
+	}
+
+	setStateFromAPIResponse(volume)
+}
+
+func (r *check2aGoodInstanceResource) Update() {
+	_, err := r.client.UpdateInstance("instance-uuid", nil)
+	if err != nil {
+		return
+	}
+
+	instance, err := r.client.QueryInstance("instance-uuid")
+	if err != nil {
+		return
+	}
+
+	setStateFromAPIResponse(instance)
+}
+
+func setStateFromAPIResponse(value any) {}

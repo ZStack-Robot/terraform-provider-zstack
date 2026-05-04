@@ -182,12 +182,12 @@ func (r *l3networkResource) Create(ctx context.Context, request resource.CreateR
 	}
 
 	var ipVersion *int
-	if !plan.IpVersion.IsNull() {
+	if !plan.IpVersion.IsNull() && !plan.IpVersion.IsUnknown() {
 		ipVersion = intPtr(int(plan.IpVersion.ValueInt64()))
 	}
 
 	system := false
-	if !plan.System.IsNull() {
+	if !plan.System.IsNull() && !plan.System.IsUnknown() {
 		system = plan.System.ValueBool()
 	}
 
@@ -216,12 +216,12 @@ func (r *l3networkResource) Create(ctx context.Context, request resource.CreateR
 
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
+	plan.Description = stringValueOrNull(result.Description)
 	plan.L2NetworkUuid = types.StringValue(result.L2NetworkUuid)
-	plan.Type = types.StringValue(result.Type)
-	plan.Category = types.StringValue(result.Category)
+	plan.Type = stringValueOrNull(result.Type)
+	plan.Category = stringValueOrNull(result.Category)
 	plan.System = types.BoolValue(result.System)
-	plan.DnsDomain = types.StringValue(result.DnsDomain)
+	plan.DnsDomain = stringValueOrNull(result.DnsDomain)
 	plan.State = types.StringValue(result.State)
 	plan.ZoneUuid = types.StringValue(result.ZoneUuid)
 	if result.IpVersion > 0 {
@@ -259,12 +259,12 @@ func (r *l3networkResource) Read(ctx context.Context, request resource.ReadReque
 
 	state.Uuid = types.StringValue(item.UUID)
 	state.Name = types.StringValue(item.Name)
-	state.Description = types.StringValue(item.Description)
+	state.Description = stringValueOrNull(item.Description)
 	state.L2NetworkUuid = types.StringValue(item.L2NetworkUuid)
-	state.Type = types.StringValue(item.Type)
-	state.Category = types.StringValue(item.Category)
+	state.Type = stringValueOrNull(item.Type)
+	state.Category = stringValueOrNull(item.Category)
 	state.System = types.BoolValue(item.System)
-	state.DnsDomain = types.StringValue(item.DnsDomain)
+	state.DnsDomain = stringValueOrNull(item.DnsDomain)
 	state.State = types.StringValue(item.State)
 	state.ZoneUuid = types.StringValue(item.ZoneUuid)
 	if item.IpVersion > 0 {
@@ -300,7 +300,7 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 	}
 
 	var system *bool
-	if !plan.System.IsNull() {
+	if !plan.System.IsNull() && !plan.System.IsUnknown() {
 		systemVal := plan.System.ValueBool()
 		system = &systemVal
 	}
@@ -316,8 +316,7 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 		},
 	}
 
-	result, err := r.client.UpdateL3Network(state.Uuid.ValueString(), p)
-	if err != nil {
+	if _, err := r.client.UpdateL3Network(state.Uuid.ValueString(), p); err != nil {
 		response.Diagnostics.AddError(
 			"Error updating L3 Network",
 			"Could not update L3 network, unexpected error: "+err.Error(),
@@ -325,14 +324,24 @@ func (r *l3networkResource) Update(ctx context.Context, request resource.UpdateR
 		return
 	}
 
+	// Re-query by UUID after Update to refresh state with the latest server-side values.
+	result, err := findResourceByQuery(r.client.QueryL3Network, state.Uuid.ValueString())
+	if err != nil {
+		response.Diagnostics.AddError(
+			"Error re-reading L3 Network after update",
+			"Could not re-query L3 network, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
-	plan.Description = types.StringValue(result.Description)
+	plan.Description = stringValueOrNull(result.Description)
 	plan.L2NetworkUuid = types.StringValue(result.L2NetworkUuid)
-	plan.Type = types.StringValue(result.Type)
-	plan.Category = types.StringValue(result.Category)
+	plan.Type = stringValueOrNull(result.Type)
+	plan.Category = stringValueOrNull(result.Category)
 	plan.System = types.BoolValue(result.System)
-	plan.DnsDomain = types.StringValue(result.DnsDomain)
+	plan.DnsDomain = stringValueOrNull(result.DnsDomain)
 	plan.State = types.StringValue(result.State)
 	plan.ZoneUuid = types.StringValue(result.ZoneUuid)
 	if result.IpVersion > 0 {

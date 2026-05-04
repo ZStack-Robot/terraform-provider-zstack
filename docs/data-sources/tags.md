@@ -1,6 +1,6 @@
 ---
 page_title: "zstack_tags Data Source - terraform-provider-zstack"
-subcategory: "Configuration"
+subcategory: ""
 description: |-
     Data source to retrieve User, System, or regular Tags from the ZStack environment based on name, pattern, or filters.
 ---
@@ -39,6 +39,7 @@ output "all_tags" {
 - `filter` (Block List) Filter resources based on any field in the schema. For example, to filter by status, use `name = "status"` and `values = ["Ready"]`. (see [below for nested schema](#nestedblock--filter))
 - `name` (String) Exact name of the tag to match.
 - `name_pattern` (String) Pattern for fuzzy matching the tag name (supports % as wildcard, _ as single character).
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
 
 ### Read-Only
 

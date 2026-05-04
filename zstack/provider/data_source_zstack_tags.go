@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -26,6 +27,7 @@ type tagDataSource struct {
 }
 
 type tagDataSourceModel struct {
+	Uuid        types.String `tfsdk:"uuid"`
 	Name        types.String     `tfsdk:"name"`
 	NamePattern types.String     `tfsdk:"name_pattern"`
 	TagType     types.String     `tfsdk:"tag_type"`
@@ -106,20 +108,8 @@ func (d *tagDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	params := param.NewQueryParam()
 
 	if tagType == "tag" {
-		if !state.Name.IsNull() && state.Name.ValueString() != "" {
-			params.AddQ("name=" + state.Name.ValueString())
-		} else if !state.NamePattern.IsNull() && state.NamePattern.ValueString() != "" {
-			params.AddQ("name~=" + state.NamePattern.ValueString())
-		}
+		applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 	}
-
-	/*
-		if !state.Name.IsNull() && state.Name.ValueString() != "" {
-			params.AddQ("name=" + state.Name.ValueString())
-		} else if !state.NamePattern.IsNull() && state.NamePattern.ValueString() != "" {
-			params.AddQ("name~=" + state.NamePattern.ValueString())
-		}
-	*/
 
 	// Apply filters
 	filters := make(map[string][]string)
@@ -216,6 +206,16 @@ func (d *tagDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 	resp.Schema = schema.Schema{
 		Description: "Data source to retrieve User, System, or regular Tags from the ZStack environment based on name, pattern, or filters.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name of the tag to match.",
 				Optional:    true,
@@ -294,18 +294,9 @@ func (d *tagDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 					Attributes: map[string]schema.Attribute{
 						"uuid": schema.StringAttribute{
 							Description: "Unique identifier of the system tag.",
-							Computed:    true,
-						},
-						/*
-							"name": schema.StringAttribute{
-								Description: "Name of the system tag.",
-								Computed:    true,
-							},
-							"description": schema.StringAttribute{
-								Description: "Description of the system tag.",
-								Computed:    true,
-							},*/
-						"inherent": schema.BoolAttribute{
+						Computed:    true,
+					},
+					"inherent": schema.BoolAttribute{
 							Description: "Indicates if the tag is inherent (built-in) or user-defined.",
 							Computed:    true,
 						},

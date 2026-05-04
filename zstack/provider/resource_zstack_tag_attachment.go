@@ -16,7 +16,33 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
+
+// tagClient defines the minimal interface needed by tagAttachmentResource.
+// This interface enables testing with spy/fake clients.
+type tagClient interface {
+	AttachTagToResources(tagUuid string, params param.AttachTagToResourcesParam) (*view.AttachTagToResourcesEventView, error)
+	DetachTagFromResources(uuid string, deleteMode param.DeleteMode, resourceUuids []string) error
+	GetUserTag(uuid string) (*view.UserTagInventoryView, error)
+}
+
+// zstackTagClient adapts *client.ZSClient to the tagClient interface.
+type zstackTagClient struct {
+	*client.ZSClient
+}
+
+func (c *zstackTagClient) DetachTagFromResources(uuid string, deleteMode param.DeleteMode, resourceUuids []string) error {
+	return c.ZSClient.DetachTagFromResources(uuid, deleteMode)
+}
+
+func (c *zstackTagClient) AttachTagToResources(tagUuid string, params param.AttachTagToResourcesParam) (*view.AttachTagToResourcesEventView, error) {
+	return c.ZSClient.AttachTagToResources(tagUuid, params)
+}
+
+func (c *zstackTagClient) GetUserTag(uuid string) (*view.UserTagInventoryView, error) {
+	return c.ZSClient.GetUserTag(uuid)
+}
 
 var (
 	_ resource.Resource              = &tagAttachmentResource{}
@@ -24,7 +50,7 @@ var (
 )
 
 type tagAttachmentResource struct {
-	client *client.ZSClient
+	client tagClient
 }
 
 type tagAttachmentModel struct {
@@ -52,7 +78,7 @@ func (r *tagAttachmentResource) Configure(ctx context.Context, request resource.
 
 		return
 	}
-	r.client = client
+	r.client = &zstackTagClient{ZSClient: client}
 }
 
 func (r *tagAttachmentResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
@@ -194,6 +220,14 @@ func (r *tagAttachmentResource) Update(ctx context.Context, request resource.Upd
 	)
 }
 
+func extractResourceUuids(listValue types.List) []string {
+	resourceUuids := make([]string, 0, len(listValue.Elements()))
+	for _, v := range listValue.Elements() {
+		resourceUuids = append(resourceUuids, v.(types.String).ValueString())
+	}
+	return resourceUuids
+}
+
 func (r *tagAttachmentResource) Delete(ctx context.Context, request resource.DeleteRequest, response *resource.DeleteResponse) {
 	var state tagAttachmentModel
 	diags := request.State.Get(ctx, &state)
@@ -202,7 +236,9 @@ func (r *tagAttachmentResource) Delete(ctx context.Context, request resource.Del
 		return
 	}
 
-	err := r.client.DetachTagFromResources(state.TagUuid.ValueString(), param.DeleteModePermissive)
+	resourceUuids := extractResourceUuids(state.ResourceUuids)
+
+	err := r.client.DetachTagFromResources(state.TagUuid.ValueString(), param.DeleteModePermissive, resourceUuids)
 	if err != nil {
 		response.Diagnostics.AddError("Error detaching tag", err.Error())
 		return

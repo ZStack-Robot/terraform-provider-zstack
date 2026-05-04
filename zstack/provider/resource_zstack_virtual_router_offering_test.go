@@ -56,9 +56,51 @@ func TestVirtualRouterOfferingResource_Metadata(t *testing.T) {
 	var r virtualRouterOfferingResource
 	resp := &resource.MetadataResponse{}
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
-	if resp.TypeName != "zstack_virtual_router_offer" {
+	if resp.TypeName != "zstack_virtual_router_offering" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestAccVirtualRouterOfferingResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	if len(env.Zones) == 0 {
+		t.Skip("no zones in env data")
+	}
+
+	var mgmtNetUUID, imageUUID string
+	if len(env.VirtualRouterOfferings) > 0 {
+		mgmtNetUUID = envStr(env.VirtualRouterOfferings[0], "management_network_uuid")
+		imageUUID = envStr(env.VirtualRouterOfferings[0], "image_uuid")
+	}
+	if mgmtNetUUID == "" || imageUUID == "" {
+		t.Skip("no virtual router offerings in env data to derive management_network_uuid and image_uuid")
+	}
+
+	zoneUUID := envStr(env.Zones[0], "uuid")
+	name := testAccName("vr-offering-disappears")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVirtualRouterOfferingDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_virtual_router_offering" "test" {
+	  name                    = %q
+	  cpu_num                 = 1
+	  memory_size             = 512
+	  zone_uuid               = %q
+	  management_network_uuid = %q
+	  image_uuid              = %q
+}
+	`, name, zoneUUID, mgmtNetUUID, imageUUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVirtualRouterOfferingDisappears("zstack_virtual_router_offering.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
 }
 
 func TestAccVirtualRouterOfferingResource(t *testing.T) {
@@ -78,6 +120,7 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 	}
 
 	zoneUUID := envStr(env.Zones[0], "uuid")
+	name := testAccName("vr-offering")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -85,24 +128,24 @@ func TestAccVirtualRouterOfferingResource(t *testing.T) {
 		Steps: []tfresource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
-resource "zstack_virtual_router_offer" "test" {
-  name                    = "acc-test-vr-offering"
+resource "zstack_virtual_router_offering" "test" {
+  name                    = %q
   cpu_num                 = 1
   memory_size             = 512
   zone_uuid               = %q
   management_network_uuid = %q
   image_uuid              = %q
 }
-`, zoneUUID, mgmtNetUUID, imageUUID),
+`, name, zoneUUID, mgmtNetUUID, imageUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_virtual_router_offer.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vr-offering")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offering.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_virtual_router_offering.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 				},
 			},
 			{
-				ResourceName:            "zstack_virtual_router_offer.test",
+				ResourceName:            "zstack_virtual_router_offering.test",
 				ImportState:             true,
-				ImportStateIdFunc:       importStateUUID("zstack_virtual_router_offer.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_virtual_router_offering.test"),
 				ImportStateVerify:       true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore: []string{"management_network_uuid", "zone_uuid", "image_uuid", "public_network_uuid", "is_default"},

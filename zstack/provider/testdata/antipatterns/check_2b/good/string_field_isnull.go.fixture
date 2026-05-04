@@ -1,0 +1,35 @@
+// Copyright (c) ZStack.io, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package provider
+
+import "github.com/hashicorp/terraform-plugin-framework/types"
+
+type check2bStringPlan struct {
+	Name        types.String
+	Description types.String
+}
+
+func goodStringIsNull(plan check2bStringPlan) string {
+	var payload struct {
+		Name string
+	}
+
+	if !plan.Name.IsNull() {
+		payload.Name = plan.Name.ValueString()
+	}
+
+	return payload.Name
+}
+
+func goodNestedStringIsNull(plan check2bStringPlan) string {
+	var payload struct {
+		Description string
+	}
+
+	if !plan.Description.IsNull() {
+		payload.Description = plan.Description.ValueString()
+	}
+
+	return payload.Description
+}

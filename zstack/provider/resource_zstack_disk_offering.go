@@ -113,7 +113,6 @@ func (r *diskOfferingResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-
 	err := r.client.DeleteDiskOffering(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 
 	if err != nil {
@@ -127,7 +126,7 @@ func (r *diskOfferingResource) Delete(ctx context.Context, req resource.DeleteRe
 
 // Metadata implements resource.Resource.
 func (r *diskOfferingResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_disk_offer"
+	resp.TypeName = req.ProviderTypeName + "_disk_offering"
 }
 
 // Read implements resource.Resource.
@@ -184,9 +183,6 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
@@ -194,7 +190,6 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 				Description: "A description of the disk offering, providing additional context or details about the configuration.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"disk_size": schema.Int64Attribute{
@@ -204,22 +199,57 @@ func (r *diskOfferingResource) Schema(_ context.Context, req resource.SchemaRequ
 					int64planmodifier.RequiresReplace(),
 				},
 			},
-			/*
-				"allocator_strategy": schema.StringAttribute{
-					Optional:    true,
-					Computed:    true,
-					Description: "The type of the allocator_strategy. ",
-				},
-			*/
 		},
 	}
 }
 
 func (r *diskOfferingResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddError(
-		"Update not supported",
-		"Disk Offering resource does not support updates. Please recreate the resource instead.",
-	)
+	var plan diskOfferingResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var state diskOfferingResourceModel
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	updateParam := param.UpdateDiskOfferingParam{
+		BaseParam: param.BaseParam{},
+		Params: param.UpdateDiskOfferingParamDetail{
+			Name:        plan.Name.ValueString(),
+			Description: stringPtrOrNil(plan.Description.ValueString()),
+		},
+	}
+
+	if _, err := r.client.UpdateDiskOffering(state.Uuid.ValueString(), updateParam); err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating Disk Offering",
+			"Could not update disk offering, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	diskOffer, err := r.client.GetDiskOffering(state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading Disk Offering",
+			"Could not read disk offering after update, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	plan.Uuid = types.StringValue(diskOffer.UUID)
+	plan.Name = types.StringValue(diskOffer.Name)
+	plan.Description = stringValueOrNull(diskOffer.Description)
+	plan.DiskSize = types.Int64Value(utils.BytesToGB(int64(diskOffer.DiskSize)))
+
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
 }
 
 func (r *diskOfferingResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

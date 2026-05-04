@@ -54,8 +54,45 @@ func TestVipResource_Metadata(t *testing.T) {
 	}
 }
 
+func TestAccVipResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+	name := testAccName("vip-disappears")
+
+	var l3UUID string
+	for _, l3 := range env.L3Networks {
+		if envStr(l3, "category") == "Public" {
+			l3UUID = envStr(l3, "uuid")
+			break
+		}
+	}
+	if l3UUID == "" {
+		t.Skip("no Public L3 network found in env data")
+	}
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVipDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_vip" "test" {
+  name            = %q
+  l3_network_uuid = %q
+}
+`, name, l3UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckVipDisappears("zstack_vip.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccVipResource(t *testing.T) {
 	env := loadEnvData(t)
+	name := testAccName("vip")
+	updatedName := name + "-updated"
 
 	// Find a Public L3 network
 	var l3UUID string
@@ -76,21 +113,37 @@ func TestAccVipResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_vip" "test" {
-  name            = "acc-test-vip"
+  name            = %q
+  description     = "acceptance VIP"
   l3_network_uuid = %q
 }
-`, l3UUID),
+`, name, l3UUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
-					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-vip")),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance VIP")),
 					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
 				},
 			},
 			{
-				ResourceName:      "zstack_vip.test",
-				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_vip.test"),
-				ImportStateVerify: true,
+				Config: providerConfig() + fmt.Sprintf(`
+resource "zstack_vip" "test" {
+  name            = %q
+  description     = "acceptance VIP updated"
+  l3_network_uuid = %q
+}
+`, updatedName, l3UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance VIP updated")),
+					statecheck.ExpectKnownValue("zstack_vip.test", tfjsonpath.New("l3_network_uuid"), knownvalue.StringExact(l3UUID)),
+				},
+			},
+			{
+				ResourceName:                         "zstack_vip.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_vip.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},
 		},

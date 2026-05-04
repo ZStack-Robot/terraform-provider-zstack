@@ -123,11 +123,25 @@ func (r *globalConfigResource) Create(ctx context.Context, req resource.CreateRe
 		},
 	}
 
-	result, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Global Config",
-			"Could not create global config, unexpected error: "+err.Error(),
+			"Could not create global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
+		)
+		return
+	}
+
+	// Re-query by category+name after Update to refresh state with the latest server-side values.
+	result, err := findResourceByQuery(func(queryParam *param.QueryParam) ([]view.GlobalConfigInventoryView, error) {
+		*queryParam = param.NewQueryParam()
+		queryParam.AddQ("category=" + plan.Category.ValueString())
+		queryParam.AddQ("name=" + plan.Name.ValueString())
+		return r.client.QueryGlobalConfig(queryParam)
+	}, plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error re-reading Global Config after create",
+			"Could not re-query global config, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -208,11 +222,25 @@ func (r *globalConfigResource) Update(ctx context.Context, req resource.UpdateRe
 		},
 	}
 
-	result, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam)
-	if err != nil {
+	if _, err := r.client.UpdateGlobalConfig(plan.Category.ValueString(), plan.Name.ValueString(), updateParam); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Global Config",
-			"Could not update global config, unexpected error: "+err.Error(),
+			"Could not update global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
+		)
+		return
+	}
+
+	// Re-query by category+name after Update to refresh state with the latest server-side values.
+	result, err := findResourceByQuery(func(queryParam *param.QueryParam) ([]view.GlobalConfigInventoryView, error) {
+		*queryParam = param.NewQueryParam()
+		queryParam.AddQ("category=" + plan.Category.ValueString())
+		queryParam.AddQ("name=" + plan.Name.ValueString())
+		return r.client.QueryGlobalConfig(queryParam)
+	}, plan.Name.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error re-reading Global Config after update",
+			"Could not re-query global config, unexpected error: "+err.Error(),
 		)
 		return
 	}
@@ -255,7 +283,7 @@ func (r *globalConfigResource) Delete(ctx context.Context, req resource.DeleteRe
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting Global Config",
-			"Could not delete global config, unexpected error: "+err.Error(),
+			"Could not delete global config, unexpected error: "+err.Error()+"\n\nUse data \"zstack_global_configs\" without filters to inspect valid category/name pairs for the target ZStack environment.",
 		)
 		return
 	}

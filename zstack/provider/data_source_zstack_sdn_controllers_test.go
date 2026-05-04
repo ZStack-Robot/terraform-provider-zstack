@@ -28,7 +28,7 @@ func TestAccZStackSdnControllersDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(`
-data "zstack_networking_sdn_controllers" "test" {
+data "zstack_sdn_controllers" "test" {
   name_pattern = %q
   filter {
     name   = "status"
@@ -36,11 +36,11 @@ data "zstack_networking_sdn_controllers" "test" {
   }
 }`, pattern, status),
 				ConfigStateChecks: []statecheck.StateCheck{
-					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(status)),
-					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
-					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("ip"), knownvalue.StringExact(envStr(sdn, "ip"))),
-					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(sdn, "uuid"))),
-					statecheck.ExpectKnownValue("data.zstack_networking_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("vendor_type"), knownvalue.StringExact(envStr(sdn, "vendor_type"))),
+					statecheck.ExpectKnownValue("data.zstack_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(status)),
+					statecheck.ExpectKnownValue("data.zstack_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("ip"), knownvalue.StringExact(envStr(sdn, "ip"))),
+					statecheck.ExpectKnownValue("data.zstack_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(sdn, "uuid"))),
+					statecheck.ExpectKnownValue("data.zstack_sdn_controllers.test", tfjsonpath.New("sdn_controllers").AtSliceIndex(0).AtMapKey("vendor_type"), knownvalue.StringExact(envStr(sdn, "vendor_type"))),
 				},
 			},
 		},

@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -118,7 +119,7 @@ func (r *resourceStackResource) Schema(_ context.Context, request resource.Schem
 			"template_content": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The template content.",
+				Description: "The template content. When set directly, it must contain ZStackTemplateFormatVersion.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -196,6 +197,10 @@ func (r *resourceStackResource) Create(ctx context.Context, request resource.Cre
 
 	if r.client == nil {
 		response.Diagnostics.AddWarning("Client Not Configured", "The client was not properly configured.")
+		return
+	}
+
+	if !validateResourceStackTemplateInputs(plan, &response.Diagnostics) {
 		return
 	}
 
@@ -291,6 +296,10 @@ func (r *resourceStackResource) Update(ctx context.Context, request resource.Upd
 		return
 	}
 
+	if !validateResourceStackTemplateInputs(plan, &response.Diagnostics) {
+		return
+	}
+
 	p := param.UpdateResourceStackParam{
 		BaseParam: param.BaseParam{},
 		Params: param.UpdateResourceStackParamDetail{
@@ -338,7 +347,6 @@ func (r *resourceStackResource) Delete(ctx context.Context, request resource.Del
 		return
 	}
 
-
 	err := r.client.DeleteResourceStack(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		response.Diagnostics.AddError(
@@ -351,4 +359,28 @@ func (r *resourceStackResource) Delete(ctx context.Context, request resource.Del
 
 func (r *resourceStackResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
+}
+
+func validateResourceStackTemplateInputs(plan resourceStackModel, diags *diag.Diagnostics) bool {
+	templateContentSet := !plan.TemplateContent.IsNull() && !plan.TemplateContent.IsUnknown() && plan.TemplateContent.ValueString() != ""
+	templateUUIDSet := !plan.TemplateUuid.IsNull() && !plan.TemplateUuid.IsUnknown() && plan.TemplateUuid.ValueString() != ""
+
+	if !templateContentSet && !templateUUIDSet {
+		diags.AddAttributeError(
+			path.Root("template_content"),
+			"Missing resource stack template",
+			"Set either template_content or template_uuid. When using template_content, it must contain ZStackTemplateFormatVersion.",
+		)
+		return false
+	}
+	if templateContentSet && !hasStackTemplateFormatVersionMarker(plan.TemplateContent.ValueString()) {
+		diags.AddAttributeError(
+			path.Root("template_content"),
+			"Invalid resource stack template content",
+			"template_content must contain ZStackTemplateFormatVersion.",
+		)
+		return false
+	}
+
+	return true
 }

@@ -25,18 +25,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 type gpuDeviceType string
 
-type vmResource struct {
+type instanceResource struct {
 	client *client.ZSClient
 }
 
 var (
-	_ resource.Resource                = &vmResource{}
-	_ resource.ResourceWithConfigure   = &vmResource{}
-	_ resource.ResourceWithImportState = &vmResource{}
+	_ resource.Resource                = &instanceResource{}
+	_ resource.ResourceWithConfigure   = &instanceResource{}
+	_ resource.ResourceWithImportState = &instanceResource{}
 )
 
 var networkModelAttrTypes = map[string]attr.Type{
@@ -52,6 +53,7 @@ const (
 )
 
 type diskModel struct {
+	VolumeUuid         types.String `tfsdk:"volume_uuid"`
 	Size               types.Int64  `tfsdk:"size"`
 	OfferingUuid       types.String `tfsdk:"offering_uuid"`
 	VirtioSCSI         types.Bool   `tfsdk:"virtio_scsi"`
@@ -93,6 +95,9 @@ type vmInstanceDataSourceModel struct {
 	VMNics               types.List   `tfsdk:"vm_nics"`
 	Expunge              types.Bool   `tfsdk:"expunge"`
 	HookScript           types.String `tfsdk:"hook_script"`
+	Platform             types.String `tfsdk:"platform"`
+	GuestOsType          types.String `tfsdk:"guest_os_type"`
+	Architecture         types.String `tfsdk:"architecture"`
 }
 
 type NicsModel struct {
@@ -109,11 +114,11 @@ type NetworkInterfaceModel struct {
 }
 
 func InstanceResource() resource.Resource {
-	return &vmResource{}
+	return &instanceResource{}
 }
 
 // Configure implements resource.ResourceWithConfigure.
-func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *instanceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -132,12 +137,12 @@ func (r *vmResource) Configure(_ context.Context, req resource.ConfigureRequest,
 }
 
 // Metadata implements resource.Resource.
-func (r *vmResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *instanceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_instance"
 }
 
 // Schema implements resource.Resource.
-func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *instanceResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "This resource allows you to manage virtual machine (VM) instances in ZStack. " +
 			"A VM instance represents a virtualized compute resource that can be created, updated, and deleted. " +
@@ -167,13 +172,19 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 							Description: "The UUID of the L3 network for this NIC.",
 						},
 						"default_l3": schema.BoolAttribute{
-							Required:    true,
-							Description: "Whether this NIC is the default route NIC.",
+							Optional: true,
+							Computed: true,
+							Description: "Whether this NIC is the default route NIC. " +
+								"If omitted on every NIC, the first NIC is automatically chosen as the default. " +
+								"After Create the server-resolved value is reflected back into state.",
+							PlanModifiers: []planmodifier.Bool{
+								boolplanmodifier.UseStateForUnknown(),
+							},
 						},
 						"static_ip": schema.StringAttribute{
 							Optional:    true,
 							Computed:    true,
-							Description: "Static IP address to assign. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.",
+							Description: "Static IP address to assign. Optional — if omitted, the server picks one and reports it back. The format will be converted to system tag `staticIp::<l3_uuid>::<ip>`.",
 							PlanModifiers: []planmodifier.String{
 								stringplanmodifier.UseStateForUnknown(),
 							},
@@ -234,6 +245,13 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			},
 			"root_disk": schema.SingleNestedAttribute{
 				Attributes: map[string]schema.Attribute{
+					"volume_uuid": schema.StringAttribute{
+						Computed:    true,
+						Description: "The UUID of the root volume backing this disk (assigned by the server after the VM is created).",
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
+					},
 					"offering_uuid": schema.StringAttribute{
 						Optional:    true,
 						Description: "The UUID of the disk offering for the root disk.",
@@ -244,7 +262,11 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 					},
 					"primary_storage_uuid": schema.StringAttribute{
 						Optional:    true,
-						Description: "The UUID of the primary storage for the root disk.",
+						Computed:    true,
+						Description: "The UUID of the primary storage for the root disk. If not specified, the server picks one and returns it here.",
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
+						},
 					},
 					"ceph_pool_name": schema.StringAttribute{
 						Optional:    true,
@@ -264,6 +286,13 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 			"data_disks": schema.ListNestedAttribute{
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
+						"volume_uuid": schema.StringAttribute{
+							Computed:    true,
+							Description: "The UUID of the data volume backing this disk (assigned by the server after the VM is created).",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.UseStateForUnknown(),
+							},
+						},
 						"offering_uuid": schema.StringAttribute{
 							Optional:    true,
 							Description: "The UUID of the disk offering for the data disk.",
@@ -430,12 +459,41 @@ func (r *vmResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp 
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"platform": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				Description: "The platform of the guest OS (e.g. `Linux`, `Windows`, `Other`, `Paravirtualization`). " +
+					"If unset the server inherits it from the image. " +
+					"Updatable in place via the `UpdateVmInstance` API on a running cluster.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"guest_os_type": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				Description: "The guest OS type / distribution (free-form string, e.g. `CentOS 7`, `Windows Server 2019`). " +
+					"Server reports it back after Create. Updatable in place via `UpdateVmInstance`.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"architecture": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				Description: "The CPU architecture of the guest (`x86_64`, `aarch64`, `mips64el`, etc.). " +
+					"Inherited from the image when unset. Changing it requires the VM to be replaced.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
 		},
 	}
 }
 
 // Create implements resource.Resource.
-func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *instanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan vmInstanceDataSourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -487,7 +545,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
 		}
 
-		if !rootDiskPlan.Size.IsNull() {
+		if !rootDiskPlan.Size.IsNull() && !rootDiskPlan.Size.IsUnknown() {
 			rootDiskPlan.Size = types.Int64Value(utils.GBToBytes(rootDiskPlan.Size.ValueInt64()))
 		}
 	}
@@ -499,7 +557,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		for _, disk := range dataDisksPlan {
 			if !disk.OfferingUuid.IsNull() {
 				dataDiskOfferingUuids = append(dataDiskOfferingUuids, disk.OfferingUuid.ValueString())
-			} else if !disk.Size.IsNull() {
+			} else if !disk.Size.IsNull() && !disk.Size.IsUnknown() {
 				dataDiskSizes = append(dataDiskSizes, utils.GBToBytes(disk.Size.ValueInt64()))
 				if disk.VirtioSCSI.ValueBool() {
 					dataVolumeSystemTagsOnIndex = append(dataVolumeSystemTagsOnIndex, "capability::virtio-scsi")
@@ -555,7 +613,16 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		l3uuid := nic.L3NetworkUuid.ValueString()
 		l3NetworkUuids = append(l3NetworkUuids, l3uuid)
 
-		if nic.DefaultL3.ValueBool() {
+		// Treat unset (null/unknown) the same as false for picking a default,
+		// but record true matches in defaultL3Uuid.
+		if !nic.DefaultL3.IsNull() && !nic.DefaultL3.IsUnknown() && nic.DefaultL3.ValueBool() {
+			if defaultL3Uuid != "" && defaultL3Uuid != l3uuid {
+				resp.Diagnostics.AddError(
+					"Error creating VM Instance",
+					"Could not create vm instance: more than one network_interfaces entry has default_l3=true. Exactly one (or zero) NIC may be marked default.",
+				)
+				return
+			}
 			defaultL3Uuid = l3uuid
 		}
 
@@ -572,6 +639,13 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			DefaultL3:     nic.DefaultL3,
 			StaticIp:      staticIp,
 		})
+	}
+
+	// If no NIC was flagged as default, pick the first one. The server requires
+	// a defaultL3NetworkUuid; this matches the "unset means first NIC is the
+	// default" convention used by the ZStack UI.
+	if defaultL3Uuid == "" && len(createNics) > 0 {
+		defaultL3Uuid = createNics[0].L3NetworkUuid.ValueString()
 	}
 
 	//SET XML HOOK SCRIPT
@@ -625,7 +699,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	if plan.Marketplace.ValueBool() {
 		systemTags = append(systemTags, "marketplace::true")
 	}
-	if !plan.NeverStop.IsNull() && plan.NeverStop.ValueBool() {
+	if !plan.NeverStop.IsNull() && !plan.NeverStop.IsUnknown() && plan.NeverStop.ValueBool() {
 		systemTags = append(systemTags, "ha::NeverStop")
 	}
 
@@ -661,7 +735,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		}
 
 		number := 1
-		if !gpuSpecPlan.Number.IsNull() {
+		if !gpuSpecPlan.Number.IsNull() && !gpuSpecPlan.Number.IsUnknown() {
 			number = int(gpuSpecPlan.Number.ValueInt64())
 		}
 
@@ -725,11 +799,11 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		},
 		Params: param.CreateVmInstanceParamDetail{
 			Name:                            plan.Name.ValueString(),
-			InstanceOfferingUuid:            stringPtr(plan.InstanceOfferingUuid.ValueString()),
+			InstanceOfferingUuid:            stringPtrOrNil(plan.InstanceOfferingUuid.ValueString()),
 			ImageUuid:                       stringPtr(plan.ImageUuid.ValueString()),
 			L3NetworkUuids:                  l3NetworkUuids,
 			Type:                            stringPtr("UserVm"),
-			RootDiskOfferingUuid:            stringPtr(rootDiskPlan.OfferingUuid.ValueString()),
+			RootDiskOfferingUuid:            stringPtrOrNil(rootDiskPlan.OfferingUuid.ValueString()),
 			RootDiskSize:                    rootDiskPlan.Size.ValueInt64Pointer(),
 			PrimaryStorageUuidForRootVolume: primaryStorageUuidForRootVolume,
 			DataDiskSizes:                   dataDiskSizes,
@@ -737,12 +811,15 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			ZoneUuid:                        stringPtrOrNil(zoneUuid),
 			ClusterUuid:                     stringPtrOrNil(clusterUuid),
 			HostUuid:                        stringPtrOrNil(hostUuid),
-			Description:                     stringPtr(plan.Description.ValueString()),
-			DefaultL3NetworkUuid:            stringPtr(defaultL3Uuid),
+			Description:                     stringPtrOrNil(plan.Description.ValueString()),
+			DefaultL3NetworkUuid:            stringPtrOrNil(defaultL3Uuid),
 			TagUuids:                        nil,
-			Strategy:                        stringPtr(plan.Strategy.ValueString()),
+			Strategy:                        stringPtrOrNil(plan.Strategy.ValueString()),
 			MemorySize:                      &memorySize,
 			CpuNum:                          intPtr(int(cpuNum)),
+			Platform:                        stringPtrOrNil(plan.Platform.ValueString()),
+			GuestOsType:                     stringPtrOrNil(plan.GuestOsType.ValueString()),
+			Architecture:                    stringPtrOrNil(plan.Architecture.ValueString()),
 			RootVolumeSystemTags:            rootDiskSystemTags,
 			DataVolumeSystemTags:            dataDiskSystemTags,
 		},
@@ -759,9 +836,12 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 
 	plan.Uuid = types.StringValue(instance.UUID)
 	plan.Name = types.StringValue(instance.Name)
-	plan.Description = types.StringValue(instance.Description)
+	plan.Description = stringValueOrNull(instance.Description)
 	plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
 	plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
+	plan.Platform = stringValueOrNull(instance.Platform)
+	plan.GuestOsType = stringValueOrNull(instance.GuestOsType)
+	plan.Architecture = stringValueOrNull(instance.Architecture)
 
 	var updatedNics []NetworkInterfaceModel
 	for _, nic := range createNics {
@@ -778,9 +858,15 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 			staticIp = types.StringValue(realIP)
 		}
 
+		// Reflect the server-resolved default_l3 back into state. The server
+		// reports its choice via instance.DefaultL3NetworkUuid; we always echo
+		// that (true/false) regardless of whether the user supplied an explicit
+		// value, so plan and post-apply state agree.
+		defaultL3 := types.BoolValue(instance.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid.ValueString() == instance.DefaultL3NetworkUuid)
+
 		updatedNics = append(updatedNics, NetworkInterfaceModel{
 			L3NetworkUuid: nic.L3NetworkUuid,
-			DefaultL3:     nic.DefaultL3,
+			DefaultL3:     defaultL3,
 			StaticIp:      staticIp,
 		})
 	}
@@ -802,6 +888,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 	plan.NetworkInterfaces = networkInterfacesList
 
 	var diskModelAttrTypes = map[string]attr.Type{
+		"volume_uuid":          types.StringType,
 		"offering_uuid":        types.StringType,
 		"size":                 types.Int64Type,
 		"primary_storage_uuid": types.StringType,
@@ -809,12 +896,48 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 		"virtio_scsi":          types.BoolType,
 	}
 
+	// Split volumes into root + data so we can populate the Computed
+	// volume_uuid field on both root_disk and data_disks. The server returns
+	// volumes in a single AllVolumes slice; the root volume is identified by
+	// Type == "Root" (or by matching instance.RootVolumeUuid).
+	var rootVolume *view.VolumeInventoryView
+	var dataVolumes []view.VolumeInventoryView
+	for i := range instance.AllVolumes {
+		v := instance.AllVolumes[i]
+		if rootVolume == nil && (v.Type == "Root" || v.UUID == instance.RootVolumeUuid) {
+			rootVolume = &v
+			continue
+		}
+		dataVolumes = append(dataVolumes, v)
+	}
+
+	// Populate root_disk in state. The schema makes root_disk Optional; if the
+	// user did not declare it we leave it null. If they did, fill in the
+	// Computed volume_uuid so Terraform's post-apply consistency check passes.
+	if !plan.RootDisk.IsNull() {
+		if rootVolume != nil {
+			rootDiskPlan.VolumeUuid = types.StringValue(rootVolume.UUID)
+			if rootDiskPlan.PrimaryStorageUuid.IsNull() || rootDiskPlan.PrimaryStorageUuid.ValueString() == "" {
+				rootDiskPlan.PrimaryStorageUuid = stringValueOrNull(rootVolume.PrimaryStorageUuid)
+			}
+		} else {
+			rootDiskPlan.VolumeUuid = types.StringNull()
+		}
+		rootDiskObj, rdDiags := types.ObjectValueFrom(ctx, diskModelAttrTypes, rootDiskPlan)
+		resp.Diagnostics.Append(rdDiags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		plan.RootDisk = rootDiskObj
+	}
+
 	if !plan.DataDisks.IsNull() {
 		var dataDisksPlan []diskModel
 		plan.DataDisks.ElementsAs(ctx, &dataDisksPlan, false)
 
-		for i, disk := range instance.AllVolumes {
+		for i, disk := range dataVolumes {
 			if i < len(dataDisksPlan) {
+				dataDisksPlan[i].VolumeUuid = types.StringValue(disk.UUID)
 				dataDisksPlan[i].PrimaryStorageUuid = types.StringValue(disk.PrimaryStorageUuid)
 			}
 		}
@@ -852,7 +975,7 @@ func (r *vmResource) Create(ctx context.Context, req resource.CreateRequest, res
 }
 
 // Read implements resource.Resource.
-func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *instanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state vmInstanceDataSourceModel
 
 	diags := req.State.Get(ctx, &state)
@@ -879,10 +1002,23 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 
 	state.Uuid = types.StringValue(vm.UUID)
 	state.Name = types.StringValue(vm.Name)
-	state.Description = types.StringValue(vm.Description)
+	state.Description = stringValueOrNull(vm.Description)
 	state.ImageUuid = types.StringValue(vm.ImageUuid)
 	state.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
 	state.CPUNum = types.Int64Value(int64(vm.CpuNum))
+	state.Platform = stringValueOrNull(vm.Platform)
+	state.GuestOsType = stringValueOrNull(vm.GuestOsType)
+	state.Architecture = stringValueOrNull(vm.Architecture)
+
+	updatedDataDisks, err := syncInstanceDataDisksFromVM(ctx, state, vm)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading VM Instance",
+			"Could not sync VM data disk state: "+err.Error(),
+		)
+		return
+	}
+	state.DataDisks = updatedDataDisks.DataDisks
 
 	var vmNics []NicsModel
 	for _, nic := range vm.VmNics {
@@ -897,34 +1033,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 	state.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
 	resp.Diagnostics.Append(diags...)
 
-	var networkInterfaces []NetworkInterfaceModel
-	originalNetworkInterfaces := make(map[string]string)
-	if !state.NetworkInterfaces.IsNull() && len(state.NetworkInterfaces.Elements()) > 0 {
-		var oldNics []NetworkInterfaceModel
-		diags := state.NetworkInterfaces.ElementsAs(ctx, &oldNics, false)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-		for _, oldNic := range oldNics {
-			if !oldNic.StaticIp.IsNull() && oldNic.StaticIp.ValueString() != "" {
-				originalNetworkInterfaces[oldNic.L3NetworkUuid.ValueString()] = oldNic.StaticIp.ValueString()
-			}
-		}
-	}
-
-	for _, nic := range vm.VmNics {
-		staticIP := types.StringNull()
-		if ip, ok := originalNetworkInterfaces[nic.L3NetworkUuid]; ok && ip == nic.Ip {
-			staticIP = types.StringValue(ip)
-		}
-
-		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-			L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
-			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid == vm.DefaultL3NetworkUuid),
-			StaticIp:      staticIP,
-		})
-	}
+	networkInterfaces := normalizeNetworkInterfacesFromVM(vm)
 	state.NetworkInterfaces, _ = types.ListValueFrom(ctx, types.ObjectType{
 		AttrTypes: map[string]attr.Type{
 			"l3_network_uuid": types.StringType,
@@ -943,7 +1052,7 @@ func (r *vmResource) Read(ctx context.Context, req resource.ReadRequest, resp *r
 
 }
 
-func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *instanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state vmInstanceDataSourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
@@ -974,61 +1083,54 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 		updateVm = true
 
 	}
-	if plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
+	if !plan.CPUNum.IsNull() && !plan.CPUNum.IsUnknown() && plan.CPUNum.ValueInt64() != state.CPUNum.ValueInt64() {
 		updateVmInstanceParam.Params.CpuNum = utils.TfInt64ToIntPointer(plan.CPUNum)
 		updateVm = true
 	}
-	if plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
+	if !plan.MemorySize.IsNull() && !plan.MemorySize.IsUnknown() && plan.MemorySize.ValueInt64() != state.MemorySize.ValueInt64() {
 		memorySizeBytes := utils.MBToBytes(plan.MemorySize.ValueInt64())
 		updateVmInstanceParam.Params.MemorySize = &memorySizeBytes
 		updateVm = true
 	}
 
+	// platform / guest_os_type are online-modifiable via UpdateVmInstance.
+	// architecture is RequiresReplace at the schema level, so it never reaches
+	// here as a diff.
+	if !plan.Platform.IsNull() && !plan.Platform.IsUnknown() && plan.Platform.ValueString() != state.Platform.ValueString() {
+		v := plan.Platform.ValueString()
+		updateVmInstanceParam.Params.Platform = &v
+		updateVm = true
+	}
+	if !plan.GuestOsType.IsNull() && !plan.GuestOsType.IsUnknown() && plan.GuestOsType.ValueString() != state.GuestOsType.ValueString() {
+		v := plan.GuestOsType.ValueString()
+		updateVmInstanceParam.Params.GuestOsType = &v
+		updateVm = true
+	}
+
 	if updateVm {
-		instance, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam)
-		if err != nil {
+		if _, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam); err != nil {
 			resp.Diagnostics.AddError(
 				"Error updating VM Instance",
 				"Could not update vm instance, unexpected error: "+err.Error())
 			return
 		}
 
-		plan.Uuid = types.StringValue(instance.UUID)
-		plan.Name = types.StringValue(instance.Name)
-		plan.Description = types.StringValue(instance.Description)
-		plan.MemorySize = types.Int64Value(utils.BytesToMB(instance.MemorySize))
-		plan.CPUNum = types.Int64Value(int64(instance.CpuNum))
-		//plan.IP = types.StringValue(instance.VmNics[0].IP)
-
-		// 更新 vm_nics 信息
-		var vmNics []NicsModel
-		for _, nic := range instance.VmNics {
-			vmNics = append(vmNics, NicsModel{
-				Uuid:    types.StringValue(nic.UUID),
-				Ip:      types.StringValue(nic.Ip),
-				Netmask: types.StringValue(nic.Netmask),
-				Gateway: types.StringValue(nic.Gateway),
-			})
+		// Refresh from server to keep Update / Read state-construction in lockstep.
+		vm, err := findResourceByGet(r.client.GetVmInstance, uuid)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error updating VM Instance",
+				"Could not refresh vm instance after update: "+err.Error())
+			return
 		}
 
-		// 将 vm_nics 信息设置到状态中
-		plan.VMNics, _ = types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
-
-		var networkInterfaces []NetworkInterfaceModel
-		for _, nic := range instance.VmNics {
-			networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
-				L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
-				DefaultL3:     types.BoolValue(nic.L3NetworkUuid == instance.DefaultL3NetworkUuid),
-				StaticIp:      types.StringNull(), // 无法反查
-			})
+		plan, err = buildUpdatedStateFromVM(ctx, plan, vm)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error updating VM Instance",
+				"Could not rebuild vm instance state after update: "+err.Error())
+			return
 		}
-		plan.NetworkInterfaces, _ = types.ListValueFrom(ctx, types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"l3_network_uuid": types.StringType,
-				"default_l3":      types.BoolType,
-				"static_ip":       types.StringType,
-			},
-		}, networkInterfaces)
 
 		diags := resp.State.Set(ctx, &plan)
 		resp.Diagnostics.Append(diags...)
@@ -1041,7 +1143,7 @@ func (r *vmResource) Update(ctx context.Context, req resource.UpdateRequest, res
 }
 
 // Delete implements resource.Resource.
-func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *instanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state vmInstanceDataSourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -1050,21 +1152,12 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 		return
 	}
 
-	//TODO: query vm instance again in delete function is not smart. Update vm instance's data disk state in read function is a better way
-	vm, err := r.client.GetVmInstance(state.Uuid.ValueString())
+	volumeUuids, err := instanceDataVolumeUUIDsFromState(ctx, state)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Error reading VM Instance", "Could not read vm instance UUID "+state.Uuid.ValueString()+" before delete: "+err.Error(),
+			"Error deleting VM Instance", "Could not determine VM data volume UUIDs from state: "+err.Error(),
 		)
 		return
-	}
-
-	var volumeUuids []string
-	for _, volume := range vm.AllVolumes {
-		if volume.Type != "Data" {
-			continue
-		}
-		volumeUuids = append(volumeUuids, volume.UUID)
 	}
 
 	tflog.Info(ctx, "Deleting vm instance "+state.Uuid.String())
@@ -1119,7 +1212,131 @@ func (r *vmResource) Delete(ctx context.Context, req resource.DeleteRequest, res
 
 }
 
-func isDiskParamValid(r *vmResource, model diskModel) error {
+func instanceDiskModelAttrTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"volume_uuid":          types.StringType,
+		"offering_uuid":        types.StringType,
+		"size":                 types.Int64Type,
+		"primary_storage_uuid": types.StringType,
+		"ceph_pool_name":       types.StringType,
+		"virtio_scsi":          types.BoolType,
+	}
+}
+
+func syncInstanceDataDisksFromVM(ctx context.Context, state vmInstanceDataSourceModel, vm *view.VmInstanceInventoryView) (vmInstanceDataSourceModel, error) {
+	if state.DataDisks.IsNull() || state.DataDisks.IsUnknown() || len(state.DataDisks.Elements()) == 0 {
+		return state, nil
+	}
+
+	var dataDisks []diskModel
+	if diags := state.DataDisks.ElementsAs(ctx, &dataDisks, false); diags.HasError() {
+		return state, fmt.Errorf("failed decoding data_disks state: %v", diags)
+	}
+
+	dataVolumes := make([]view.VolumeInventoryView, 0, len(vm.AllVolumes))
+	for _, volume := range vm.AllVolumes {
+		if volume.Type == "Data" {
+				dataVolumes = append(dataVolumes, volume)
+		}
+	}
+
+	for i := range dataDisks {
+		if i >= len(dataVolumes) {
+			break
+		}
+		dataDisks[i].VolumeUuid = types.StringValue(dataVolumes[i].UUID)
+		dataDisks[i].PrimaryStorageUuid = types.StringValue(dataVolumes[i].PrimaryStorageUuid)
+	}
+
+	listValue, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: instanceDiskModelAttrTypes()}, dataDisks)
+	if diags.HasError() {
+		return state, fmt.Errorf("failed encoding data_disks state: %v", diags)
+	}
+	state.DataDisks = listValue
+	return state, nil
+}
+
+func normalizeNetworkInterfacesFromVM(vm *view.VmInstanceInventoryView) []NetworkInterfaceModel {
+	networkInterfaces := make([]NetworkInterfaceModel, 0, len(vm.VmNics))
+	for _, nic := range vm.VmNics {
+		networkInterfaces = append(networkInterfaces, NetworkInterfaceModel{
+			L3NetworkUuid: types.StringValue(nic.L3NetworkUuid),
+			DefaultL3:     types.BoolValue(vm.DefaultL3NetworkUuid != "" && nic.L3NetworkUuid == vm.DefaultL3NetworkUuid),
+			StaticIp:      types.StringValue(nic.Ip),
+		})
+	}
+	return networkInterfaces
+}
+
+func buildUpdatedStateFromVM(ctx context.Context, current vmInstanceDataSourceModel, vm *view.VmInstanceInventoryView) (vmInstanceDataSourceModel, error) {
+	updated := current
+	updated.Uuid = types.StringValue(vm.UUID)
+	updated.Name = types.StringValue(vm.Name)
+	updated.Description = stringValueOrNull(vm.Description)
+	updated.ImageUuid = types.StringValue(vm.ImageUuid)
+	updated.MemorySize = types.Int64Value(utils.BytesToMB(vm.MemorySize))
+	updated.CPUNum = types.Int64Value(int64(vm.CpuNum))
+	updated.Platform = stringValueOrNull(vm.Platform)
+	updated.GuestOsType = stringValueOrNull(vm.GuestOsType)
+	updated.Architecture = stringValueOrNull(vm.Architecture)
+
+	var vmNics []NicsModel
+	for _, nic := range vm.VmNics {
+		vmNics = append(vmNics, NicsModel{
+			Uuid:    types.StringValue(nic.UUID),
+			Ip:      types.StringValue(nic.Ip),
+			Netmask: types.StringValue(nic.Netmask),
+			Gateway: types.StringValue(nic.Gateway),
+		})
+	}
+	vmNicsValue, diags := types.ListValueFrom(ctx, types.ObjectType{AttrTypes: networkModelAttrTypes}, vmNics)
+	if diags.HasError() {
+		return current, fmt.Errorf("failed encoding vm_nics state: %v", diags)
+	}
+	updated.VMNics = vmNicsValue
+
+	networkInterfaces := normalizeNetworkInterfacesFromVM(vm)
+	networkInterfacesValue, diags := types.ListValueFrom(ctx, types.ObjectType{
+		AttrTypes: map[string]attr.Type{
+			"l3_network_uuid": types.StringType,
+			"default_l3":      types.BoolType,
+			"static_ip":       types.StringType,
+		},
+	}, networkInterfaces)
+	if diags.HasError() {
+		return current, fmt.Errorf("failed encoding network_interfaces state: %v", diags)
+	}
+	updated.NetworkInterfaces = networkInterfacesValue
+
+	updatedDataDisks, err := syncInstanceDataDisksFromVM(ctx, updated, vm)
+	if err != nil {
+		return current, err
+	}
+
+	return updatedDataDisks, nil
+}
+
+func instanceDataVolumeUUIDsFromState(ctx context.Context, state vmInstanceDataSourceModel) ([]string, error) {
+	if state.DataDisks.IsNull() || state.DataDisks.IsUnknown() || len(state.DataDisks.Elements()) == 0 {
+		return nil, nil
+	}
+
+	var dataDisks []diskModel
+	if diags := state.DataDisks.ElementsAs(ctx, &dataDisks, false); diags.HasError() {
+		return nil, fmt.Errorf("failed decoding data_disks state: %v", diags)
+	}
+
+	volumeUUIDs := make([]string, 0, len(dataDisks))
+	for _, disk := range dataDisks {
+		if disk.VolumeUuid.IsNull() || disk.VolumeUuid.IsUnknown() || disk.VolumeUuid.ValueString() == "" {
+			continue
+		}
+		volumeUUIDs = append(volumeUUIDs, disk.VolumeUuid.ValueString())
+	}
+	return volumeUUIDs, nil
+}
+
+func isDiskParamValid(r *instanceResource, model diskModel) error {
 	if model.PrimaryStorageUuid.IsNull() || model.PrimaryStorageUuid.ValueString() == "" {
 		return nil
 	}
@@ -1142,6 +1359,7 @@ func isDiskParamValid(r *vmResource, model diskModel) error {
 	return nil
 }
 
-func (r *vmResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *instanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
+

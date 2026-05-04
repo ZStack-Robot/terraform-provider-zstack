@@ -27,6 +27,59 @@ func decrementIP(ip net.IP) net.IP {
 	return result
 }
 
+func TestAccReservedIpResource_disappears(t *testing.T) {
+	env := loadEnvData(t)
+
+	var l3UUID, startIP, endIP string
+	for _, l3 := range env.L3Networks {
+		if envStr(l3, "category") != "Public" {
+			continue
+		}
+		l3uuid := envStr(l3, "uuid")
+		for _, ipr := range env.IpRanges {
+			if envStr(ipr, "l3_network_uuid") == l3uuid {
+				l3UUID = l3uuid
+				startIP = envStr(ipr, "start_ip")
+				endIP = envStr(ipr, "end_ip")
+				break
+			}
+		}
+		if l3UUID != "" {
+			break
+		}
+	}
+
+	if l3UUID == "" || startIP == "" || endIP == "" {
+		t.Skip("no Public L3 network with IP range found in env data")
+	}
+
+	end := net.ParseIP(endIP)
+	if end == nil {
+		t.Fatalf("cannot parse end_ip %q", endIP)
+	}
+	reserveEnd := end.String()
+	reserveStart := decrementIP(end.To4()).String()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckReservedIpDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+				resource "zstack_reserved_ip" "test" {
+					l3_network_uuid = %q
+					start_ip = %q
+					end_ip   = %q
+				}`, l3UUID, reserveStart, reserveEnd),
+				ConfigStateChecks: []statecheck.StateCheck{
+					stateCheckReservedIpDisappears("zstack_reserved_ip.test"),
+				},
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func TestAccReservedIpResource(t *testing.T) {
 	env := loadEnvData(t)
 
@@ -83,7 +136,7 @@ func TestAccReservedIpResource(t *testing.T) {
 			{
 				ResourceName:      "zstack_reserved_ip.test",
 				ImportState:       true,
-				ImportStateIdFunc:       importStateUUID("zstack_reserved_ip.test"),
+				ImportStateIdFunc:       importStateIdFromUUID("zstack_reserved_ip.test"),
 				ImportStateVerify: true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 			},

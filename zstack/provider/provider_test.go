@@ -4,16 +4,19 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 // Run go testing with TF_ACC environment variable set. Edit vscode settings.json and insert
@@ -76,6 +79,14 @@ func providerConfig() string {
 	)
 }
 
+func testAccName(base string) string {
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return fmt.Sprintf("acc-test-%s-%d", base, time.Now().UnixNano())
+	}
+	return fmt.Sprintf("acc-test-%s-%s", base, hex.EncodeToString(randomBytes))
+}
+
 var (
 	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 		"zstack": providerserver.NewProtocol6WithError(New("test")()),
@@ -93,7 +104,7 @@ func testAccClient() *client.ZSClient {
 	akSecret := os.Getenv("ZSTACK_ACCESS_KEY_SECRET")
 
 	if akID != "" && akSecret != "" {
-		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(true).Debug(false))
+		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(false).Debug(false))
 	}
 
 	return client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
@@ -107,15 +118,15 @@ func testAccClientLoggedIn() *client.ZSClient {
 	if os.Getenv("ZSTACK_ACCESS_KEY_ID") == "" {
 		// Account/password auth requires explicit login
 		if _, err := cli.Login(context.Background()); err != nil {
-			log.Fatalf("testAccClientLoggedIn: login failed: %v", err)
+			panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
 		}
 	}
 	return cli
 }
 
-// importStateUUID returns an ImportStateIdFunc that reads the "uuid" attribute
+// importStateIdFromUUID returns an ImportStateIdFunc that reads the "uuid" attribute
 // from state. Use this for resources that use "uuid" instead of "id".
-func importStateUUID(resourceName string) resource.ImportStateIdFunc {
+func importStateIdFromUUID(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		rs, ok := s.RootModule().Resources[resourceName]
 		if !ok {
@@ -153,6 +164,39 @@ func testAccCheckResourceDestroyByGet(resourceType string, getFunc func(cli *cli
 			}
 			if !isZStackNotFoundError(err) {
 				return fmt.Errorf("error checking %s %s destroyed: %w", resourceType, id, err)
+			}
+		}
+		return nil
+	}
+}
+
+// testAccCheckResourceDestroyByQuery returns a CheckDestroy function for resources
+// that can be verified via a Query<Resource>(params) SDK call.
+func testAccCheckResourceDestroyByQuery[T any](resourceType string, queryFunc func(cli *client.ZSClient, q *param.QueryParam) ([]T, error)) func(*terraform.State) error {
+	return func(s *terraform.State) error {
+		cli := testAccClientLoggedIn()
+		for _, rs := range s.RootModule().Resources {
+			if rs.Type != resourceType {
+				continue
+			}
+			id := rs.Primary.Attributes["uuid"]
+			if id == "" {
+				id = rs.Primary.ID
+			}
+			if id == "" {
+				continue
+			}
+			q := param.NewQueryParam()
+			q.AddQ(fmt.Sprintf("uuid=%s", id))
+			items, err := queryFunc(cli, &q)
+			if err != nil {
+				if isZStackNotFoundError(err) {
+					continue
+				}
+				return fmt.Errorf("error checking %s %s destroyed: %w", resourceType, id, err)
+			}
+			if len(items) > 0 {
+				return fmt.Errorf("%s %s still exists", resourceType, id)
 			}
 		}
 		return nil

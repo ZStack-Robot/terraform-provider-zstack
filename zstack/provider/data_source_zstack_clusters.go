@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"terraform-provider-zstack/zstack/utils"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -28,6 +31,7 @@ type clusterDataSource struct {
 }
 
 type clusterDataSourceModel struct {
+	Uuid        types.String   `tfsdk:"uuid"`
 	Name        types.String   `tfsdk:"name"`
 	NamePattern types.String   `tfsdk:"name_pattern"`
 	Filter      []Filter       `tfsdk:"filter"`
@@ -67,24 +71,29 @@ func (d *clusterDataSource) Metadata(_ context.Context, req datasource.MetadataR
 
 func (d *clusterDataSource) Schema(_ context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a list of clusters and their associated attributes.",
+		Description: "Fetches a list of clusters and their associated attributes. " +
+			"For automation / AI-generated configurations, prefer `uuid` for stable, deterministic lookups.",
 		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{
+				Description: "Exact UUID lookup. Recommended for automation: stable across renames, " +
+					"deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(
+						path.MatchRoot("name"),
+						path.MatchRoot("name_pattern"),
+					),
+				},
+			},
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching Cluster",
 				Optional:    true,
-			},
-			"name_pattern": schema.StringAttribute{
-				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-				Optional:    true,
-			},
-			/*
-				"filter": schema.MapAttribute{
-					Description: "Key-value pairs to filter Clusters. For example, to filter by CPU Architecture, use `Architecture = \"x86_64\"`.",
-					Optional:    true,
-					ElementType: types.StringType,
-				},
-			*/
-			"clusters": schema.ListNestedAttribute{
+		},
+		"name_pattern": schema.StringAttribute{
+			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+			Optional:    true,
+		},
+		"clusters": schema.ListNestedAttribute{
 				Description: "List of clusters matching the specified filters",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{
@@ -148,15 +157,8 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	diags := req.Config.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 
-	//name_regex := state.Name_pattern
 	params := param.NewQueryParam()
-
-	// 优先检查 `name` 精确查询
-	if !state.Name.IsNull() {
-		params.AddQ("name=" + state.Name.ValueString())
-	} else if !state.NamePattern.IsNull() {
-		params.AddQ("name~=" + state.NamePattern.ValueString())
-	}
+	applyUuidOrNameFilter(&params, state.Uuid, state.Name, state.NamePattern)
 
 	//images, err := d.client.QueryImage(&params)
 
@@ -168,24 +170,6 @@ func (d *clusterDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		)
 		return
 	}
-	/*
-	   filters := make(map[string]string)
-
-	   	if !state.Filter.IsNull() {
-	   		diags := state.Filter.ElementsAs(ctx, &filters, false)
-	   		resp.Diagnostics.Append(diags...)
-	   		if resp.Diagnostics.HasError() {
-	   			return
-	   		}
-	   	}
-
-	   filterClusters, filterDiags := utils.FilterResource(ctx, clusters, filters)
-	   resp.Diagnostics.Append(filterDiags...)
-
-	   	if resp.Diagnostics.HasError() {
-	   		return
-	   	}
-	*/
 	filters := make(map[string][]string)
 	for _, filter := range state.Filter {
 		values := make([]string, 0, len(filter.Values.Elements()))
