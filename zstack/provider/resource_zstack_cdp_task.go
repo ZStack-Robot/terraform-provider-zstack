@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var (
@@ -236,9 +238,30 @@ func (r *cdpTaskResource) Read(ctx context.Context, req resource.ReadRequest, re
 	state.MaxLatency = types.Int64Value(item.MaxLatency)
 	state.Status = stringValueOrNull(item.Status)
 	state.State = stringValueOrNull(item.State)
+	state.ResourceUuids = cdpTaskResourceUuidsFromRefs(ctx, item.ResourceRefs, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+}
+
+func cdpTaskResourceUuidsFromRefs(ctx context.Context, refs []view.CdpTaskResourceRefInventoryView, diags *diag.Diagnostics) types.List {
+	resourceUuids := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.ResourceUuid == "" {
+			continue
+		}
+		resourceUuids = append(resourceUuids, ref.ResourceUuid)
+	}
+
+	result, d := types.ListValueFrom(ctx, types.StringType, resourceUuids)
+	diags.Append(d...)
+	if d.HasError() {
+		return types.ListUnknown(types.StringType)
+	}
+	return result
 }
 
 func (r *cdpTaskResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -301,7 +324,6 @@ func (r *cdpTaskResource) Delete(ctx context.Context, req resource.DeleteRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 
 	if err := r.client.DeleteCdpTask(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError("Error deleting CDP Task", "Could not delete CDP task, unexpected error: "+err.Error())

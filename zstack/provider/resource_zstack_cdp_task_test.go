@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 func TestCdpTaskResource_Schema(t *testing.T) {
@@ -51,6 +53,27 @@ func TestCdpTaskResource_Metadata(t *testing.T) {
 	r.Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "zstack"}, resp)
 	if resp.TypeName != "zstack_cdp_task" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
+	}
+}
+
+func TestCdpTaskResource_ResourceUuidsFromRefs(t *testing.T) {
+	var diags diag.Diagnostics
+	got := cdpTaskResourceUuidsFromRefs(context.Background(), []view.CdpTaskResourceRefInventoryView{
+		{ResourceUuid: "vol-1"},
+		{ResourceUuid: ""},
+		{ResourceUuid: "vol-2"},
+	}, &diags)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	var values []string
+	diags.Append(got.ElementsAs(context.Background(), &values, false)...)
+	if diags.HasError() {
+		t.Fatalf("unexpected decode diagnostics: %v", diags)
+	}
+	if len(values) != 2 || values[0] != "vol-1" || values[1] != "vol-2" {
+		t.Fatalf("unexpected resource UUIDs: %#v", values)
 	}
 }
 
