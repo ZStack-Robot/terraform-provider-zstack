@@ -19,11 +19,11 @@ This resource allows you to manage SNS email endpoints in ZStack. An SNS email e
 
 - `email` (String) The email address for the SNS email endpoint.
 - `name` (String) The name of the SNS email endpoint.
+- `platform_uuid` (String) The UUID of the SNS platform.
 
 ### Optional
 
 - `description` (String) A description for the SNS email endpoint.
-- `platform_uuid` (String) The UUID of the SNS platform.
 
 ### Read-Only
 

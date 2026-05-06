@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
@@ -354,17 +355,25 @@ func testAccCheckSecGroupAttachmentDestroy(s *terraform.State) error {
 		if sgUUID == "" || nicUUID == "" {
 			continue
 		}
-		candidate, err := cli.GetCandidateVmNicForSecurityGroup(sgUUID)
-		if err != nil {
-			if isZStackNotFoundError(err) {
-				continue
+		for attempt := 0; attempt < 10; attempt++ {
+			q := param.NewQueryParam()
+			q.AddQ("securityGroupUuid=" + sgUUID)
+			q.AddQ("vmNicUuid=" + nicUUID)
+			refs, err := cli.QueryVmNicInSecurityGroup(&q)
+			if err != nil {
+				if isZStackNotFoundError(err) {
+					break
+				}
+				return fmt.Errorf("error checking secgroup attachment destroyed: %w", err)
 			}
-			return fmt.Errorf("error checking secgroup attachment destroyed: %w", err)
+			if len(refs) == 0 {
+				break
+			}
+			if attempt == 9 {
+				return fmt.Errorf("zstack_networking_secgroup_attachment %s/%s still attached", sgUUID, nicUUID)
+			}
+			time.Sleep(2 * time.Second)
 		}
-		if candidate != nil && candidate.UUID == nicUUID {
-			continue
-		}
-		return fmt.Errorf("zstack_networking_secgroup_attachment %s/%s still attached", sgUUID, nicUUID)
 	}
 	return nil
 }

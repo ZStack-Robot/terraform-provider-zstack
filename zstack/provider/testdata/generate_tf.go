@@ -53,44 +53,44 @@ type EnvData struct {
 	IscsiServers             []map[string]interface{} `json:"iscsi_servers"`
 
 	// Network
-	L2Networks           []map[string]interface{} `json:"l2_networks"`
-	L2VlanNetworks       []map[string]interface{} `json:"l2_vlan_networks"`
-	L3Networks           []map[string]interface{} `json:"l3_networks"`
-	IpRanges             []map[string]interface{} `json:"ip_ranges"`
-	Vips                 []map[string]interface{} `json:"vips"`
-	Eips                 []map[string]interface{} `json:"eips"`
-	PortForwardingRules  []map[string]interface{} `json:"port_forwarding_rules"`
-	LoadBalancers        []map[string]interface{} `json:"load_balancers"`
+	L2Networks            []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks            []map[string]interface{} `json:"l3_networks"`
+	IpRanges              []map[string]interface{} `json:"ip_ranges"`
+	Vips                  []map[string]interface{} `json:"vips"`
+	Eips                  []map[string]interface{} `json:"eips"`
+	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
 	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
-	SecurityGroups       []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules   []map[string]interface{} `json:"security_group_rules"`
-	VmNics               []map[string]interface{} `json:"vm_nics"`
-	AccessControlLists   []map[string]interface{} `json:"access_control_lists"`
-	Certificates         []map[string]interface{} `json:"certificates"`
-	FlowCollectors       []map[string]interface{} `json:"flow_collectors"`
-	FlowMeters           []map[string]interface{} `json:"flow_meters"`
-	IPSecConnections     []map[string]interface{} `json:"ipsec_connections"`
-	MulticastRouters     []map[string]interface{} `json:"multicast_routers"`
-	PolicyRouteRuleSets  []map[string]interface{} `json:"policy_route_rule_sets"`
-	PolicyRouteRules     []map[string]interface{} `json:"policy_route_rules"`
-	VpcFirewalls         []map[string]interface{} `json:"vpc_firewalls"`
-	VpcHaGroups          []map[string]interface{} `json:"vpc_ha_groups"`
-	VpcSharedQos         []map[string]interface{} `json:"vpc_shared_qos"`
-	VRouterRouteTables   []map[string]interface{} `json:"vrouter_route_tables"`
-	VRouterRouteEntries  []map[string]interface{} `json:"vrouter_route_entries"`
+	SecurityGroups        []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
+	VmNics                []map[string]interface{} `json:"vm_nics"`
+	AccessControlLists    []map[string]interface{} `json:"access_control_lists"`
+	Certificates          []map[string]interface{} `json:"certificates"`
+	FlowCollectors        []map[string]interface{} `json:"flow_collectors"`
+	FlowMeters            []map[string]interface{} `json:"flow_meters"`
+	IPSecConnections      []map[string]interface{} `json:"ipsec_connections"`
+	MulticastRouters      []map[string]interface{} `json:"multicast_routers"`
+	PolicyRouteRuleSets   []map[string]interface{} `json:"policy_route_rule_sets"`
+	PolicyRouteRules      []map[string]interface{} `json:"policy_route_rules"`
+	VpcFirewalls          []map[string]interface{} `json:"vpc_firewalls"`
+	VpcHaGroups           []map[string]interface{} `json:"vpc_ha_groups"`
+	VpcSharedQos          []map[string]interface{} `json:"vpc_shared_qos"`
+	VRouterRouteTables    []map[string]interface{} `json:"vrouter_route_tables"`
+	VRouterRouteEntries   []map[string]interface{} `json:"vrouter_route_entries"`
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
-	Accounts         []map[string]interface{} `json:"accounts"`
-	IAM2Projects     []map[string]interface{} `json:"iam2_projects"`
-	AccessKeys       []map[string]interface{} `json:"access_keys"`
+	Accounts          []map[string]interface{} `json:"accounts"`
+	IAM2Projects      []map[string]interface{} `json:"iam2_projects"`
+	AccessKeys        []map[string]interface{} `json:"access_keys"`
 	IAM2Organizations []map[string]interface{} `json:"iam2_organizations"`
-	IAM2VirtualIDs   []map[string]interface{} `json:"iam2_virtual_ids"`
-	Roles            []map[string]interface{} `json:"roles"`
-	Users            []map[string]interface{} `json:"users"`
+	IAM2VirtualIDs    []map[string]interface{} `json:"iam2_virtual_ids"`
+	Roles             []map[string]interface{} `json:"roles"`
+	Users             []map[string]interface{} `json:"users"`
 
 	// Monitoring
 	Alarms            []map[string]interface{} `json:"alarms"`
@@ -99,6 +99,7 @@ type EnvData struct {
 	MonitorGroups     []map[string]interface{} `json:"monitor_groups"`
 	MonitorTemplates  []map[string]interface{} `json:"monitor_templates"`
 	SNSEmailEndpoints []map[string]interface{} `json:"sns_email_endpoints"`
+	SNSEmailPlatforms []map[string]interface{} `json:"sns_email_platforms"`
 	SNSTopics         []map[string]interface{} `json:"sns_topics"`
 	SnmpAgents        []map[string]interface{} `json:"snmp_agents"`
 	Webhooks          []map[string]interface{} `json:"webhooks"`
@@ -116,12 +117,12 @@ type EnvData struct {
 	MnNodes          []map[string]interface{} `json:"mn_nodes"`
 
 	// Automation
-	LdapServers       []map[string]interface{} `json:"ldap_servers"`
-	PortMirrors       []map[string]interface{} `json:"port_mirrors"`
+	LdapServers        []map[string]interface{} `json:"ldap_servers"`
+	PortMirrors        []map[string]interface{} `json:"port_mirrors"`
 	PortMirrorSessions []map[string]interface{} `json:"port_mirror_sessions"`
-	PriceTables       []map[string]interface{} `json:"price_tables"`
-	SchedulerJobs     []map[string]interface{} `json:"scheduler_jobs"`
-	SchedulerTriggers []map[string]interface{} `json:"scheduler_triggers"`
+	PriceTables        []map[string]interface{} `json:"price_tables"`
+	SchedulerJobs      []map[string]interface{} `json:"scheduler_jobs"`
+	SchedulerTriggers  []map[string]interface{} `json:"scheduler_triggers"`
 }
 
 // ---------------------------------------------------------------------------
@@ -227,9 +228,9 @@ func incrementIP(ipStr string, offset int) string {
 
 // providerBinDir returns the directory containing the locally compiled
 // terraform-provider-zstack binary.  Resolution order:
-//   1. GOBIN  (if set)
-//   2. GOPATH/bin  (if GOPATH set)
-//   3. ~/go/bin    (Go default)
+//  1. GOBIN  (if set)
+//  2. GOPATH/bin  (if GOPATH set)
+//  3. ~/go/bin    (Go default)
 func providerBinDir() string {
 	if d := os.Getenv("GOBIN"); d != "" {
 		return d
@@ -1059,16 +1060,24 @@ output "uuid" {
 		{
 			name: "res-sns_email_endpoint",
 			fn: func(env *EnvData) (string, bool, string) {
-				return `resource "zstack_sns_email_endpoint" "test" {
-  name        = "tf-batch-test-sns-email"
-  email       = "test@example.com"
-  description = "[batch-test] SNS email endpoint"
+				if len(env.SNSEmailPlatforms) == 0 {
+					return "", false, "no SNS email platforms available"
+				}
+				platformUUID := getStr(env.SNSEmailPlatforms[0], "uuid")
+				if platformUUID == "" {
+					return "", false, "SNS email platform UUID empty"
+				}
+				return fmt.Sprintf(`resource "zstack_sns_email_endpoint" "test" {
+  name          = "tf-batch-test-sns-email"
+  email         = "test@example.com"
+  description   = "[batch-test] SNS email endpoint"
+  platform_uuid = %q
 }
 
 output "uuid" {
   value = zstack_sns_email_endpoint.test.uuid
 }
-`, true, ""
+`, platformUUID), true, ""
 			},
 		},
 	}

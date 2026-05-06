@@ -65,12 +65,10 @@ func (r *accessKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				},
 			},
 			"user_uuid": schema.StringAttribute{
-				Description: "The UUID of the user that owns the access key. If omitted, the ZStack API attaches the key to the calling user. The server-assigned value is reflected back into state.",
-				Optional:    true,
-				Computed:    true,
+				Description: "The UUID of the user that owns the access key.",
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-					stringplanmodifier.RequiresReplaceIfConfigured(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"description": schema.StringAttribute{
