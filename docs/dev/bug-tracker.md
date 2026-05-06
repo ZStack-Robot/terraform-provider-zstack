@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；BUG-088 归类为 SDK `AttachTagToResources` event envelope 解包 bug；BUG-089/090/091 已修；secgroup attachment `Get: key not found` 仍 Open；所有成功/部分成功创建的 test resources 已 destroy 清理）
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；provider 升级 `zstack-sdk-go-v2` 到 v0.0.8，BUG-087/088 SDK event response unwrap 已修；BUG-089/090/091 已修；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
@@ -90,8 +90,8 @@
 | BUG-084 | P1 | ✅ Fixed in SDK v0.0.6 + Provider workaround removed (2026-04-27) | `UpdateVmInstance` 同 BUG-068 的根因（PostWithAsync/PutWithAsync 用 stdlib `json.Unmarshal` 解 inventory 子树）。SDK v0.0.6 修好后 provider 端 `isSDKTimeParseError` helper + Update 里的 swallow 分支已删除（resource_zstack_instance.go），保留 `findResourceByGet(GetVmInstance)` 兜底（成本忽略，作为 state 一致性保险）。real-env RUN_ID `r144465c0a` v0.0.6 + 清理后 Create(4) + Update v1↔v2 双向各 2 changed + Destroy(4) 全过。原 BUG-NEW-118 / SDK-WA-006。 |
 | BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
 | BUG-086 | P0 | ⏸ Won't Fix / Removed from provider registry (2026-05-06) | `zstack_resource_stack` 是 ZStack Resource Stack / CloudFormation-style 编排入口，与 Terraform 原生资源编排模型重叠；`zstack_stack_template` 同属其模板接口；二者先从 provider 注册器移除，不再投入修复/推广。 |
-| BUG-087 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`。 |
-| BUG-088 | P1 | 🔲 Open / SDK bug (confirmed 2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；provider 入参已正确传 `resourceUuids`，根因是 SDK `cli.Post()` 默认按 `inventory` 解包，但该 API 返回 event 顶层 `success/results`。 |
+| BUG-087 | P1 | ✅ Fixed in SDK v0.0.8 (2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`；SDK v0.0.8 改为 `PostWithAsync(..., responseKey="", ...)` 解 event/empty response，provider 已升级依赖。 |
+| BUG-088 | P1 | ✅ Fixed in SDK v0.0.8 (2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；SDK v0.0.8 改为 `PostWithAsync(..., responseKey="", ...)` 解 event response，provider 已升级依赖。 |
 | BUG-089 | P1 | ✅ Fixed (2026-05-06) | `zstack_access_key.user_uuid` 改为 Required + RequiresReplace，docs/schema tests 同步；避免不传 `user_uuid` 时 API 拒绝 `field[userUuid] ... is mandatory, can not be null`。 |
 | BUG-090 | P1 | ✅ Fixed (2026-05-06) | `data.zstack_license_authorized_nodes` 移除不受 API 支持的 `name` / `name_pattern` 查询字段，仅保留 `uuid` 与本地 `filter`；Read 初始化 `nodes` 为空 list，避免无结果时为 null。 |
 | BUG-091 | P1 | ✅ Fixed (2026-05-06) | `zstack_sns_email_endpoint.platform_uuid` 改为 Required + RequiresReplace，docs/schema tests/test generators 同步；避免省略 platform 时 API 返回 `id to load is required for loading`。 |
@@ -123,19 +123,20 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 ### BUG-087 — `zstack_networking_secgroup_attachment` fails with `Get: key not found`
 
 - **Severity**: P1
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed in SDK v0.0.8 (2026-05-06)
 - **File**: `zstack/provider/resource_zstack_networking_secgroup_attachment.go`
+- **SDK file**: `github.com/zstackio/zstack-sdk-go-v2/pkg/client/other_actions.go`
 - **Confirmed by**: creating a new security group and attaching it to an existing private NIC on L3 `l3-private-1`
 
 **Observed**: Create failed during add:
 `Could not add VM NIC to security group: Get: key not found`
 
-**Note**: A public NIC first failed correctly because its L3 did not enable SecurityGroup service. Retesting with a valid private NIC reproduced `Get: key not found`, so this is not just invalid input. Likely provider/SDK response parsing assumes a missing response key.
+**Root cause / fix**: provider Create correctly sends `AddVmNicToSecurityGroupParam.Params.VmNicUuids`. SDK v0.0.7 called `cli.Post("v1/security-groups/{uuid}/vm-instances/nics", params, &resp)`, which forced `inventory` response-key unmarshal even though this API returns an event/empty response. SDK v0.0.8 changes the call to `PostWithAsync(..., responseKey="", ...)`, so top-level/empty event responses no longer fail with `Get: key not found`. Provider has been upgraded to `zstack-sdk-go-v2 v0.0.8`.
 
 ### BUG-088 — SDK `AttachTagToResources` unwraps event response with wrong key
 
 - **Severity**: P1
-- **Status**: 🔲 Open / SDK bug
+- **Status**: ✅ Fixed in SDK v0.0.8 (2026-05-06)
 - **Provider file**: `zstack/provider/resource_zstack_tag_attachment.go`
 - **SDK file**: `github.com/zstackio/zstack-sdk-go-v2/pkg/client/other_actions.go`
 - **Confirmed by**: creating `zstack_tag` and attaching it to the real zone UUID
@@ -143,9 +144,9 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 **Observed**: `zstack_tag` Create succeeded, then `zstack_tag_attachment` failed:
 `Error attaching tag: Get: key not found`
 
-**Root cause**: provider Create correctly builds `AttachTagToResourcesParam.Params.ResourceUuids` and calls SDK `AttachTagToResources`. SDK v0.0.7 implements that method with `cli.Post("v1/tags/{tagUuid}/resources", params, &resp)`. `ZSHttpClient.Post()` always delegates to `PostWithRespKey(..., responseKeyInventory, ...)`, so it expects the response body to contain an `inventory` key. `AttachTagToResourcesEventView` is an event view with top-level `success` / `results`, so responses without `inventory` fail inside SDK JSON unwrap with `Get: key not found`.
+**Root cause / fix**: provider Create correctly builds `AttachTagToResourcesParam.Params.ResourceUuids` and calls SDK `AttachTagToResources`. SDK v0.0.7 implemented that method with `cli.Post("v1/tags/{tagUuid}/resources", params, &resp)`. `ZSHttpClient.Post()` delegates to `PostWithRespKey(..., responseKeyInventory, ...)`, so it expected an `inventory` key. `AttachTagToResourcesEventView` is an event view with top-level `success` / `results`, so responses without `inventory` failed inside SDK JSON unwrap with `Get: key not found`. SDK v0.0.8 changes this method to `PostWithAsync(..., responseKey="", ...)`; provider has been upgraded to `zstack-sdk-go-v2 v0.0.8`.
 
-**Disposition**: classify the Create failure as an SDK bug, not a provider request-shaping bug. SDK should call `PostWithRespKey(..., "", ...)` for this event-style API or otherwise unwrap top-level event bodies. Provider should still harden Read later for multi-resource attachments, because current Read refreshes through `GetUserTag(tagUuid)` and only maps one `ResourceUuid`.
+**Provider follow-up**: the Create failure is fixed by the SDK upgrade. Provider Read can still be hardened later for multi-resource attachments, because current Read refreshes through `GetUserTag(tagUuid)` and only maps one `ResourceUuid`; that is separate from this SDK unwrap bug.
 
 ### BUG-089 — `zstack_access_key.user_uuid` is effectively required
 
@@ -1275,9 +1276,9 @@ func stringPtrOrNil(s string) *string {
 > **目的**：所有 provider 代码里"绕过 SDK bug"的地方集中登记。每条都标识：(1) SDK 哪里坏了；(2) provider 怎么绕；(3) 上游修好后这里要回收的代码位置。
 >
 > **生成日期**: 2026-04-25（SDK v0.0.4 基线）  
-> **更新**: 2026-05-06 — BUG-088 归类为 SDK `AttachTagToResources` event response unwrap bug；provider 侧暂无 workaround，待 SDK 修复或显式绕过。
+> **更新**: 2026-05-06 — provider 升级到 SDK v0.0.8；BUG-087 / BUG-088 的 event response unwrap bug 已由 SDK 修复。
 >
-> **当前 provider SDK pin**: `github.com/zstackio/zstack-sdk-go-v2 v0.0.7`
+> **当前 provider SDK pin**: `github.com/zstackio/zstack-sdk-go-v2 v0.0.8`
 > **当前登记 7 类 SDK bug/workaround，含已修复、已回收和仍 Open 项**
 
 | 编号 | 上游 SDK 状态 | Provider 当前状态 |
@@ -1288,7 +1289,7 @@ func stringPtrOrNil(s string) *string {
 | **SDK-WA-004** | — (设计差异，非 bug) | 保留作 adapter 层 |
 | **SDK-WA-005** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround N/A (vip_qos was skipped, 可重新启用) | 13-misc-ops 跳过 vip_qos 的注释可去除，加回真实 Create+Destroy 用例 |
 | **SDK-WA-006** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround **REMOVED** | `isSDKTimeParseError` helper + `resource_zstack_instance.go` / `resource_zstack_image.go` Update 路径的 swallow-then-`findResourceByGet` 分支已清除；保留 `findResourceByGet(GetVmInstance)` / `findResourceByGet(GetImage)` 作 state 一致性兜底 |
-| **SDK-WA-007** | 🔲 Open — `AttachTagToResources` should unwrap event response without `inventory` | Provider 暂无 workaround；`zstack_tag_attachment` Create 当前被 SDK `Get: key not found` 阻断。修 SDK 后仍需补 provider Read 对多 resource attachment 的健壮性 |
+| **SDK-WA-007** | ✅ Fixed in SDK v0.0.8 (2026-05-06) — `AddVmNicToSecurityGroup` / `AttachTagToResources` unwrap event responses without `inventory` | Provider upgraded to v0.0.8; no provider-side create workaround needed. Optional future hardening remains for `zstack_tag_attachment` Read with multi-resource attachments |
 
 ---
 
