@@ -4,6 +4,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -21,7 +22,7 @@ func TestSnsEmailEndpointResource_Schema(t *testing.T) {
 		t.Fatal("schema should not be empty")
 	}
 	// Check required attributes
-	required := []string{"name", "email"}
+	required := []string{"name", "email", "platform_uuid"}
 	for _, attr := range required {
 		a, ok := resp.Schema.Attributes[attr]
 		if !ok {
@@ -54,19 +55,24 @@ func TestSnsEmailEndpointResource_Metadata(t *testing.T) {
 }
 
 func TestAccSNSEmailEndpointResource(t *testing.T) {
-	_ = loadEnvData(t)
+	envData := loadEnvData(t)
+	if len(envData.SNSEmailPlatforms) == 0 {
+		t.Skip("no SNS email platforms in env.json")
+	}
+	platformUUID := envData.SNSEmailPlatforms[0]["uuid"].(string)
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckSNSEmailEndpointDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: providerConfig() + `
+				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_sns_email_endpoint" "test" {
-  name  = "acc-test-email-endpoint"
-  email = "test@example.com"
+  name          = "acc-test-email-endpoint"
+  email         = "test@example.com"
+  platform_uuid = %q
 }
-`,
+`, platformUUID),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_sns_email_endpoint.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_sns_email_endpoint.test", tfjsonpath.New("name"), knownvalue.StringExact("acc-test-email-endpoint")),

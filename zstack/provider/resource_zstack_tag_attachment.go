@@ -24,7 +24,7 @@ import (
 type tagClient interface {
 	AttachTagToResources(tagUuid string, params param.AttachTagToResourcesParam) (*view.AttachTagToResourcesEventView, error)
 	DetachTagFromResources(uuid string, deleteMode param.DeleteMode, resourceUuids []string) error
-	GetUserTag(uuid string) (*view.UserTagInventoryView, error)
+	QueryUserTag(params *param.QueryParam) ([]view.UserTagInventoryView, error)
 }
 
 // zstackTagClient adapts *client.ZSClient to the tagClient interface.
@@ -40,8 +40,8 @@ func (c *zstackTagClient) AttachTagToResources(tagUuid string, params param.Atta
 	return c.ZSClient.AttachTagToResources(tagUuid, params)
 }
 
-func (c *zstackTagClient) GetUserTag(uuid string) (*view.UserTagInventoryView, error) {
-	return c.ZSClient.GetUserTag(uuid)
+func (c *zstackTagClient) QueryUserTag(params *param.QueryParam) ([]view.UserTagInventoryView, error) {
+	return c.ZSClient.QueryUserTag(params)
 }
 
 var (
@@ -183,7 +183,10 @@ func (r *tagAttachmentResource) Read(ctx context.Context, request resource.ReadR
 		response.Diagnostics.AddError("Tag UUID is empty", "Cannot read tag attachment without a valid tag UUID.")
 		return
 	}
-	result, err := r.client.GetUserTag(tagUuid)
+	desiredResourceUuids := extractResourceUuids(state.ResourceUuids)
+	q := param.NewQueryParam()
+	q.AddQ("tagPatternUuid=" + tagUuid)
+	results, err := r.client.QueryUserTag(&q)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Unable to Read Tag Binding",
@@ -191,13 +194,26 @@ func (r *tagAttachmentResource) Read(ctx context.Context, request resource.ReadR
 		)
 		return
 	}
-	if result == nil || result.UUID == "" {
+
+	desired := make(map[string]struct{}, len(desiredResourceUuids))
+	for _, uuid := range desiredResourceUuids {
+		desired[uuid] = struct{}{}
+	}
+
+	resourceUuids := make([]string, 0, len(desiredResourceUuids))
+	for _, result := range results {
+		if result.UUID == "" || result.ResourceUuid == "" {
+			continue
+		}
+		if _, ok := desired[result.ResourceUuid]; ok {
+			resourceUuids = append(resourceUuids, result.ResourceUuid)
+		}
+	}
+
+	if len(resourceUuids) == 0 {
 		response.State.RemoveResource(ctx)
 		return
 	}
-
-	var resourceUuids []string
-	resourceUuids = append(resourceUuids, result.ResourceUuid)
 
 	// Update state.ResourceUuids
 	var resourceUuidsValues []attr.Value

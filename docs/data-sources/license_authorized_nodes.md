@@ -3,12 +3,12 @@
 page_title: "zstack_license_authorized_nodes Data Source - terraform-provider-zstack"
 subcategory: ""
 description: |-
-  Query ZStack License Authorized Nodes by name, name pattern, or additional filters.
+  Query ZStack License Authorized Nodes by UUID or additional local filters.
 ---
 
 # zstack_license_authorized_nodes (Data Source)
 
-Query ZStack License Authorized Nodes by name, name pattern, or additional filters.
+Query ZStack License Authorized Nodes by UUID or additional local filters.
 
 
 
@@ -17,10 +17,8 @@ Query ZStack License Authorized Nodes by name, name pattern, or additional filte
 
 ### Optional
 
-- `filter` (Block List) Filter results by field values. (see [below for nested schema](#nestedblock--filter))
-- `name` (String) Exact name for querying.
-- `name_pattern` (String) Pattern for fuzzy matching names.
-- `uuid` (String) Exact UUID lookup. Recommended for automation: stable across renames, deterministic (0 or 1 match), idempotent. Mutually exclusive with `name` / `name_pattern`.
+- `filter` (Block List) Filter results locally by returned field values such as `uuid`, `app_id`, `ip`, `status`, or `type`. (see [below for nested schema](#nestedblock--filter))
+- `uuid` (String) Exact UUID lookup. Recommended for automation: stable, deterministic (0 or 1 match), and idempotent.
 
 ### Read-Only
 
@@ -31,7 +29,7 @@ Query ZStack License Authorized Nodes by name, name pattern, or additional filte
 
 Required:
 
-- `name` (String) Name of the field to filter by.
+- `name` (String) Name of the returned field to filter by.
 - `values` (Set of String) List of values to match.
 
 
