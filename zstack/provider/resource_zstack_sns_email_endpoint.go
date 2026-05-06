@@ -103,8 +103,7 @@ func (r *snsEmailEndpointResource) Schema(_ context.Context, request resource.Sc
 				},
 			},
 			"platform_uuid": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
+				Required:    true,
 				Description: "The UUID of the SNS platform.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

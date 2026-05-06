@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；BUG-088 归类为 SDK `AttachTagToResources` event envelope 解包 bug；secgroup attachment `Get: key not found`、access_key missing `userUuid`、license_authorized_nodes name filter/schema mismatch、sns_email_endpoint missing platform/id path 仍 Open；所有成功/部分成功创建的 test resources 已 destroy 清理）
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；BUG-088 归类为 SDK `AttachTagToResources` event envelope 解包 bug；BUG-089/090/091 已修；secgroup attachment `Get: key not found` 仍 Open；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
@@ -93,8 +93,8 @@
 | BUG-087 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`。 |
 | BUG-088 | P1 | 🔲 Open / SDK bug (confirmed 2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；provider 入参已正确传 `resourceUuids`，根因是 SDK `cli.Post()` 默认按 `inventory` 解包，但该 API 返回 event 顶层 `success/results`。 |
 | BUG-089 | P1 | ✅ Fixed (2026-05-06) | `zstack_access_key.user_uuid` 改为 Required + RequiresReplace，docs/schema tests 同步；避免不传 `user_uuid` 时 API 拒绝 `field[userUuid] ... is mandatory, can not be null`。 |
-| BUG-090 | P1 | 🔲 Open (confirmed 2026-05-06) | `data.zstack_license_authorized_nodes` 暴露 `name` / `name_pattern`，但 API inventory 不支持 `name` 字段；无结果时 `nodes` 还会保持 null 而非空 list。 |
-| BUG-091 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_sns_email_endpoint` Create 不传 `platform_uuid` 时失败：`id to load is required for loading`；schema Optional+Computed 与 API/SDK 创建要求不匹配。 |
+| BUG-090 | P1 | ✅ Fixed (2026-05-06) | `data.zstack_license_authorized_nodes` 移除不受 API 支持的 `name` / `name_pattern` 查询字段，仅保留 `uuid` 与本地 `filter`；Read 初始化 `nodes` 为空 list，避免无结果时为 null。 |
+| BUG-091 | P1 | ✅ Fixed (2026-05-06) | `zstack_sns_email_endpoint.platform_uuid` 改为 Required + RequiresReplace，docs/schema tests/test generators 同步；避免省略 platform 时 API 返回 `id to load is required for loading`。 |
 | **NEW-SCHEMA-NOTE** | — | ✅ 落地 (2026-04-27) | `zstack_instance.network_interfaces` 重设计：`default_l3` 改 Optional+Computed（多 NIC 仅允许一个真值；全省略时 provider 在 Create 自动选第一个 NIC；服务端解析后 echo 回 state，UseStateForUnknown 防 plan drift），`static_ip` 改 Optional+Computed。同步新增顶层 `platform` / `guest_os_type` / `architecture`（前两个 Optional+Computed 走 Update，`architecture` 因 SDK UpdateVmInstanceParamDetail 没有该字段、必须 RequiresReplace）。real-env 用例：`vm_offering_default_l3=[false,true]`、`vm_cpu_default_l3=[true]`、`platform=Linux`、`guest_os_type` 在 Update 里 `CentOS 7.6 ↔ CentOS 7.9` 成功 flip。 |
 
 ---
@@ -162,26 +162,26 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 ### BUG-090 — `zstack_license_authorized_nodes` name filters do not match API inventory
 
 - **Severity**: P1
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-05-06)
 - **File**: `zstack/provider/data_source_zstack_license_authorized_nodes.go`
 - **Confirmed by**: applying with `name_pattern = "%"`
 
 **Observed**: API rejected the query:
 `LicenseAuthorizedNodeInventory not having field[name]`
 
-**Additional observation**: Unfiltered query read successfully but returned `nodes = null`; `length(data.zstack_license_authorized_nodes.all.nodes)` failed because the computed list was null. Initialize `state.Nodes` to an empty slice and remove or remap unsupported `name` / `name_pattern` filters.
+**Fix**: remove unsupported `name` / `name_pattern` schema attributes and stop sending name-based API query conditions. Keep exact `uuid` query and local `filter` blocks for fields returned by the inventory. Initialize `state.Nodes` to an empty slice at Read start so empty results become `[]` instead of null.
 
 ### BUG-091 — `zstack_sns_email_endpoint.platform_uuid` is not safely optional
 
 - **Severity**: P1
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-05-06)
 - **File**: `zstack/provider/resource_zstack_sns_email_endpoint.go`
 - **Confirmed by**: creating `zstack_sns_email_endpoint` with only `name` and `email`
 
 **Observed**: API rejected Create:
 `id to load is required for loading`
 
-**Problem**: Schema marks `platform_uuid` Optional+Computed, but Create sends `PlatformUuid: stringPtrOrNil(plan.PlatformUuid.ValueString())`; when omitted, the API cannot load the platform. Fix by making `platform_uuid` Required, adding a plan-time diagnostic, or deriving a default platform only if the API exposes a stable default.
+**Fix**: `platform_uuid` is now Required and RequiresReplace. The provider no longer advertises implicit platform selection; callers must explicitly provide the SNS email platform UUID. Acceptance/generator fixtures now read `sns_email_platforms` from env data and skip endpoint creation when no platform exists.
 
 ---
 

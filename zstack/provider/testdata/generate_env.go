@@ -63,44 +63,44 @@ type EnvData struct {
 	IscsiServers             []map[string]interface{} `json:"iscsi_servers"`
 
 	// Network
-	L2Networks           []map[string]interface{} `json:"l2_networks"`
-	L2VlanNetworks       []map[string]interface{} `json:"l2_vlan_networks"`
-	L3Networks           []map[string]interface{} `json:"l3_networks"`
-	IpRanges             []map[string]interface{} `json:"ip_ranges"`
-	Vips                 []map[string]interface{} `json:"vips"`
-	Eips                 []map[string]interface{} `json:"eips"`
-	PortForwardingRules  []map[string]interface{} `json:"port_forwarding_rules"`
-	LoadBalancers        []map[string]interface{} `json:"load_balancers"`
+	L2Networks            []map[string]interface{} `json:"l2_networks"`
+	L2VlanNetworks        []map[string]interface{} `json:"l2_vlan_networks"`
+	L3Networks            []map[string]interface{} `json:"l3_networks"`
+	IpRanges              []map[string]interface{} `json:"ip_ranges"`
+	Vips                  []map[string]interface{} `json:"vips"`
+	Eips                  []map[string]interface{} `json:"eips"`
+	PortForwardingRules   []map[string]interface{} `json:"port_forwarding_rules"`
+	LoadBalancers         []map[string]interface{} `json:"load_balancers"`
 	LoadBalancerListeners []map[string]interface{} `json:"load_balancer_listeners"`
-	SecurityGroups       []map[string]interface{} `json:"security_groups"`
-	SecurityGroupRules   []map[string]interface{} `json:"security_group_rules"`
-	VmNics               []map[string]interface{} `json:"vm_nics"`
-	AccessControlLists   []map[string]interface{} `json:"access_control_lists"`
-	Certificates         []map[string]interface{} `json:"certificates"`
-	FlowCollectors       []map[string]interface{} `json:"flow_collectors"`
-	FlowMeters           []map[string]interface{} `json:"flow_meters"`
-	IPSecConnections     []map[string]interface{} `json:"ipsec_connections"`
-	MulticastRouters     []map[string]interface{} `json:"multicast_routers"`
-	PolicyRouteRuleSets  []map[string]interface{} `json:"policy_route_rule_sets"`
-	PolicyRouteRules     []map[string]interface{} `json:"policy_route_rules"`
-	VpcFirewalls         []map[string]interface{} `json:"vpc_firewalls"`
-	VpcHaGroups          []map[string]interface{} `json:"vpc_ha_groups"`
-	VpcSharedQos         []map[string]interface{} `json:"vpc_shared_qos"`
-	VRouterRouteTables   []map[string]interface{} `json:"vrouter_route_tables"`
-	VRouterRouteEntries  []map[string]interface{} `json:"vrouter_route_entries"`
+	SecurityGroups        []map[string]interface{} `json:"security_groups"`
+	SecurityGroupRules    []map[string]interface{} `json:"security_group_rules"`
+	VmNics                []map[string]interface{} `json:"vm_nics"`
+	AccessControlLists    []map[string]interface{} `json:"access_control_lists"`
+	Certificates          []map[string]interface{} `json:"certificates"`
+	FlowCollectors        []map[string]interface{} `json:"flow_collectors"`
+	FlowMeters            []map[string]interface{} `json:"flow_meters"`
+	IPSecConnections      []map[string]interface{} `json:"ipsec_connections"`
+	MulticastRouters      []map[string]interface{} `json:"multicast_routers"`
+	PolicyRouteRuleSets   []map[string]interface{} `json:"policy_route_rule_sets"`
+	PolicyRouteRules      []map[string]interface{} `json:"policy_route_rules"`
+	VpcFirewalls          []map[string]interface{} `json:"vpc_firewalls"`
+	VpcHaGroups           []map[string]interface{} `json:"vpc_ha_groups"`
+	VpcSharedQos          []map[string]interface{} `json:"vpc_shared_qos"`
+	VRouterRouteTables    []map[string]interface{} `json:"vrouter_route_tables"`
+	VRouterRouteEntries   []map[string]interface{} `json:"vrouter_route_entries"`
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
-	Accounts         []map[string]interface{} `json:"accounts"`
-	IAM2Projects     []map[string]interface{} `json:"iam2_projects"`
-	AccessKeys       []map[string]interface{} `json:"access_keys"`
+	Accounts          []map[string]interface{} `json:"accounts"`
+	IAM2Projects      []map[string]interface{} `json:"iam2_projects"`
+	AccessKeys        []map[string]interface{} `json:"access_keys"`
 	IAM2Organizations []map[string]interface{} `json:"iam2_organizations"`
-	IAM2VirtualIDs   []map[string]interface{} `json:"iam2_virtual_ids"`
-	Roles            []map[string]interface{} `json:"roles"`
-	Users            []map[string]interface{} `json:"users"`
+	IAM2VirtualIDs    []map[string]interface{} `json:"iam2_virtual_ids"`
+	Roles             []map[string]interface{} `json:"roles"`
+	Users             []map[string]interface{} `json:"users"`
 
 	// Monitoring
 	Alarms            []map[string]interface{} `json:"alarms"`
@@ -109,6 +109,7 @@ type EnvData struct {
 	MonitorGroups     []map[string]interface{} `json:"monitor_groups"`
 	MonitorTemplates  []map[string]interface{} `json:"monitor_templates"`
 	SNSEmailEndpoints []map[string]interface{} `json:"sns_email_endpoints"`
+	SNSEmailPlatforms []map[string]interface{} `json:"sns_email_platforms"`
 	SNSTopics         []map[string]interface{} `json:"sns_topics"`
 	SnmpAgents        []map[string]interface{} `json:"snmp_agents"`
 	Webhooks          []map[string]interface{} `json:"webhooks"`
@@ -126,12 +127,12 @@ type EnvData struct {
 	MnNodes          []map[string]interface{} `json:"mn_nodes"`
 
 	// Automation
-	LdapServers       []map[string]interface{} `json:"ldap_servers"`
-	PortMirrors       []map[string]interface{} `json:"port_mirrors"`
+	LdapServers        []map[string]interface{} `json:"ldap_servers"`
+	PortMirrors        []map[string]interface{} `json:"port_mirrors"`
 	PortMirrorSessions []map[string]interface{} `json:"port_mirror_sessions"`
-	PriceTables       []map[string]interface{} `json:"price_tables"`
-	SchedulerJobs     []map[string]interface{} `json:"scheduler_jobs"`
-	SchedulerTriggers []map[string]interface{} `json:"scheduler_triggers"`
+	PriceTables        []map[string]interface{} `json:"price_tables"`
+	SchedulerJobs      []map[string]interface{} `json:"scheduler_jobs"`
+	SchedulerTriggers  []map[string]interface{} `json:"scheduler_triggers"`
 }
 
 func main() {
@@ -183,7 +184,7 @@ func main() {
 				"uuid":            c.UUID,
 				"state":           c.State,
 				"hypervisor_type": c.HypervisorType,
-				"zone_uuid":      c.ZoneUuid,
+				"zone_uuid":       c.ZoneUuid,
 				"type":            c.Type,
 			})
 		}
@@ -304,10 +305,10 @@ func main() {
 	if l2s, err := cli.QueryL2Network(q()); err == nil {
 		for _, l2 := range l2s {
 			m := map[string]interface{}{
-				"name":      l2.Name,
-				"uuid":      l2.UUID,
-				"type":      l2.Type,
-				"zone_uuid": l2.ZoneUuid,
+				"name":               l2.Name,
+				"uuid":               l2.UUID,
+				"type":               l2.Type,
+				"zone_uuid":          l2.ZoneUuid,
 				"physical_interface": l2.PhysicalInterface,
 			}
 			if l2.AttachedClusterUuids != nil {
@@ -323,13 +324,13 @@ func main() {
 	if l3s, err := cli.QueryL3Network(q()); err == nil {
 		for _, l3 := range l3s {
 			data.L3Networks = append(data.L3Networks, map[string]interface{}{
-				"name":           l3.Name,
-				"uuid":           l3.UUID,
-				"type":           l3.Type,
-				"category":       l3.Category,
-				"system":         l3.System,
+				"name":            l3.Name,
+				"uuid":            l3.UUID,
+				"type":            l3.Type,
+				"category":        l3.Category,
+				"system":          l3.System,
 				"l2_network_uuid": l3.L2NetworkUuid,
-				"zone_uuid":     l3.ZoneUuid,
+				"zone_uuid":       l3.ZoneUuid,
 			})
 		}
 	} else {
@@ -495,9 +496,9 @@ func main() {
 			data.ScriptExecutions = append(data.ScriptExecutions, map[string]interface{}{
 				"uuid":             e.UUID,
 				"vm_instance_uuid": e.VmInstanceUuid,
-				"record_uuid":     e.RecordUuid,
-				"status":          e.Status,
-				"exit_code":       e.ExitCode,
+				"record_uuid":      e.RecordUuid,
+				"status":           e.Status,
+				"exit_code":        e.ExitCode,
 			})
 		}
 	} else {
@@ -677,12 +678,12 @@ func main() {
 	if eips, err := cli.QueryEip(q()); err == nil {
 		for _, e := range eips {
 			data.Eips = append(data.Eips, map[string]interface{}{
-				"name":       e.Name,
-				"uuid":       e.UUID,
-				"state":      e.State,
-				"vip_uuid":   e.VipUuid,
-				"vip_ip":     e.VipIp,
-				"guest_ip":   e.GuestIp,
+				"name":        e.Name,
+				"uuid":        e.UUID,
+				"state":       e.State,
+				"vip_uuid":    e.VipUuid,
+				"vip_ip":      e.VipIp,
+				"guest_ip":    e.GuestIp,
 				"vm_nic_uuid": e.VmNicUuid,
 			})
 		}
@@ -1309,6 +1310,19 @@ func main() {
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "QuerySNSEmailEndpoint error: %v\n", err)
+	}
+
+	// SNS Email Platforms
+	if platforms, err := cli.QuerySNSEmailPlatform(q()); err == nil {
+		for _, platform := range platforms {
+			data.SNSEmailPlatforms = append(data.SNSEmailPlatforms, map[string]interface{}{
+				"name":        platform.Name,
+				"uuid":        platform.UUID,
+				"description": platform.Description,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySNSEmailPlatform error: %v\n", err)
 	}
 
 	// SNS Topics
