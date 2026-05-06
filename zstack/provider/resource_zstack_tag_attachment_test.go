@@ -91,13 +91,16 @@ resource "zstack_tag_attachment" "test" {
 //
 // SDK SIGNATURE INVESTIGATION (via go doc):
 // Current SDK v0.0.4 has:
-//   func (cli *ZSClient) DetachTagFromResources(uuid string, deleteMode param.DeleteMode) error
+//
+//	func (cli *ZSClient) DetachTagFromResources(uuid string, deleteMode param.DeleteMode) error
+//
 // This signature only accepts 2 args (uuid, deleteMode), NOT resourceUuids.
 //
 // However, there exists param.DetachTagFromResourcesParamDetail with:
-//   type DetachTagFromResourcesParamDetail struct {
-//       ResourceUuids []string `json:"resourceUuids" validate:"required"`
-//   }
+//
+//	type DetachTagFromResourcesParamDetail struct {
+//	    ResourceUuids []string `json:"resourceUuids" validate:"required"`
+//	}
 //
 // The current implementation extracts resourceUuids from state but never uses them,
 // causing DetachTagFromResources to detach the tag from ALL resources instead of
@@ -107,15 +110,15 @@ resource "zstack_tag_attachment" "test" {
 // State values come from refresh, so Unknown is impossible here; no IsUnknown guard needed.
 func TestTagAttachmentDeletePassesResourceUuids(t *testing.T) {
 	ctx := context.Background()
-	
+
 	spy := &spyTagClient{
 		detachCalls: []detachCall{},
 	}
-	
+
 	r := &tagAttachmentResource{
 		client: spy,
 	}
-	
+
 	req := resource.DeleteRequest{
 		State: tfsdk.State{
 			Raw: tftypes.NewValue(tftypes.Object{
@@ -150,25 +153,25 @@ func TestTagAttachmentDeletePassesResourceUuids(t *testing.T) {
 		},
 	}
 	resp := &resource.DeleteResponse{}
-	
+
 	r.Delete(ctx, req, resp)
-	
+
 	// Verify no diagnostics errors
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("unexpected errors: %v", resp.Diagnostics.Errors())
 	}
-	
+
 	// Verify DetachTagFromResources was called exactly once
 	if len(spy.detachCalls) != 1 {
 		t.Fatalf("expected 1 detach call, got %d", len(spy.detachCalls))
 	}
-	
+
 	// Verify the call received the correct arguments
 	call := spy.detachCalls[0]
 	if call.tagUuid != "tag-uuid-123" {
 		t.Errorf("expected tagUuid=tag-uuid-123, got %s", call.tagUuid)
 	}
-	
+
 	// CRITICAL ASSERTION: Verify resourceUuids were passed
 	expectedUuids := []string{"resource-uuid-a", "resource-uuid-b"}
 	if len(call.resourceUuids) != len(expectedUuids) {
@@ -181,6 +184,38 @@ func TestTagAttachmentDeletePassesResourceUuids(t *testing.T) {
 	}
 }
 
+func TestTagAttachmentReadQueriesByTagPatternUuid(t *testing.T) {
+	ctx := context.Background()
+	spy := &spyTagClient{
+		queryResults: []view.UserTagInventoryView{
+			{
+				BaseInfoView:   view.BaseInfoView{UUID: "user-tag-uuid-1"},
+				TagPatternUuid: "tag-pattern-uuid-123",
+				ResourceUuid:   "resource-uuid-a",
+			},
+		},
+	}
+
+	r := &tagAttachmentResource{client: spy}
+	req := resource.ReadRequest{
+		State: tagAttachmentTestState("tag-pattern-uuid-123", []string{"resource-uuid-a"}),
+	}
+	resp := &resource.ReadResponse{State: req.State}
+
+	r.Read(ctx, req, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected errors: %v", resp.Diagnostics.Errors())
+	}
+	if len(spy.queryCalls) != 1 {
+		t.Fatalf("expected 1 QueryUserTag call, got %d", len(spy.queryCalls))
+	}
+	qs := spy.queryCalls[0].Values["q"]
+	if len(qs) == 0 || qs[0] != "tagPatternUuid=tag-pattern-uuid-123" {
+		t.Fatalf("expected tagPatternUuid query, got %v", qs)
+	}
+}
+
 // detachCall records arguments to DetachTagFromResources
 type detachCall struct {
 	tagUuid       string
@@ -189,15 +224,20 @@ type detachCall struct {
 }
 
 type spyTagClient struct {
-	detachCalls []detachCall
+	detachCalls  []detachCall
+	queryCalls   []param.QueryParam
+	queryResults []view.UserTagInventoryView
 }
 
 func (s *spyTagClient) AttachTagToResources(tagUuid string, params param.AttachTagToResourcesParam) (*view.AttachTagToResourcesEventView, error) {
 	return nil, nil
 }
 
-func (s *spyTagClient) GetUserTag(uuid string) (*view.UserTagInventoryView, error) {
-	return nil, nil
+func (s *spyTagClient) QueryUserTag(params *param.QueryParam) ([]view.UserTagInventoryView, error) {
+	if params != nil {
+		s.queryCalls = append(s.queryCalls, *params)
+	}
+	return s.queryResults, nil
 }
 
 func (s *spyTagClient) DetachTagFromResources(tagUuid string, deleteMode param.DeleteMode, resourceUuids []string) error {
@@ -207,4 +247,40 @@ func (s *spyTagClient) DetachTagFromResources(tagUuid string, deleteMode param.D
 		resourceUuids: resourceUuids,
 	})
 	return nil
+}
+
+func tagAttachmentTestState(tagUUID string, resourceUUIDs []string) tfsdk.State {
+	values := make([]tftypes.Value, 0, len(resourceUUIDs))
+	for _, uuid := range resourceUUIDs {
+		values = append(values, tftypes.NewValue(tftypes.String, uuid))
+	}
+
+	return tfsdk.State{
+		Raw: tftypes.NewValue(tftypes.Object{
+			AttributeTypes: map[string]tftypes.Type{
+				"tag_uuid":       tftypes.String,
+				"resource_uuids": tftypes.List{ElementType: tftypes.String},
+				"tokens":         tftypes.Map{ElementType: tftypes.String},
+			},
+		}, map[string]tftypes.Value{
+			"tag_uuid":       tftypes.NewValue(tftypes.String, tagUUID),
+			"resource_uuids": tftypes.NewValue(tftypes.List{ElementType: tftypes.String}, values),
+			"tokens":         tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, nil),
+		}),
+		Schema: schema.Schema{
+			Attributes: map[string]schema.Attribute{
+				"tag_uuid": schema.StringAttribute{
+					Required: true,
+				},
+				"resource_uuids": schema.ListAttribute{
+					Required:    true,
+					ElementType: types.StringType,
+				},
+				"tokens": schema.MapAttribute{
+					Optional:    true,
+					ElementType: types.StringType,
+				},
+			},
+		},
+	}
 }

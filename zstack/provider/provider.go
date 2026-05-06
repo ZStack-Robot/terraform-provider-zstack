@@ -190,7 +190,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accountPassword")
 
 		tflog.Debug(ctx, "Creating ZStack client with account")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(account_name, account_password).ReadOnly(false).Debug(true))
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(account_name, account_password).ReadOnly(false).Debug(false))
 		_, err := cli.Login(ctx)
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -208,7 +208,7 @@ func (p *ZStackProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "ZStack_accessKeySecret")
 
 		tflog.Debug(ctx, "Creating ZStack client with access key")
-		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(access_key_id, access_key_secret).ReadOnly(false).Debug(true))
+		cli = client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(access_key_id, access_key_secret).ReadOnly(false).Debug(false))
 		// no authorization validation! this access key may be invalid！
 	}
 	resp.DataSourceData = cli

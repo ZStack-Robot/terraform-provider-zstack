@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；provider 升级 `zstack-sdk-go-v2` 到 v0.0.8，BUG-087/088 SDK event response unwrap 已修；BUG-089/090/091 已修；所有成功/部分成功创建的 test resources 已 destroy 清理）
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；provider 升级 `zstack-sdk-go-v2` 到 v0.0.8，BUG-087/088 SDK event response unwrap 已修；BUG-088 provider Read 已改为按 `tagPatternUuid` 查询 user-tags；BUG-089/090/091 已修；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
@@ -91,7 +91,7 @@
 | BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
 | BUG-086 | P0 | ⏸ Won't Fix / Removed from provider registry (2026-05-06) | `zstack_resource_stack` 是 ZStack Resource Stack / CloudFormation-style 编排入口，与 Terraform 原生资源编排模型重叠；`zstack_stack_template` 同属其模板接口；二者先从 provider 注册器移除，不再投入修复/推广。 |
 | BUG-087 | P1 | ✅ Fixed in SDK v0.0.8 (2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`；SDK v0.0.8 改为 `PostWithAsync(..., responseKey="", ...)` 解 event/empty response，provider 已升级依赖。 |
-| BUG-088 | P1 | ✅ Fixed in SDK v0.0.8 (2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；SDK v0.0.8 改为 `PostWithAsync(..., responseKey="", ...)` 解 event response，provider 已升级依赖。 |
+| BUG-088 | P1 | ✅ Fixed in SDK v0.0.8 + Provider Read hardened (2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；SDK v0.0.8 改为 `PostWithAsync(..., responseKey="", ...)` 解 event response，provider 已升级依赖。真实 acceptance 随后暴露 provider Read 不能用 tag pattern UUID 直接 `GetUserTag`，已改为按 `tagPatternUuid` 查询 user-tags 并匹配 `resource_uuids`。 |
 | BUG-089 | P1 | ✅ Fixed (2026-05-06) | `zstack_access_key.user_uuid` 改为 Required + RequiresReplace，docs/schema tests 同步；避免不传 `user_uuid` 时 API 拒绝 `field[userUuid] ... is mandatory, can not be null`。 |
 | BUG-090 | P1 | ✅ Fixed (2026-05-06) | `data.zstack_license_authorized_nodes` 移除不受 API 支持的 `name` / `name_pattern` 查询字段，仅保留 `uuid` 与本地 `filter`；Read 初始化 `nodes` 为空 list，避免无结果时为 null。 |
 | BUG-091 | P1 | ✅ Fixed (2026-05-06) | `zstack_sns_email_endpoint.platform_uuid` 改为 Required + RequiresReplace，docs/schema tests/test generators 同步；避免省略 platform 时 API 返回 `id to load is required for loading`。 |
@@ -146,7 +146,7 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 
 **Root cause / fix**: provider Create correctly builds `AttachTagToResourcesParam.Params.ResourceUuids` and calls SDK `AttachTagToResources`. SDK v0.0.7 implemented that method with `cli.Post("v1/tags/{tagUuid}/resources", params, &resp)`. `ZSHttpClient.Post()` delegates to `PostWithRespKey(..., responseKeyInventory, ...)`, so it expected an `inventory` key. `AttachTagToResourcesEventView` is an event view with top-level `success` / `results`, so responses without `inventory` failed inside SDK JSON unwrap with `Get: key not found`. SDK v0.0.8 changes this method to `PostWithAsync(..., responseKey="", ...)`; provider has been upgraded to `zstack-sdk-go-v2 v0.0.8`.
 
-**Provider follow-up**: the Create failure is fixed by the SDK upgrade. Provider Read can still be hardened later for multi-resource attachments, because current Read refreshes through `GetUserTag(tagUuid)` and only maps one `ResourceUuid`; that is separate from this SDK unwrap bug.
+**Provider follow-up**: real acceptance after the SDK upgrade showed Create succeeds, but post-apply refresh failed because provider Read called `GetUserTag(tagUuid)` using the tag pattern UUID. The attach event returns a separate user tag UUID, while `tag_uuid` in Terraform is the tag pattern UUID. Provider Read now queries `QueryUserTag` by `tagPatternUuid` and matches the configured `resource_uuids`.
 
 ### BUG-089 — `zstack_access_key.user_uuid` is effectively required
 
@@ -1289,7 +1289,7 @@ func stringPtrOrNil(s string) *string {
 | **SDK-WA-004** | — (设计差异，非 bug) | 保留作 adapter 层 |
 | **SDK-WA-005** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround N/A (vip_qos was skipped, 可重新启用) | 13-misc-ops 跳过 vip_qos 的注释可去除，加回真实 Create+Destroy 用例 |
 | **SDK-WA-006** | ✅ Fixed in SDK v0.0.6 (2026-04-27) — Provider workaround **REMOVED** | `isSDKTimeParseError` helper + `resource_zstack_instance.go` / `resource_zstack_image.go` Update 路径的 swallow-then-`findResourceByGet` 分支已清除；保留 `findResourceByGet(GetVmInstance)` / `findResourceByGet(GetImage)` 作 state 一致性兜底 |
-| **SDK-WA-007** | ✅ Fixed in SDK v0.0.8 (2026-05-06) — `AddVmNicToSecurityGroup` / `AttachTagToResources` unwrap event responses without `inventory` | Provider upgraded to v0.0.8; no provider-side create workaround needed. Optional future hardening remains for `zstack_tag_attachment` Read with multi-resource attachments |
+| **SDK-WA-007** | ✅ Fixed in SDK v0.0.8 (2026-05-06) — `AddVmNicToSecurityGroup` / `AttachTagToResources` unwrap event responses without `inventory` | Provider upgraded to v0.0.8; no provider-side create workaround needed. `zstack_tag_attachment` Read also hardened to query user-tags by `tagPatternUuid` and match configured `resource_uuids` |
 
 ---
 
