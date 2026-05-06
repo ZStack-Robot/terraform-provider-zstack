@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack`；secgroup/tag attachment `Get: key not found`、access_key missing `userUuid`、license_authorized_nodes name filter/schema mismatch、sns_email_endpoint missing platform/id path 仍 Open；所有成功/部分成功创建的 test resources 已 destroy 清理）
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；secgroup/tag attachment `Get: key not found`、access_key missing `userUuid`、license_authorized_nodes name filter/schema mismatch、sns_email_endpoint missing platform/id path 仍 Open；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
@@ -82,14 +82,14 @@
 | BUG-076 | P0 | ✅ Fixed in SDK v0.0.7 (2026-05-03) | `DeleteDirectory` 是动作式 DELETE：`v0.0.7` 保持 `DeleteDirectory(uuid, deleteMode)` 签名，内部改为 `DeleteWithBody("v1/delete/directory", DeleteDirectoryParam{...})`，会发 `DELETE /zstack/v1/delete/directory` 且 body 为 `{"deleteDirectory":{"uuid":"...","deleteMode":"Permissive"}}`。provider 已升级 SDK 至 `v0.0.7`。原 BUG-NEW-110。 |
 | BUG-077 | P2 | ✅ Fixed (2026-04-28) | `zstack_certificate.certificate` 服务端去尾空白，provider 不重读 → drift。修复：复用 BUG-072 引入的 `preserveIfEquivAfterTrim()` helper，Create/Read/Update 三处统一处理（虽然 `certificate` 字段是 RequiresReplace，Update 路径也加上以防御）。原 BUG-NEW-111。 |
 | BUG-078 | P3 | ✅ Fixed (2026-05-03) | 新增 `data zstack_global_configs` 查询合法 global config `(category, name)` 及当前/default/description；`zstack_global_config` 服务端失败 diagnostic 增加用 data source 发现合法键的提示。原 BUG-NEW-112。 |
-| BUG-079 | P3 | ✅ Fixed (2026-05-03) | `zstack_stack_template.template_content` 改为 Required，并增加 `ZStackTemplateFormatVersion` marker 校验；Create/Update 前补 attribute diagnostic，docs/example 同步最小合法模板。原 BUG-NEW-113。 |
+| BUG-079 | P3 | ⏸ Superseded / Removed from provider registry (2026-05-06) | `zstack_stack_template.template_content` 的校验曾在 2026-05-03 修复；后续确认该资源属于 ZStack Resource Stack / CloudFormation-style 编排模板接口，与 BUG-086 同类，先从 provider 注册器移除。原 BUG-NEW-113。 |
 | BUG-080 | P1 | ✅ Fixed (2026-04-28) | `zstack_pci_device_offering.name` 改为 Required（API 非指针 string + DB NOT NULL）。原 BUG-NEW-114。 |
 | BUG-081 | P0 | ✅ Fixed (2026-04-30) | `zstack_price_table` 补齐必填 `prices` 嵌套 schema，并在 Create 中真实发送到 SDK；因 QueryPriceTable 不返回 price 明细，`prices` 标记 RequiresReplace 并在 Read 中保留配置 state。原 BUG-NEW-115。 |
 | BUG-082 | P3 | ✅ Fixed (2026-05-03) | `zstack_resource_stack` Create/Update 前校验必须提供 `template_content` 或 `template_uuid`；直接使用 `template_content` 时必须含 `ZStackTemplateFormatVersion`，否则 provider 返回清晰 attribute diagnostic，避免服务端 `invalid decoder: %s!`。docs/example 同步。原 BUG-NEW-116。 |
 | BUG-083 | P1 | ✅ Fixed (2026-05-02) | `zstack_preconfiguration_template` 增加 plan-time 校验：`type` 仅允许小写 `[kickstart, preseed, autoyast, autoinstall]`；`content` 必须包含基础系统变量 markers（REPO_URL/USERNAME/PASSWORD/NETWORK_CFGS/FORCE_INSTALL/PRE_SCRIPTS/POST_SCRIPTS）。同步更新 acceptance fixture、example 和 docs。原 BUG-NEW-117。 |
 | BUG-084 | P1 | ✅ Fixed in SDK v0.0.6 + Provider workaround removed (2026-04-27) | `UpdateVmInstance` 同 BUG-068 的根因（PostWithAsync/PutWithAsync 用 stdlib `json.Unmarshal` 解 inventory 子树）。SDK v0.0.6 修好后 provider 端 `isSDKTimeParseError` helper + Update 里的 swallow 分支已删除（resource_zstack_instance.go），保留 `findResourceByGet(GetVmInstance)` 兜底（成本忽略，作为 state 一致性保险）。real-env RUN_ID `r144465c0a` v0.0.6 + 清理后 Create(4) + Update v1↔v2 双向各 2 changed + Destroy(4) 全过。原 BUG-NEW-118 / SDK-WA-006。 |
 | BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
-| BUG-086 | P0 | ⏸ Won't Fix / Removed from provider registry (2026-05-06) | `zstack_resource_stack` 是 ZStack Resource Stack / CloudFormation-style 编排入口，与 Terraform 原生资源编排模型重叠；先从 provider 注册器移除，不再投入修复 post-apply unknown state。 |
+| BUG-086 | P0 | ⏸ Won't Fix / Removed from provider registry (2026-05-06) | `zstack_resource_stack` 是 ZStack Resource Stack / CloudFormation-style 编排入口，与 Terraform 原生资源编排模型重叠；`zstack_stack_template` 同属其模板接口；二者先从 provider 注册器移除，不再投入修复/推广。 |
 | BUG-087 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`。 |
 | BUG-088 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_tag_attachment` AttachTagToResources 失败：`Get: key not found`。 |
 | BUG-089 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_access_key` 不传 `user_uuid` 时 API 拒绝：`field[userUuid] ... is mandatory, can not be null`；schema Optional+Computed 与 API 必填不匹配。 |
@@ -103,22 +103,22 @@
 
 Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. Credentials are intentionally not recorded here. `data.zstack_zone` smoke test passed (`zone_count = 1`), so Terraform CLI, local dev override provider, and ZStack API connectivity were valid for this run. Temporary resources that reached state (`alarm`, `tag`, `security group`, `resource_stack`) were destroyed successfully.
 
-### BUG-086 — `zstack_resource_stack` removed from provider registry by design
+### BUG-086 — resource stack orchestration removed from provider registry by design
 
 - **Severity**: P0
 - **Status**: ⏸ Won't Fix / Removed from provider registry (2026-05-06)
-- **File**: `zstack/provider/resource_zstack_resource_stack.go`
+- **Files**: `zstack/provider/resource_zstack_resource_stack.go`, `zstack/provider/resource_zstack_stack_template.go`
 - **Confirmed by**: `terraform apply` against minimal `zstack_resource_stack` with inline `template_content`
-- **Decision**: remove `ResourceStackResource` from `ZStackProvider.Resources()`
+- **Decision**: remove `ResourceStackResource` and `StackTemplateResource` from `ZStackProvider.Resources()`
 
 **Observed**: Terraform reported `Provider returned invalid result object after apply` for:
 - `zstack_resource_stack.stack.parameters`
 - `zstack_resource_stack.stack.rollback`
 - `zstack_resource_stack.stack.template_uuid`
 
-**Decision rationale**: `zstack_resource_stack` wraps ZStack Resource Stack / CloudFormation-style template orchestration (`cloudformation/stack`). That is a second orchestration engine: Terraform can only see the stack object, not the internal resources created by the stack template. This overlaps with Terraform's native resource graph, state ownership, diff, drift detection, and destroy ordering. For this provider, users should model ZStack resources directly with Terraform resources instead of nesting another orchestration system behind a single opaque resource.
+**Decision rationale**: `zstack_resource_stack` wraps ZStack Resource Stack / CloudFormation-style template orchestration (`cloudformation/stack`), and `zstack_stack_template` manages the companion template API (`cloudformation/template`). That is a second orchestration engine: Terraform can only see the stack/template objects, not the internal resources created by the stack template. This overlaps with Terraform's native resource graph, state ownership, diff, drift detection, and destroy ordering. For this provider, users should model ZStack resources directly with Terraform resources instead of nesting another orchestration system behind opaque orchestration objects.
 
-**Disposition**: do not fix the post-apply unknown-state bug. The resource is first removed from provider registration so new configurations cannot use it through this provider. If backward compatibility becomes required later, prefer an explicit deprecation path rather than repairing and promoting this resource.
+**Disposition**: do not fix the post-apply unknown-state bug or continue exposing the template resource. Both resources are first removed from provider registration so new configurations cannot use them through this provider. If backward compatibility becomes required later, prefer an explicit deprecation path rather than repairing and promoting this resource family.
 
 ### BUG-087 — `zstack_networking_secgroup_attachment` fails with `Get: key not found`
 
