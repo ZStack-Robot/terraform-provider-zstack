@@ -359,7 +359,6 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		PortMirrorResource,
 		PortMirrorSessionResource,
 		MulticastRouterResource,
-		ResourceStackResource,
 		StackTemplateResource,
 		PriceTableResource,
 		PreconfigurationTemplateResource,
