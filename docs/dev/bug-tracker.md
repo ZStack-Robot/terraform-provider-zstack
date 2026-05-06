@@ -1,7 +1,7 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；provider 升级 `zstack-sdk-go-v2` 到 v0.0.8，BUG-087/088 SDK event response unwrap 已修；BUG-088 provider Read 已改为按 `tagPatternUuid` 查询 user-tags；BUG-089/090/091 已修；所有成功/部分成功创建的 test resources 已 destroy 清理）
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091；BUG-086 标记 Won't Fix 并先从 provider 注册器移除 `zstack_resource_stack` / `zstack_stack_template`；provider 升级 `zstack-sdk-go-v2` 到 v0.0.8，BUG-087/088 SDK event response unwrap 已修；BUG-087 acceptance 已改为创建临时 SecurityGroup-capable NIC 后测试；BUG-088 provider Read 已改为按 `tagPatternUuid` 查询 user-tags；BUG-089/090/091 已修；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
 > Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
@@ -131,7 +131,7 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 **Observed**: Create failed during add:
 `Could not add VM NIC to security group: Get: key not found`
 
-**Root cause / fix**: provider Create correctly sends `AddVmNicToSecurityGroupParam.Params.VmNicUuids`. SDK v0.0.7 called `cli.Post("v1/security-groups/{uuid}/vm-instances/nics", params, &resp)`, which forced `inventory` response-key unmarshal even though this API returns an event/empty response. SDK v0.0.8 changes the call to `PostWithAsync(..., responseKey="", ...)`, so top-level/empty event responses no longer fail with `Get: key not found`. Provider has been upgraded to `zstack-sdk-go-v2 v0.0.8`.
+**Root cause / fix**: provider Create correctly sends `AddVmNicToSecurityGroupParam.Params.VmNicUuids`. SDK v0.0.7 called `cli.Post("v1/security-groups/{uuid}/vm-instances/nics", params, &resp)`, which forced `inventory` response-key unmarshal even though this API returns an event/empty response. SDK v0.0.8 changes the call to `PostWithAsync(..., responseKey="", ...)`, so top-level/empty event responses no longer fail with `Get: key not found`. Provider has been upgraded to `zstack-sdk-go-v2 v0.0.8`. Acceptance coverage now creates a temporary NIC by attaching a SecurityGroup-enabled L3 to an existing running UserVm, then verifies `zstack_networking_secgroup_attachment` against that fresh NIC.
 
 ### BUG-088 — SDK `AttachTagToResources` unwraps event response with wrong key
 
