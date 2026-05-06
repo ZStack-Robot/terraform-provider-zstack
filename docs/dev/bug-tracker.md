@@ -92,7 +92,7 @@
 | BUG-086 | P0 | ⏸ Won't Fix / Removed from provider registry (2026-05-06) | `zstack_resource_stack` 是 ZStack Resource Stack / CloudFormation-style 编排入口，与 Terraform 原生资源编排模型重叠；`zstack_stack_template` 同属其模板接口；二者先从 provider 注册器移除，不再投入修复/推广。 |
 | BUG-087 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`。 |
 | BUG-088 | P1 | 🔲 Open / SDK bug (confirmed 2026-05-06) | `zstack_tag_attachment` Create 调 SDK `AttachTagToResources` 失败：`Get: key not found`；provider 入参已正确传 `resourceUuids`，根因是 SDK `cli.Post()` 默认按 `inventory` 解包，但该 API 返回 event 顶层 `success/results`。 |
-| BUG-089 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_access_key` 不传 `user_uuid` 时 API 拒绝：`field[userUuid] ... is mandatory, can not be null`；schema Optional+Computed 与 API 必填不匹配。 |
+| BUG-089 | P1 | ✅ Fixed (2026-05-06) | `zstack_access_key.user_uuid` 改为 Required + RequiresReplace，docs/schema tests 同步；避免不传 `user_uuid` 时 API 拒绝 `field[userUuid] ... is mandatory, can not be null`。 |
 | BUG-090 | P1 | 🔲 Open (confirmed 2026-05-06) | `data.zstack_license_authorized_nodes` 暴露 `name` / `name_pattern`，但 API inventory 不支持 `name` 字段；无结果时 `nodes` 还会保持 null 而非空 list。 |
 | BUG-091 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_sns_email_endpoint` Create 不传 `platform_uuid` 时失败：`id to load is required for loading`；schema Optional+Computed 与 API/SDK 创建要求不匹配。 |
 | **NEW-SCHEMA-NOTE** | — | ✅ 落地 (2026-04-27) | `zstack_instance.network_interfaces` 重设计：`default_l3` 改 Optional+Computed（多 NIC 仅允许一个真值；全省略时 provider 在 Create 自动选第一个 NIC；服务端解析后 echo 回 state，UseStateForUnknown 防 plan drift），`static_ip` 改 Optional+Computed。同步新增顶层 `platform` / `guest_os_type` / `architecture`（前两个 Optional+Computed 走 Update，`architecture` 因 SDK UpdateVmInstanceParamDetail 没有该字段、必须 RequiresReplace）。real-env 用例：`vm_offering_default_l3=[false,true]`、`vm_cpu_default_l3=[true]`、`platform=Linux`、`guest_os_type` 在 Update 里 `CentOS 7.6 ↔ CentOS 7.9` 成功 flip。 |
@@ -150,14 +150,14 @@ Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. C
 ### BUG-089 — `zstack_access_key.user_uuid` is effectively required
 
 - **Severity**: P1
-- **Status**: 🔲 Open
+- **Status**: ✅ Fixed (2026-05-06)
 - **File**: `zstack/provider/resource_zstack_access_key.go`
 - **Confirmed by**: creating `zstack_access_key` with `account_uuid` only
 
 **Observed**: API rejected Create:
 `field[userUuid] ... is mandatory, can not be null`
 
-**Problem**: Current schema marks `user_uuid` Optional+Computed and the Create code sends `plan.UserUuid.ValueString()` even when the field is unknown/null. In this environment the API requires `userUuid`. Fix by making `user_uuid` Required, or by provider-side deriving the correct owner user UUID before Create. The current environment had no `users` in generated env data, so derivation needs a reliable current-user/account path before choosing that approach.
+**Fix**: `user_uuid` is now Required and RequiresReplace. The provider no longer advertises server-side defaulting for this field; callers must explicitly choose the user that owns the access key.
 
 ### BUG-090 — `zstack_license_authorized_nodes` name filters do not match API inventory
 
