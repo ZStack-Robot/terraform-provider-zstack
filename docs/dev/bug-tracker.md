@@ -1,9 +1,9 @@
 # Bug Tracker — terraform-provider-zstack
 
 > Generated: 2026-04-20  
-> Updated: 2026-04-27（real-env sweep against `.env.test` cluster — 入账 BUG-066..083，对应 18 条 BUG-NEW-100..117；新增 SDK-BUG-005 / SDK-WA-005 / SDK-FIX-005；2026-04-27 后续：BUG-069/071 修复落地；新登 BUG-084 / SDK-WA-006 / SDK-FIX-006，对应 BUG-NEW-118 SDK UpdateVmInstance 时间戳 decode；附带 network_interfaces schema 重设计 + os 字段 platform/guest_os_type/architecture；BUG-085 修复 — `zstack_image` Update 路径打开（lift RequiresReplace + 实装 Update，复用 SDK-WA-006）；10-image-storage Create+Update+Destroy 全过；SDK 端：用户本地修了 `pkg/client/http_client.go` PostWithAsync/PutWithAsync（SDK-FIX-006 落地），SDK-WA-005/006 标记 Fixed in SDK 等 release；新登 SDK-FIX-007（11 处 RPC 风格残留 URL 待核） + SDK-AUDIT-001 — `client.go` 内 stdlib `json.Unmarshal/NewDecoder` 候选位点（line 460/535/562/585/589）经核实是 `/* … */` 注释块内的死代码，无活动影响）；2026-04-27 收尾：SDK v0.0.6 正式发布，provider `go.mod` 升 v0.0.5→v0.0.6（移除 local `replace`），`isSDKTimeParseError` helper + `resource_zstack_instance.go` / `resource_zstack_image.go` Update swallow 分支全部移除，10-image-storage + 05-compute-vm Create+Update（双向）+ Destroy real-env 复跑全过，SDK-WA-005/006 状态由 Open → Released  
+> Updated: 2026-05-06（real-env bugcheck against alternate cluster `172.24.189.211`；入账 BUG-086..091：resource_stack post-apply unknown state、secgroup/tag attachment `Get: key not found`、access_key missing `userUuid`、license_authorized_nodes name filter/schema mismatch、sns_email_endpoint missing platform/id path；所有成功/部分成功创建的 test resources 已 destroy 清理）
 > Branch: `test/progress`  
-> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**
+> Tools used: `golangci-lint run`, `go vet`, `go test -short`, manual code review, automated codebase scanning, **real-env Terraform apply→destroy sweep（13 categories × user/mixed/admin plane, RUN_ID `r144465c0a`）**, targeted real-env Terraform bugcheck (2026-05-06)
 
 ---
 
@@ -45,7 +45,7 @@
 | BUG-023 | P2 | ✅ Fixed | Randomize test resource names |
 | BUG-019 | P2 | ✅ Fixed | Move disk state logic to Read() per TODO |
 
-### Remaining (deferred followups only)
+### Remaining / Recent Real-Env Findings
 
 | Bug | Priority | Status | Description |
 |-----|----------|--------|-------------|
@@ -89,7 +89,93 @@
 | BUG-083 | P1 | ✅ Fixed (2026-05-02) | `zstack_preconfiguration_template` 增加 plan-time 校验：`type` 仅允许小写 `[kickstart, preseed, autoyast, autoinstall]`；`content` 必须包含基础系统变量 markers（REPO_URL/USERNAME/PASSWORD/NETWORK_CFGS/FORCE_INSTALL/PRE_SCRIPTS/POST_SCRIPTS）。同步更新 acceptance fixture、example 和 docs。原 BUG-NEW-117。 |
 | BUG-084 | P1 | ✅ Fixed in SDK v0.0.6 + Provider workaround removed (2026-04-27) | `UpdateVmInstance` 同 BUG-068 的根因（PostWithAsync/PutWithAsync 用 stdlib `json.Unmarshal` 解 inventory 子树）。SDK v0.0.6 修好后 provider 端 `isSDKTimeParseError` helper + Update 里的 swallow 分支已删除（resource_zstack_instance.go），保留 `findResourceByGet(GetVmInstance)` 兜底（成本忽略，作为 state 一致性保险）。real-env RUN_ID `r144465c0a` v0.0.6 + 清理后 Create(4) + Update v1↔v2 双向各 2 changed + Destroy(4) 全过。原 BUG-NEW-118 / SDK-WA-006。 |
 | BUG-085 | P1 | ✅ Fixed (2026-04-27, SDK v0.0.6 后 workaround removed) | `zstack_image` Update 之前被硬拒（`Update not supported`），但 SDK 早就有 `UpdateImage` 支持 Name/Description/GuestOsType/MediaType/Format/System/Platform/Architecture/Virtio。修复：(1) 把 `name` / `description` / `guest_os_type` / `platform` 从 RequiresReplace 改为 in-place updatable；(2) 实装真实 Update（diff plan vs state，仅传变更字段）；(3) Read 改为无条件 refresh + `stringValueOrNull` 防 null↔"" drift；(4) `last_updated` 去掉 UseStateForUnknown 让 UpdateImage bump 之后成为 known-after-apply。SDK v0.0.6 落地后 image.go Update 里 `isSDKTimeParseError` swallow 分支已删除，只留 `findResourceByGet(GetImage)` 兜底。real-env RUN_ID `r144465c0a` 验证：Create (2) + Update v2↔v1 双向各 1 changed + Destroy (2)，cluster cross-check 0 残留。 |
+| BUG-086 | P0 | 🔲 Open (confirmed 2026-05-06) | `zstack_resource_stack` Create 后仍把 `parameters` / `rollback` / `template_uuid` 留成 unknown，Terraform 报 `Provider returned invalid result object after apply`。 |
+| BUG-087 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_networking_secgroup_attachment` 在有效私网 NIC 场景下 AddVmNicToSecurityGroup 失败：`Get: key not found`。 |
+| BUG-088 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_tag_attachment` AttachTagToResources 失败：`Get: key not found`。 |
+| BUG-089 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_access_key` 不传 `user_uuid` 时 API 拒绝：`field[userUuid] ... is mandatory, can not be null`；schema Optional+Computed 与 API 必填不匹配。 |
+| BUG-090 | P1 | 🔲 Open (confirmed 2026-05-06) | `data.zstack_license_authorized_nodes` 暴露 `name` / `name_pattern`，但 API inventory 不支持 `name` 字段；无结果时 `nodes` 还会保持 null 而非空 list。 |
+| BUG-091 | P1 | 🔲 Open (confirmed 2026-05-06) | `zstack_sns_email_endpoint` Create 不传 `platform_uuid` 时失败：`id to load is required for loading`；schema Optional+Computed 与 API/SDK 创建要求不匹配。 |
 | **NEW-SCHEMA-NOTE** | — | ✅ 落地 (2026-04-27) | `zstack_instance.network_interfaces` 重设计：`default_l3` 改 Optional+Computed（多 NIC 仅允许一个真值；全省略时 provider 在 Create 自动选第一个 NIC；服务端解析后 echo 回 state，UseStateForUnknown 防 plan drift），`static_ip` 改 Optional+Computed。同步新增顶层 `platform` / `guest_os_type` / `architecture`（前两个 Optional+Computed 走 Update，`architecture` 因 SDK UpdateVmInstanceParamDetail 没有该字段、必须 RequiresReplace）。real-env 用例：`vm_offering_default_l3=[false,true]`、`vm_cpu_default_l3=[true]`、`platform=Linux`、`guest_os_type` 在 Update 里 `CentOS 7.6 ↔ CentOS 7.9` 成功 flip。 |
+
+---
+
+## 2026-05-06 real-env bugcheck addendum
+
+Environment: alternate real-env cluster `172.24.189.211` using AccessKey auth. Credentials are intentionally not recorded here. `data.zstack_zone` smoke test passed (`zone_count = 1`), so Terraform CLI, local dev override provider, and ZStack API connectivity were valid for this run. Temporary resources that reached state (`alarm`, `tag`, `security group`, `resource_stack`) were destroyed successfully.
+
+### BUG-086 — `zstack_resource_stack` leaves Optional+Computed fields unknown after Create
+
+- **Severity**: P0
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_resource_stack.go`
+- **Confirmed by**: `terraform apply` against minimal `zstack_resource_stack` with inline `template_content`
+
+**Observed**: Terraform reported `Provider returned invalid result object after apply` for:
+- `zstack_resource_stack.stack.parameters`
+- `zstack_resource_stack.stack.rollback`
+- `zstack_resource_stack.stack.template_uuid`
+
+**Problem**: These schema fields are Optional+Computed, but Create does not set them to known values when absent from the API response. Terraform explicitly classifies this as a provider bug. Set absent optional computed fields to null or preserve configured values where appropriate before `response.State.Set`.
+
+### BUG-087 — `zstack_networking_secgroup_attachment` fails with `Get: key not found`
+
+- **Severity**: P1
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_networking_secgroup_attachment.go`
+- **Confirmed by**: creating a new security group and attaching it to an existing private NIC on L3 `l3-private-1`
+
+**Observed**: Create failed during add:
+`Could not add VM NIC to security group: Get: key not found`
+
+**Note**: A public NIC first failed correctly because its L3 did not enable SecurityGroup service. Retesting with a valid private NIC reproduced `Get: key not found`, so this is not just invalid input. Likely provider/SDK response parsing assumes a missing response key.
+
+### BUG-088 — `zstack_tag_attachment` fails with `Get: key not found`
+
+- **Severity**: P1
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_tag_attachment.go`
+- **Confirmed by**: creating `zstack_tag` and attaching it to the real zone UUID
+
+**Observed**: `zstack_tag` Create succeeded, then `zstack_tag_attachment` failed:
+`Error attaching tag: Get: key not found`
+
+**Problem**: Same failure family as BUG-087: attach action likely succeeds or returns an envelope without the SDK/provider expected key. The Create path should not assume a response key that the API does not return.
+
+### BUG-089 — `zstack_access_key.user_uuid` is effectively required
+
+- **Severity**: P1
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_access_key.go`
+- **Confirmed by**: creating `zstack_access_key` with `account_uuid` only
+
+**Observed**: API rejected Create:
+`field[userUuid] ... is mandatory, can not be null`
+
+**Problem**: Current schema marks `user_uuid` Optional+Computed and the Create code sends `plan.UserUuid.ValueString()` even when the field is unknown/null. In this environment the API requires `userUuid`. Fix by making `user_uuid` Required, or by provider-side deriving the correct owner user UUID before Create. The current environment had no `users` in generated env data, so derivation needs a reliable current-user/account path before choosing that approach.
+
+### BUG-090 — `zstack_license_authorized_nodes` name filters do not match API inventory
+
+- **Severity**: P1
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/data_source_zstack_license_authorized_nodes.go`
+- **Confirmed by**: applying with `name_pattern = "%"`
+
+**Observed**: API rejected the query:
+`LicenseAuthorizedNodeInventory not having field[name]`
+
+**Additional observation**: Unfiltered query read successfully but returned `nodes = null`; `length(data.zstack_license_authorized_nodes.all.nodes)` failed because the computed list was null. Initialize `state.Nodes` to an empty slice and remove or remap unsupported `name` / `name_pattern` filters.
+
+### BUG-091 — `zstack_sns_email_endpoint.platform_uuid` is not safely optional
+
+- **Severity**: P1
+- **Status**: 🔲 Open
+- **File**: `zstack/provider/resource_zstack_sns_email_endpoint.go`
+- **Confirmed by**: creating `zstack_sns_email_endpoint` with only `name` and `email`
+
+**Observed**: API rejected Create:
+`id to load is required for loading`
+
+**Problem**: Schema marks `platform_uuid` Optional+Computed, but Create sends `PlatformUuid: stringPtrOrNil(plan.PlatformUuid.ValueString())`; when omitted, the API cannot load the platform. Fix by making `platform_uuid` Required, adding a plan-time diagnostic, or deriving a default platform only if the API exposes a stable default.
 
 ---
 
