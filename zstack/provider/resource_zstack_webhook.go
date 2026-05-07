@@ -208,11 +208,21 @@ func (r *webhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		},
 	}
 
-	item, err := r.client.UpdateWebhook(state.Uuid.ValueString(), p)
-	if err != nil {
+	if err := r.client.PutWithSpec("v1/web-hooks", state.Uuid.ValueString(), "", "", map[string]interface{}{
+		"updateWebhook": p.Params,
+	}, nil); err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Webhook",
 			"Could not update webhook, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	item, err := findResourceByQuery(r.client.QueryWebhook, state.Uuid.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading Webhook",
+			"Could not read webhook after update: "+err.Error(),
 		)
 		return
 	}
@@ -235,7 +245,6 @@ func (r *webhookResource) Delete(ctx context.Context, req resource.DeleteRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 
 	if err := r.client.DeleteWebhook(state.Uuid.ValueString(), param.DeleteModePermissive); err != nil {
 		resp.Diagnostics.AddError(
