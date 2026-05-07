@@ -110,7 +110,7 @@ func testAccClient() *client.ZSClient {
 	return client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
 		os.Getenv("ZSTACK_ACCOUNT_NAME"),
 		os.Getenv("ZSTACK_ACCOUNT_PASSWORD"),
-	).ReadOnly(true).Debug(false))
+	).ReadOnly(false).Debug(false))
 }
 
 func testAccClientLoggedIn() *client.ZSClient {

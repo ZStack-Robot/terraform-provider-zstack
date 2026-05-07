@@ -34,10 +34,10 @@ type policyResource struct {
 }
 
 type policyResourceModel struct {
-	Uuid        types.String          `tfsdk:"uuid"`
-	Name        types.String          `tfsdk:"name"`
-	Description types.String          `tfsdk:"description"`
-	AccountUuid types.String          `tfsdk:"account_uuid"`
+	Uuid        types.String           `tfsdk:"uuid"`
+	Name        types.String           `tfsdk:"name"`
+	Description types.String           `tfsdk:"description"`
+	AccountUuid types.String           `tfsdk:"account_uuid"`
 	Statements  []policyStatementModel `tfsdk:"statements"`
 }
 
@@ -194,6 +194,9 @@ func (r *policyResource) Create(ctx context.Context, req resource.CreateRequest,
 	plan.Uuid = types.StringValue(result.UUID)
 	plan.Name = types.StringValue(result.Name)
 	// Description is not returned by CreatePolicy
+	if plan.Description.IsUnknown() {
+		plan.Description = types.StringNull()
+	}
 	plan.AccountUuid = types.StringValue(result.AccountUuid)
 
 	tflog.Trace(ctx, "created a policy")
@@ -271,6 +274,9 @@ func (r *policyResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	state.Name = types.StringValue(policy.Name)
 	state.AccountUuid = types.StringValue(policy.AccountUuid)
+	if state.Description.IsUnknown() {
+		state.Description = types.StringNull()
+	}
 
 	// BUG-054: map statements from API view back to state.
 	stmts := make([]policyStatementModel, 0, len(policy.Statements))

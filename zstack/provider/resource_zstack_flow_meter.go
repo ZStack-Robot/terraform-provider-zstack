@@ -204,6 +204,7 @@ func (r *flowMeterResource) Create(ctx context.Context, request resource.CreateR
 	plan.Version = stringValueOrNull(flowMeter.Version)
 	plan.Sample = types.Int64Value(flowMeter.Sample)
 	plan.ExpireInterval = types.Int64Value(flowMeter.ExpireInterval)
+	normalizeFlowMeterWriteOnlyState(&plan)
 
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
@@ -240,6 +241,7 @@ func (r *flowMeterResource) Read(ctx context.Context, request resource.ReadReque
 	state.Version = stringValueOrNull(flowMeter.Version)
 	state.Sample = types.Int64Value(flowMeter.Sample)
 	state.ExpireInterval = types.Int64Value(flowMeter.ExpireInterval)
+	normalizeFlowMeterWriteOnlyState(&state)
 
 	diags = response.State.Set(ctx, &state)
 	response.Diagnostics.Append(diags...)
@@ -291,11 +293,24 @@ func (r *flowMeterResource) Update(ctx context.Context, request resource.UpdateR
 	plan.Version = stringValueOrNull(flowMeter.Version)
 	plan.Sample = types.Int64Value(flowMeter.Sample)
 	plan.ExpireInterval = types.Int64Value(flowMeter.ExpireInterval)
+	normalizeFlowMeterWriteOnlyState(&plan)
 
 	diags = response.State.Set(ctx, plan)
 	response.Diagnostics.Append(diags...)
 	if response.Diagnostics.HasError() {
 		return
+	}
+}
+
+func normalizeFlowMeterWriteOnlyState(model *flowMeterModel) {
+	if model.Server.IsUnknown() {
+		model.Server = types.StringNull()
+	}
+	if model.Port.IsUnknown() {
+		model.Port = types.Int64Null()
+	}
+	if model.GenerateInterval.IsUnknown() {
+		model.GenerateInterval = types.Int64Null()
 	}
 }
 
@@ -306,7 +321,6 @@ func (r *flowMeterResource) Delete(ctx context.Context, request resource.DeleteR
 	if response.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DeleteFlowMeter(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
