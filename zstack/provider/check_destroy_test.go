@@ -131,7 +131,7 @@ var testAccCheckTagDestroy = testAccCheckResourceDestroyByGet("zstack_tag", func
 })
 
 func testAccCheckCertificateDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_certificate" {
 			continue
@@ -160,7 +160,7 @@ func testAccCheckCertificateDestroy(s *terraform.State) error {
 }
 
 func testAccCheckWebhookDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_webhook" {
 			continue
@@ -248,7 +248,7 @@ func testAccCheckReservedIpDestroy(s *terraform.State) error {
 }
 
 func testAccCheckUserDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_user" {
 			continue
@@ -277,7 +277,7 @@ func testAccCheckUserDestroy(s *terraform.State) error {
 }
 
 func testAccCheckRoleDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_role" {
 			continue
@@ -306,7 +306,7 @@ func testAccCheckRoleDestroy(s *terraform.State) error {
 }
 
 func testAccCheckPolicyDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_policy" {
 			continue
@@ -379,7 +379,7 @@ func testAccCheckSecGroupAttachmentDestroy(s *terraform.State) error {
 }
 
 func testAccCheckIAM2VirtualIDDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_iam2_virtual_id" {
 			continue
@@ -408,7 +408,7 @@ func testAccCheckIAM2VirtualIDDestroy(s *terraform.State) error {
 }
 
 func testAccCheckIAM2OrganizationDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_iam2_organization" {
 			continue
@@ -437,7 +437,7 @@ func testAccCheckIAM2OrganizationDestroy(s *terraform.State) error {
 }
 
 func testAccCheckSNSTopicDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_sns_topic" {
 			continue
@@ -481,7 +481,7 @@ func testAccCheckGlobalConfigDestroy(s *terraform.State) error {
 }
 
 func testAccCheckAlarmDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_alarm" {
 			continue
@@ -510,7 +510,7 @@ func testAccCheckAlarmDestroy(s *terraform.State) error {
 }
 
 func testAccCheckSchedulerTriggerDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_scheduler_trigger" {
 			continue
@@ -539,7 +539,7 @@ func testAccCheckSchedulerTriggerDestroy(s *terraform.State) error {
 }
 
 func testAccCheckSchedulerJobDestroy(s *terraform.State) error {
-	cli := testAccClient()
+	cli := testAccClientLoggedIn()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "zstack_scheduler_job" {
 			continue

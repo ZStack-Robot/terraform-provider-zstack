@@ -210,9 +210,7 @@ func (r *cephPrimaryStorageResource) Create(ctx context.Context, req resource.Cr
 	plan.TotalCapacity = types.Int64Value(storage.TotalCapacity)
 	plan.AvailableCapacity = types.Int64Value(storage.AvailableCapacity)
 
-	if storage.Description != "" {
-		plan.Description = types.StringValue(storage.Description)
-	}
+	plan.Description = stringValueOrNull(storage.Description)
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
