@@ -35,7 +35,7 @@ func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("appliance_vm_type"), knownvalue.StringExact(envStr(vr, "appliance_vm_type"))),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vr, "state"))),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("status"), knownvalue.StringExact(envStr(vr, "status"))),
-					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("agent_port"), knownvalue.StringExact(envStr(vr, "agent_port"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("agent_port"), knownvalue.Int64Exact(int64(envInt(vr, "agent_port")))),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(vr, "type"))),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("ha_status"), knownvalue.StringExact(envStr(vr, "ha_status"))),
 
@@ -48,8 +48,8 @@ func TestAccZStackVirtualRoutersDataSource(t *testing.T) {
 
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("platform"), knownvalue.StringExact(envStr(vr, "platform"))),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("architecture"), knownvalue.StringExact(envStr(vr, "architecture"))),
-					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("cpu_num"), knownvalue.StringExact(envStr(vr, "cpu_num"))),
-					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("memory_size"), knownvalue.StringExact(envStr(vr, "memory_size"))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("cpu_num"), knownvalue.Int64Exact(int64(envInt(vr, "cpu_num")))),
+					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("memory_size"), knownvalue.Int64Exact(int64(envInt(vr, "memory_size")))),
 
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("ip"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("data.zstack_virtual_routers.test", tfjsonpath.New("virtual_router").AtSliceIndex(0).AtMapKey("vm_nics").AtSliceIndex(0).AtMapKey("mac"), knownvalue.NotNull()),

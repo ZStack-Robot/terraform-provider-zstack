@@ -76,10 +76,15 @@ func TestAccZStackZonesDataSource_uuidNameMutualExclusion(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: providerConfig() + fmt.Sprintf(
-					`data "zstack_zone" "test" { uuid = %q name = %q }`,
+					`
+data "zstack_zone" "test" {
+  uuid = %q
+  name = %q
+}
+`,
 					envStr(z, "uuid"), envStr(z, "name"),
 				),
-				ExpectError: regexp.MustCompile("(?i)cannot be specified|conflicts"),
+				ExpectError: regexp.MustCompile(`(?s)Invalid Attribute Combination.*cannot be specified`),
 			},
 		},
 	})
