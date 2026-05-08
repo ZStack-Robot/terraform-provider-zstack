@@ -114,12 +114,22 @@ func testAccClient() *client.ZSClient {
 }
 
 func testAccClientLoggedIn() *client.ZSClient {
-	cli := testAccClient()
-	if os.Getenv("ZSTACK_ACCESS_KEY_ID") == "" {
-		// Account/password auth requires explicit login
-		if _, err := cli.Login(context.Background()); err != nil {
-			panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
-		}
+	host := getEnvOrDefault("ZSTACK_HOST", "172.30.3.2")
+	port, _ := strconv.Atoi(getEnvOrDefault("ZSTACK_PORT", "8080"))
+
+	akID := os.Getenv("ZSTACK_ACCESS_KEY_ID")
+	akSecret := os.Getenv("ZSTACK_ACCESS_KEY_SECRET")
+
+	if akID != "" && akSecret != "" {
+		return client.NewZSClient(client.NewZSConfig(host, port, "zstack").AccessKey(akID, akSecret).ReadOnly(false).Debug(false))
+	}
+
+	cli := client.NewZSClient(client.NewZSConfig(host, port, "zstack").LoginAccount(
+		os.Getenv("ZSTACK_ACCOUNT_NAME"),
+		os.Getenv("ZSTACK_ACCOUNT_PASSWORD"),
+	).ReadOnly(false).Debug(false))
+	if _, err := cli.Login(context.Background()); err != nil {
+		panic(fmt.Sprintf("testAccClientLoggedIn: login failed: %v", err))
 	}
 	return cli
 }
