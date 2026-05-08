@@ -5,12 +5,43 @@ package provider
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
+
+func TestSortSecurityGroupRules(t *testing.T) {
+	rules := []rulesModel{
+		{
+			Uuid:              types.StringValue("rule-c"),
+			SecurityGroupUuid: types.StringValue("sg-b"),
+		},
+		{
+			Uuid:              types.StringValue("rule-b"),
+			SecurityGroupUuid: types.StringValue("sg-a"),
+		},
+		{
+			Uuid:              types.StringValue("rule-a"),
+			SecurityGroupUuid: types.StringValue("sg-a"),
+		},
+	}
+
+	sortSecurityGroupRules(rules)
+
+	got := []string{
+		rules[0].SecurityGroupUuid.ValueString() + "/" + rules[0].Uuid.ValueString(),
+		rules[1].SecurityGroupUuid.ValueString() + "/" + rules[1].Uuid.ValueString(),
+		rules[2].SecurityGroupUuid.ValueString() + "/" + rules[2].Uuid.ValueString(),
+	}
+	want := []string{"sg-a/rule-a", "sg-a/rule-b", "sg-b/rule-c"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected order: got %v, want %v", got, want)
+	}
+}
 
 func TestAccZStackNetworkingSecGroupRulesDataSource(t *testing.T) {
 	env := loadEnvData(t)
