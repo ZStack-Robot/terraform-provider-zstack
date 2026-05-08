@@ -220,7 +220,7 @@ func (r *scriptResource) Create(ctx context.Context, request resource.CreateRequ
 
 	plan.Uuid = types.StringValue(script.UUID)
 	plan.Name = types.StringValue(script.Name)
-	plan.Description = stringValueOrNull(script.Description)
+	plan.Description = scriptDescriptionValue(plan.Description, script.Description)
 	plan.ScriptContent = types.StringValue(preserveIfEquivAfterTrim(plan.ScriptContent.ValueString(), script.ScriptContent))
 	plan.RenderParams = types.StringValue(script.RenderParams)
 	plan.Platform = types.StringValue(script.Platform)
@@ -274,7 +274,7 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 
 	state.Uuid = types.StringValue(scripts.UUID)
 	state.Name = types.StringValue(scripts.Name)
-	state.Description = stringValueOrNull(scripts.Description)
+	state.Description = scriptDescriptionValue(state.Description, scripts.Description)
 	state.ScriptContent = types.StringValue(preserveIfEquivAfterTrim(state.ScriptContent.ValueString(), scripts.ScriptContent))
 	state.RenderParams = types.StringValue(scripts.RenderParams)
 	state.Platform = types.StringValue(scripts.Platform)
@@ -289,6 +289,13 @@ func (r *scriptResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
+}
+
+func scriptDescriptionValue(prior types.String, apiValue string) types.String {
+	if prior.IsNull() {
+		return types.StringNull()
+	}
+	return types.StringValue(apiValue)
 }
 
 func (r *scriptResource) Update(ctx context.Context, request resource.UpdateRequest, response *resource.UpdateResponse) {

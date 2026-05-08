@@ -128,3 +128,30 @@ resource "zstack_instance_scripts" "test" {
 		},
 	})
 }
+
+func TestAccScriptResource_emptyDescription(t *testing.T) {
+	_ = loadEnvData(t)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckScriptDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_instance_scripts" "test" {
+  name           = "acc-test-script-empty-description"
+  description    = ""
+  script_content = "echo hello"
+  script_type    = "Shell"
+  encoding_type  = "PlainText"
+  platform       = "Linux"
+}
+`,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_instance_scripts.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance_scripts.test", tfjsonpath.New("description"), knownvalue.StringExact("")),
+				},
+			},
+		},
+	})
+}
