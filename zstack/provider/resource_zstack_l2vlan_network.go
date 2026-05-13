@@ -33,15 +33,15 @@ type l2VlanNetworkResource struct {
 }
 
 type l2VlanNetworkResourceModel struct {
-	Uuid                 types.String   `tfsdk:"uuid"`
-	Name                 types.String   `tfsdk:"name"`
-	Description          types.String   `tfsdk:"description"`
-	Vlan                 types.Int64    `tfsdk:"vlan"`
-	ZoneUuid             types.String   `tfsdk:"zone_uuid"`
-	PhysicalInterface    types.String   `tfsdk:"physical_interface"`
-	Type                 types.String   `tfsdk:"type"`
-	VSwitchType          types.String   `tfsdk:"vswitch_type"`
-	AttachedClusterUuids []types.String `tfsdk:"attached_cluster_uuids"`
+	Uuid                 types.String `tfsdk:"uuid"`
+	Name                 types.String `tfsdk:"name"`
+	Description          types.String `tfsdk:"description"`
+	Vlan                 types.Int64  `tfsdk:"vlan"`
+	ZoneUuid             types.String `tfsdk:"zone_uuid"`
+	PhysicalInterface    types.String `tfsdk:"physical_interface"`
+	Type                 types.String `tfsdk:"type"`
+	VSwitchType          types.String `tfsdk:"vswitch_type"`
+	AttachedClusterUuids types.List   `tfsdk:"attached_cluster_uuids"`
 }
 
 func L2VlanNetworkResource() resource.Resource {
@@ -202,7 +202,7 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	// Attach to clusters if specified
-	desiredClusters := terraformStringsToSlice(plan.AttachedClusterUuids)
+	desiredClusters := listToStringSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
 		if err := r.attachCluster(l2Network.UUID, clusterUuid); err != nil {
 			resp.Diagnostics.AddError(
@@ -341,19 +341,19 @@ func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string)
 	return nil
 }
 
-func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current, desired []types.String) error {
+func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current, desired types.List) error {
+	if desired.IsNull() || desired.IsUnknown() {
+		return nil
+	}
+
 	currentSet := make(map[string]bool)
-	for _, c := range current {
-		if !c.IsNull() && c.ValueString() != "" {
-			currentSet[c.ValueString()] = true
-		}
+	for _, c := range listToStringSlice(current) {
+		currentSet[c] = true
 	}
 
 	desiredSet := make(map[string]bool)
-	for _, d := range desired {
-		if !d.IsNull() && d.ValueString() != "" {
-			desiredSet[d.ValueString()] = true
-		}
+	for _, d := range listToStringSlice(desired) {
+		desiredSet[d] = true
 	}
 
 	// Detach clusters that are no longer desired
@@ -378,11 +378,6 @@ func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current
 }
 
 func l2VlanNetworkModelFromView(l2Network *view.L2VlanNetworkInventoryView) l2VlanNetworkResourceModel {
-	attachedClusters := make([]types.String, 0, len(l2Network.AttachedClusterUuids))
-	for _, clusterUuid := range l2Network.AttachedClusterUuids {
-		attachedClusters = append(attachedClusters, types.StringValue(clusterUuid))
-	}
-
 	return l2VlanNetworkResourceModel{
 		Uuid:                 types.StringValue(l2Network.UUID),
 		Name:                 types.StringValue(l2Network.Name),
@@ -392,6 +387,6 @@ func l2VlanNetworkModelFromView(l2Network *view.L2VlanNetworkInventoryView) l2Vl
 		PhysicalInterface:    stringValueOrNull(l2Network.PhysicalInterface),
 		Type:                 stringValueOrNull(l2Network.Type),
 		VSwitchType:          stringValueOrNull(l2Network.VSwitchType),
-		AttachedClusterUuids: attachedClusters,
+		AttachedClusterUuids: stringSliceToList(l2Network.AttachedClusterUuids),
 	}
 }
