@@ -44,6 +44,17 @@ func TestVMResource_Schema(t *testing.T) {
 			t.Errorf("attribute %q should be computed", attr)
 		}
 	}
+
+	optional := []string{"cpu_mode"}
+	for _, attr := range optional {
+		a, ok := resp.Schema.Attributes[attr]
+		if !ok {
+			t.Fatalf("schema missing optional attribute %q", attr)
+		}
+		if !a.IsOptional() {
+			t.Errorf("attribute %q should be optional", attr)
+		}
+	}
 }
 
 func TestVMResource_Metadata(t *testing.T) {
