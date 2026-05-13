@@ -92,6 +92,17 @@ func TestInstanceUpdateGuardsUnknownValues(t *testing.T) {
 		}
 	})
 
+	t.Run("CPUMode", func(t *testing.T) {
+		plan := vmInstanceDataSourceModel{
+			CPUMode: types.StringUnknown(),
+		}
+
+		shouldAddTag := !plan.CPUMode.IsNull() && !plan.CPUMode.IsUnknown() && plan.CPUMode.ValueString() != ""
+		if shouldAddTag {
+			t.Errorf("CPUMode: Unknown value should NOT add system tag")
+		}
+	})
+
 	t.Run("RootDiskSize_Unknown_guard", func(t *testing.T) {
 		// Simulate Unknown Int64 value (as would be extracted from RootDisk.Size)
 		rootDiskSize := types.Int64Unknown()

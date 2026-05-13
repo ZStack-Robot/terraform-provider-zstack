@@ -30,7 +30,8 @@ resource "zstack_instance" "example_vm" {
   ]
   memory_size = 4096
   cpu_num     = 4
-  expunge     = true
+  # cpu_mode   = "host-passthrough"
+  expunge = true
 }
 
 output "zstack_instance" {

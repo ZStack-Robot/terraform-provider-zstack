@@ -87,6 +87,7 @@ type vmInstanceDataSourceModel struct {
 	Strategy             types.String `tfsdk:"strategy"`
 	MemorySize           types.Int64  `tfsdk:"memory_size"`
 	CPUNum               types.Int64  `tfsdk:"cpu_num"`
+	CPUMode              types.String `tfsdk:"cpu_mode"`
 	NeverStop            types.Bool   `tfsdk:"never_stop"`
 	Marketplace          types.Bool   `tfsdk:"marketplace"`
 	GPUDevices           types.List   `tfsdk:"gpu_devices"`
@@ -417,6 +418,16 @@ func (r *instanceResource) Schema(ctx context.Context, _ resource.SchemaRequest,
 					int64planmodifier.UseStateForUnknown(),
 				},
 			},
+			"cpu_mode": schema.StringAttribute{
+				Optional:    true,
+				Description: "The KVM CPU mode for the VM instance. Must be one of: `none`, `host-model`, or `host-passthrough`. Changing it requires the VM to be replaced.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("none", "host-model", "host-passthrough"),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"strategy": schema.StringAttribute{
 				Optional:    true,
 				Description: "The deployment strategy for the VM instance.",
@@ -701,6 +712,10 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	}
 	if !plan.NeverStop.IsNull() && !plan.NeverStop.IsUnknown() && plan.NeverStop.ValueBool() {
 		systemTags = append(systemTags, "ha::NeverStop")
+	}
+
+	if !plan.CPUMode.IsNull() && !plan.CPUMode.IsUnknown() && plan.CPUMode.ValueString() != "" {
+		systemTags = append(systemTags, fmt.Sprintf("resourceConfig::kvm::vm.cpuMode::%s", plan.CPUMode.ValueString()))
 	}
 
 	if !plan.UserData.IsNull() && plan.UserData.ValueString() != "" {
@@ -1236,7 +1251,7 @@ func syncInstanceDataDisksFromVM(ctx context.Context, state vmInstanceDataSource
 	dataVolumes := make([]view.VolumeInventoryView, 0, len(vm.AllVolumes))
 	for _, volume := range vm.AllVolumes {
 		if volume.Type == "Data" {
-				dataVolumes = append(dataVolumes, volume)
+			dataVolumes = append(dataVolumes, volume)
 		}
 	}
 
@@ -1362,4 +1377,3 @@ func isDiskParamValid(r *instanceResource, model diskModel) error {
 func (r *instanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
 }
-
