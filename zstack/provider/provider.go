@@ -303,6 +303,7 @@ func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resour
 		AffinityGroupResource,
 		SshKeyPairResource,
 		L2VlanNetworkResource,
+		L2NetworkClusterAttachmentResource,
 		PortForwardingRuleResource,
 		LoadBalancerResource,
 		LoadBalancerListenerResource,
