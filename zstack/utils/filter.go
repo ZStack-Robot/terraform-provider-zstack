@@ -7,11 +7,10 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func FilterResource[T any](
@@ -36,10 +35,7 @@ func FilterResource[T any](
 				apiFieldName = key
 			}
 
-			caser := cases.Title(language.Und)
-			fieldName := caser.String(apiFieldName)
-			field := resourceValue.FieldByName(fieldName)
-
+			field := fieldByAPIName(resourceValue, apiFieldName)
 			if !field.IsValid() {
 				diags.AddError(
 					"Invalid Filter Key",
@@ -103,4 +99,77 @@ func FilterResource[T any](
 	}
 
 	return filteredResources, diags
+}
+
+func fieldByAPIName(resourceValue reflect.Value, apiFieldName string) reflect.Value {
+	resourceValue = indirectValue(resourceValue)
+	if !resourceValue.IsValid() || resourceValue.Kind() != reflect.Struct {
+		return reflect.Value{}
+	}
+
+	if field := resourceValue.FieldByName(apiFieldName); field.IsValid() {
+		return field
+	}
+
+	if field := fieldByTag(resourceValue, "json", apiFieldName); field.IsValid() {
+		return field
+	}
+
+	if field := fieldByTag(resourceValue, "tfsdk", apiFieldName); field.IsValid() {
+		return field
+	}
+
+	fieldName := exportedFieldName(apiFieldName)
+	if field := resourceValue.FieldByName(fieldName); field.IsValid() {
+		return field
+	}
+
+	return reflect.Value{}
+}
+
+func fieldByTag(resourceValue reflect.Value, tagKey string, tagValue string) reflect.Value {
+	resourceValue = indirectValue(resourceValue)
+	if !resourceValue.IsValid() || resourceValue.Kind() != reflect.Struct {
+		return reflect.Value{}
+	}
+
+	resourceType := resourceValue.Type()
+	for i := 0; i < resourceType.NumField(); i++ {
+		structField := resourceType.Field(i)
+		if structField.PkgPath != "" && !structField.Anonymous {
+			continue
+		}
+
+		fieldTagValue := strings.Split(structField.Tag.Get(tagKey), ",")[0]
+		if fieldTagValue != "" && fieldTagValue != "-" && fieldTagValue == tagValue {
+			return resourceValue.Field(i)
+		}
+
+		if structField.Anonymous {
+			if field := fieldByTag(resourceValue.Field(i), tagKey, tagValue); field.IsValid() {
+				return field
+			}
+		}
+	}
+
+	return reflect.Value{}
+}
+
+func indirectValue(value reflect.Value) reflect.Value {
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return reflect.Value{}
+		}
+		value = value.Elem()
+	}
+
+	return value
+}
+
+func exportedFieldName(name string) string {
+	if name == "" {
+		return ""
+	}
+
+	return strings.ToUpper(name[:1]) + name[1:]
 }
