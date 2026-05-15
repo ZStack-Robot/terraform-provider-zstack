@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -52,6 +53,51 @@ func TestSchedulerTriggerResource_Metadata(t *testing.T) {
 	if resp.TypeName != "zstack_scheduler_trigger" {
 		t.Errorf("unexpected type name: %s", resp.TypeName)
 	}
+}
+
+func TestValidateSchedulerTriggerCronExpression(t *testing.T) {
+	tests := []struct {
+		name    string
+		cron    string
+		wantErr bool
+	}{
+		{name: "six field quartz", cron: "0 0 0 * * ?", wantErr: false},
+		{name: "six field every two hours", cron: "0 0 0/2 * * ?", wantErr: false},
+		{name: "seven field quartz", cron: "0 0 0 * * ? 2026", wantErr: false},
+		{name: "five field unix", cron: "0 */2 * * *", wantErr: true},
+		{name: "empty", cron: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSchedulerTriggerCronExpression(tt.cron)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestSchedulerTriggerResource_InvalidUnixCronFailsValidation(t *testing.T) {
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + `
+resource "zstack_scheduler_trigger" "test" {
+  name           = "unit-test-trigger"
+  scheduler_type = "cron"
+  cron           = "0 */2 * * *"
+}
+`,
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`(?s)Quartz format.*6 or 7`),
+			},
+		},
+	})
 }
 
 func TestAccSchedulerTriggerResource_disappears(t *testing.T) {
