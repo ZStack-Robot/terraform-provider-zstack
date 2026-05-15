@@ -36,11 +36,11 @@ var FieldMapping = map[string]map[string]string{
 	},
 	"image": {
 		"guest_os_type":        "guestOsType",
-		"image_format":         "imageFormat",
-		"image_type":           "imageType",
+		"image_format":         "format",
+		"image_type":           "type",
 		"media_type":           "mediaType",
 		"boot_mode":            "bootMode",
-		"backup_storage_uuids": "backupStorageUuids",
+		"backup_storage_uuids": "backupStorageRefs.backupStorageUuid",
 	},
 	"instance_offer": {
 		"cpu_num":            "cpuNum",
@@ -139,9 +139,10 @@ var FieldMapping = map[string]map[string]string{
 	"tag": {},
 	"security_group": {
 		"ip_version":                "ipVersion",
-		"src_ip_range":              "srcIpRange",
-		"dst_ip_range":              "dstIpRange",
+		"src_ip_range":              "rules.srcIpRange",
+		"dst_ip_range":              "rules.dstIpRange",
 		"attached_l3_network_uuids": "attachedL3NetworkUuids",
+		"attached_l3network_uuids":  "attachedL3NetworkUuids",
 	},
 	"security_group_rule": {
 		"ip_version":                 "ipVersion",
