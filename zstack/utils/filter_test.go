@@ -5,9 +5,11 @@ package utils
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	sdkview "github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 type filterTestBase struct {
@@ -353,6 +355,71 @@ func TestFilterResourceResolvesUnmappedSnakeCaseByJSONTag(t *testing.T) {
 	}
 	if filtered[0].VmNicUuid != "nic-b" {
 		t.Fatalf("expected nic-b, got %s", filtered[0].VmNicUuid)
+	}
+}
+
+func TestFieldMappingsResolveAgainstSDKViews(t *testing.T) {
+	samples := map[string]any{
+		"account":                 sdkview.AccountInventoryView{},
+		"affinity_group":          sdkview.AffinityGroupInventoryView{},
+		"auto_scaling_group":      sdkview.AutoScalingGroupInventoryView{},
+		"backup_storage":          sdkview.BackupStorageInventoryView{},
+		"cluster":                 sdkview.ClusterInventoryView{},
+		"disk_offer":              sdkview.DiskOfferingInventoryView{},
+		"disks":                   sdkview.VolumeInventoryView{},
+		"gpu_device":              sdkview.GpuDeviceInventoryView{},
+		"hook_script":             sdkview.XmlHookInventoryView{},
+		"host":                    sdkview.HostInventoryView{},
+		"host_script":             sdkview.XmlHookInventoryView{},
+		"iam2_project":            sdkview.IAM2ProjectInventoryView{},
+		"image":                   sdkview.ImageInventoryView{BackupStorageRefs: []sdkview.ImageBackupStorageRefInventoryView{{}}},
+		"instance":                sdkview.VmInstanceInventoryView{},
+		"instance_offer":          sdkview.InstanceOfferingInventoryView{},
+		"l2network":               sdkview.L2NetworkInventoryView{},
+		"l2vlan_network":          sdkview.L2VlanNetworkInventoryView{},
+		"l3network":               sdkview.L3NetworkInventoryView{Dns: []string{"dns"}, IpRanges: []sdkview.IpRangeInventoryView{{}}},
+		"load_balancer":           sdkview.LoadBalancerInventoryView{},
+		"load_balancer_listener":  sdkview.LoadBalancerListenerInventoryView{},
+		"port_forwarding_rule":    sdkview.PortForwardingRuleInventoryView{},
+		"primary_storage":         sdkview.PrimaryStorageInventoryView{},
+		"script":                  sdkview.GuestVmScriptInventoryView{},
+		"sdn_controller":          sdkview.SdnControllerInventoryView{},
+		"security_group":          sdkview.SecurityGroupInventoryView{AttachedL3NetworkUuids: []string{"l3"}, Rules: []sdkview.SecurityGroupRuleInventoryView{{}}},
+		"security_group_rule":     sdkview.SecurityGroupRuleInventoryView{},
+		"ssh_key_pair":            sdkview.SshKeyPairInventoryView{},
+		"system_tags":             sdkview.SystemTagInventoryView{},
+		"tag":                     sdkview.TagPatternInventoryView{},
+		"user_tags":               sdkview.UserTagInventoryView{},
+		"vip":                     sdkview.VipInventoryView{PeerL3NetworkUuids: []string{"l3"}},
+		"virtual_router_image":    sdkview.ImageInventoryView{},
+		"virtual_router_instance": sdkview.VirtualRouterVmInventoryView{},
+		"virtual_router_offer":    sdkview.VirtualRouterOfferingInventoryView{},
+		"volume":                  sdkview.VolumeInventoryView{},
+		"volume_snapshot":         sdkview.VolumeSnapshotInventoryView{},
+		"zone":                    sdkview.ZoneInventoryView{},
+	}
+	unusedMappings := map[string]bool{
+		"qga": true,
+	}
+
+	for dataSourceName, mapping := range FieldMapping {
+		sample, ok := samples[dataSourceName]
+		if !ok {
+			if unusedMappings[dataSourceName] {
+				continue
+			}
+			t.Fatalf("missing SDK view sample for FieldMapping[%q]", dataSourceName)
+		}
+
+		for filterKey, apiFieldName := range mapping {
+			_, found, unsupportedType := fieldValuesByAPIName(reflect.ValueOf(sample), apiFieldName, filterKey)
+			if !found {
+				t.Fatalf("FieldMapping[%q][%q] = %q does not resolve against %T", dataSourceName, filterKey, apiFieldName, sample)
+			}
+			if unsupportedType != "" {
+				t.Fatalf("FieldMapping[%q][%q] = %q resolves to unsupported type %s", dataSourceName, filterKey, apiFieldName, unsupportedType)
+			}
+		}
 	}
 }
 

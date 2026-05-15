@@ -39,7 +39,6 @@ var FieldMapping = map[string]map[string]string{
 		"image_format":         "format",
 		"image_type":           "type",
 		"media_type":           "mediaType",
-		"boot_mode":            "bootMode",
 		"backup_storage_uuids": "backupStorageRefs.backupStorageUuid",
 	},
 	"instance_offer": {
@@ -52,7 +51,17 @@ var FieldMapping = map[string]map[string]string{
 		"physical_interface": "physicalInterface",
 		"zone_uuid":          "zoneUuid",
 	},
-	"l3network": {},
+	"l3network": {
+		"zone_uuid":       "zoneUuid",
+		"l2_network_uuid": "l2NetworkUuid",
+		"ip_version":      "ipVersion",
+		"ip_range_name":   "ipRanges.name",
+		"start_ip":        "ipRanges.startIp",
+		"end_ip":          "ipRanges.endIp",
+		"netmask":         "ipRanges.netmask",
+		"gateway":         "ipRanges.gateway",
+		"cidr":            "ipRanges.networkCidr",
+	},
 	"vip": {
 		"l3_network_uuid":       "l3NetworkUuid",
 		"peer_l3_network_uuids": "peerL3NetworkUuids",
@@ -156,7 +165,10 @@ var FieldMapping = map[string]map[string]string{
 		"vendor_type": "vendorType",
 	},
 	"hook_script": {
-		"host_script": "hostScript",
+		"hook_script": "hookScript",
+	},
+	"host_script": {
+		"hook_script": "hookScript",
 	},
 	"account": {},
 	"iam2_project": {
