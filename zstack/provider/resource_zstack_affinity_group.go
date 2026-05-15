@@ -110,10 +110,13 @@ func (r *affinityGroupResource) Schema(_ context.Context, req resource.SchemaReq
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The type of affinity group. Defaults to 'host'.",
+				Description: "The type of affinity group. Must be `host` when specified. Defaults to `host`.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("host"),
 				},
 			},
 			"zone_uuid": schema.StringAttribute{
@@ -154,7 +157,7 @@ func (r *affinityGroupResource) Create(ctx context.Context, req resource.CreateR
 		},
 	}
 
-	if !plan.Type.IsNull() && plan.Type.ValueString() != "" {
+	if !plan.Type.IsNull() && !plan.Type.IsUnknown() && plan.Type.ValueString() != "" {
 		createParam.Params.Type = stringPtr(plan.Type.ValueString())
 	}
 
@@ -177,7 +180,7 @@ func (r *affinityGroupResource) Create(ctx context.Context, req resource.CreateR
 	if !strings.EqualFold(plan.Policy.ValueString(), affinityGroup.Policy) {
 		plan.Policy = types.StringValue(affinityGroup.Policy)
 	}
-	plan.Type = types.StringValue(affinityGroup.Type)
+	plan.Type = normalizeAffinityGroupType(plan.Type, affinityGroup.Type)
 	plan.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
 		plan.ZoneUuid = types.StringValue(affinityGroup.ZoneUuid)
@@ -215,7 +218,7 @@ func (r *affinityGroupResource) Read(ctx context.Context, req resource.ReadReque
 	if !strings.EqualFold(state.Policy.ValueString(), affinityGroup.Policy) {
 		state.Policy = types.StringValue(affinityGroup.Policy)
 	}
-	state.Type = types.StringValue(affinityGroup.Type)
+	state.Type = normalizeAffinityGroupType(state.Type, affinityGroup.Type)
 	state.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
 		state.ZoneUuid = types.StringValue(affinityGroup.ZoneUuid)
@@ -271,7 +274,7 @@ func (r *affinityGroupResource) Update(ctx context.Context, req resource.UpdateR
 	if !strings.EqualFold(plan.Policy.ValueString(), affinityGroup.Policy) {
 		plan.Policy = types.StringValue(affinityGroup.Policy)
 	}
-	plan.Type = types.StringValue(affinityGroup.Type)
+	plan.Type = normalizeAffinityGroupType(plan.Type, affinityGroup.Type)
 	plan.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
 		plan.ZoneUuid = types.StringValue(affinityGroup.ZoneUuid)
@@ -290,7 +293,6 @@ func (r *affinityGroupResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-
 	err := r.client.DeleteAffinityGroup(state.Uuid.ValueString(), param.DeleteModePermissive)
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting Affinity Group", "Could not delete affinity group, unexpected error: "+err.Error())
@@ -301,4 +303,26 @@ func (r *affinityGroupResource) Delete(ctx context.Context, req resource.DeleteR
 // ImportState implements resource.ResourceWithImportState.
 func (r *affinityGroupResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("uuid"), req, resp)
+}
+
+func normalizeAffinityGroupType(config types.String, apiValue string) types.String {
+	if apiValue == "" {
+		if config.IsUnknown() {
+			return types.StringNull()
+		}
+		return config
+	}
+
+	if !config.IsNull() && !config.IsUnknown() && config.ValueString() != "" {
+		if strings.EqualFold(config.ValueString(), apiValue) {
+			return config
+		}
+	}
+
+	switch strings.ToLower(apiValue) {
+	case "host":
+		return types.StringValue("host")
+	default:
+		return types.StringValue(apiValue)
+	}
 }
