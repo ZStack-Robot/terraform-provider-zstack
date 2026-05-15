@@ -4,12 +4,14 @@ package provider
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 func TestAccZStackvmInstancesDataSource(t *testing.T) {
@@ -65,6 +67,51 @@ func TestAccZStackvmInstancesDataSourceFilterByNameRegex(t *testing.T) {
 					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(vm, "uuid"))),
 					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("state"), knownvalue.StringExact(envStr(vm, "state"))),
 					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("type"), knownvalue.StringExact(envStr(vm, "type"))),
+				},
+			},
+		},
+	})
+}
+
+func TestAccZStackvmInstancesDataSourceFilterByCPUNum(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	cli := testAccClientLoggedIn()
+	params := param.NewQueryParam()
+	vms, err := cli.QueryVmInstance(&params)
+	if err != nil {
+		t.Fatalf("QueryVmInstance error: %v", err)
+	}
+	if len(vms) == 0 {
+		t.Skip("no vm instances in live environment")
+	}
+	vm := vms[0]
+	uuid := vm.UUID
+	cpuNum := vm.CpuNum
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_instances" "test" {
+  filter {
+    name   = "cpu_num"
+    values = ["%d"]
+  }
+
+  filter {
+    name   = "uuid"
+    values = [%q]
+  }
+}
+`, cpuNum, uuid),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(uuid)),
+					statecheck.ExpectKnownValue("data.zstack_instances.test", tfjsonpath.New("vminstances").AtSliceIndex(0).AtMapKey("cpu_num"), knownvalue.Int64Exact(int64(cpuNum))),
 				},
 			},
 		},

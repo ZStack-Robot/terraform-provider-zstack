@@ -4,12 +4,14 @@ package provider
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 func TestAccZStackL3NetworksDataSource(t *testing.T) {
@@ -59,6 +61,59 @@ func TestAccZStackL3NetworksDataSourceFilterByName(t *testing.T) {
 					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(envStr(l3, "uuid"))),
 					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("category"), knownvalue.StringExact(envStr(l3, "category"))),
+				},
+			},
+		},
+	})
+}
+
+func TestAccZStackL3NetworksDataSourceFilterByCidr(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	cli := testAccClientLoggedIn()
+	params := param.NewQueryParam()
+	l3Networks, err := cli.QueryL3Network(&params)
+	if err != nil {
+		t.Fatalf("QueryL3Network error: %v", err)
+	}
+
+	l3Index := -1
+	for i, l3Network := range l3Networks {
+		if len(l3Network.IpRanges) > 0 && l3Network.IpRanges[0].NetworkCidr != "" {
+			l3Index = i
+			break
+		}
+	}
+	if l3Index == -1 {
+		t.Skip("no l3 networks with ip ranges in live environment")
+	}
+
+	l3Network := l3Networks[l3Index]
+	cidr := l3Network.IpRanges[0].NetworkCidr
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_l3networks" "test" {
+  filter {
+    name   = "cidr"
+    values = [%q]
+  }
+
+  filter {
+    name   = "uuid"
+    values = [%q]
+  }
+}
+`, cidr, l3Network.UUID),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("uuid"), knownvalue.StringExact(l3Network.UUID)),
+					statecheck.ExpectKnownValue("data.zstack_l3networks.test", tfjsonpath.New("l3networks").AtSliceIndex(0).AtMapKey("ip_range").AtSliceIndex(0).AtMapKey("cidr"), knownvalue.StringExact(cidr)),
 				},
 			},
 		},

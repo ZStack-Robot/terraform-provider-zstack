@@ -4,11 +4,14 @@ package provider
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 func TestAccZStackVipDataSource(t *testing.T) {
@@ -50,6 +53,79 @@ func TestAccZStackVipDataSourceFilterByName(t *testing.T) {
 					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.#", "1"),
 					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.0.name", name),
 					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.0.uuid", envStr(item, "uuid")),
+				),
+			},
+		},
+	})
+}
+
+func TestAccZStackVipDataSourceFilterByPeerL3NetworkUuids(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	cli := testAccClientLoggedIn()
+	params := param.NewQueryParam()
+	params.AddQ("system=false")
+	vips, err := cli.QueryVip(&params)
+	if err != nil {
+		t.Fatalf("QueryVip error: %v", err)
+	}
+	if len(vips) == 0 {
+		t.Skip("no user vips in live environment")
+	}
+
+	vipIndex := -1
+	for i, vip := range vips {
+		if len(vip.PeerL3NetworkUuids) > 0 {
+			vipIndex = i
+			break
+		}
+	}
+	if vipIndex == -1 {
+		resource.Test(t, resource.TestCase{
+			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+			Steps: []resource.TestStep{
+				{
+					Config: providerConfig() + `
+data "zstack_vips" "test" {
+  filter {
+    name   = "peer_l3_network_uuids"
+    values = ["tf-nonexistent-peer-l3-network-uuid"]
+  }
+}
+`,
+					Check: resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.#", "0"),
+				},
+			},
+		})
+		return
+	}
+
+	vip := vips[vipIndex]
+	peerL3NetworkUuid := vip.PeerL3NetworkUuids[0]
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_vips" "test" {
+  filter {
+    name   = "peer_l3_network_uuids"
+    values = [%q]
+  }
+
+  filter {
+    name   = "uuid"
+    values = [%q]
+  }
+}
+`, peerL3NetworkUuid, vip.UUID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.#", "1"),
+					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.0.uuid", vip.UUID),
+					resource.TestCheckResourceAttr("data.zstack_vips.test", "vips.0.peer_l3_network_uuids", strings.Join(vip.PeerL3NetworkUuids, ",")),
 				),
 			},
 		},
