@@ -21,11 +21,21 @@ type filterTestAffinityGroup struct {
 }
 
 type filterTestInstance struct {
-	CPUNum int64
+	CpuNum int `json:"cpuNum,omitempty"`
 }
 
 type filterTestVolume struct {
-	PrimaryStorageUUID string `json:"primaryStorageUUID,omitempty"`
+	DiskOfferingUuid   string `json:"diskOfferingUuid,omitempty"`
+	PrimaryStorageUuid string `json:"primaryStorageUuid,omitempty"`
+	VmInstanceUuid     string `json:"vmInstanceUuid,omitempty"`
+	LastVmInstanceUuid string `json:"lastVmInstanceUuid,omitempty"`
+}
+
+type filterTestVolumeSnapshot struct {
+	ParentUuid         string `json:"parentUuid,omitempty"`
+	PrimaryStorageUuid string `json:"primaryStorageUuid,omitempty"`
+	TreeUuid           string `json:"treeUuid,omitempty"`
+	VolumeUuid         string `json:"volumeUuid,omitempty"`
 }
 
 type filterTestTerraformModel struct {
@@ -74,10 +84,10 @@ func TestFilterResourceResolvesEmbeddedFieldByJSONTag(t *testing.T) {
 	}
 }
 
-func TestFilterResourceResolvesExactGoFieldMapping(t *testing.T) {
+func TestFilterResourceResolvesInstanceCpuNumByJSONTag(t *testing.T) {
 	resources := []filterTestInstance{
-		{CPUNum: 2},
-		{CPUNum: 4},
+		{CpuNum: 2},
+		{CpuNum: 4},
 	}
 
 	filtered, diags := FilterResource(context.Background(), resources, map[string][]string{
@@ -90,29 +100,82 @@ func TestFilterResourceResolvesExactGoFieldMapping(t *testing.T) {
 	if len(filtered) != 1 {
 		t.Fatalf("expected 1 filtered resource, got %d", len(filtered))
 	}
-	if filtered[0].CPUNum != 4 {
-		t.Fatalf("expected cpu_num 4, got %d", filtered[0].CPUNum)
+	if filtered[0].CpuNum != 4 {
+		t.Fatalf("expected cpu_num 4, got %d", filtered[0].CpuNum)
 	}
 }
 
-func TestFilterResourceResolvesAcronymFieldByJSONTag(t *testing.T) {
+func TestFilterResourceResolvesVolumeFieldsByJSONTag(t *testing.T) {
 	resources := []filterTestVolume{
-		{PrimaryStorageUUID: "ps-1"},
-		{PrimaryStorageUUID: "ps-2"},
+		{DiskOfferingUuid: "disk-1", PrimaryStorageUuid: "ps-1", VmInstanceUuid: "vm-1", LastVmInstanceUuid: "last-vm-1"},
+		{DiskOfferingUuid: "disk-2", PrimaryStorageUuid: "ps-2", VmInstanceUuid: "vm-2", LastVmInstanceUuid: "last-vm-2"},
 	}
 
-	filtered, diags := FilterResource(context.Background(), resources, map[string][]string{
-		"primary_storage_uuid": {"ps-2"},
-	}, "volume")
-	if diags.HasError() {
-		t.Fatalf("FilterResource returned diagnostics: %v", diags)
+	tests := []struct {
+		name      string
+		filterKey string
+		value     string
+		wantVM    string
+	}{
+		{name: "disk offering uuid", filterKey: "disk_offering_uuid", value: "disk-2", wantVM: "vm-2"},
+		{name: "primary storage uuid", filterKey: "primary_storage_uuid", value: "ps-2", wantVM: "vm-2"},
+		{name: "vm instance uuid", filterKey: "vm_instance_uuid", value: "vm-2", wantVM: "vm-2"},
+		{name: "last vm instance uuid", filterKey: "last_vm_instance_uuid", value: "last-vm-2", wantVM: "vm-2"},
 	}
 
-	if len(filtered) != 1 {
-		t.Fatalf("expected 1 filtered resource, got %d", len(filtered))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered, diags := FilterResource(context.Background(), resources, map[string][]string{
+				tt.filterKey: {tt.value},
+			}, "volume")
+			if diags.HasError() {
+				t.Fatalf("FilterResource returned diagnostics: %v", diags)
+			}
+
+			if len(filtered) != 1 {
+				t.Fatalf("expected 1 filtered resource, got %d", len(filtered))
+			}
+			if filtered[0].VmInstanceUuid != tt.wantVM {
+				t.Fatalf("expected %s, got %s", tt.wantVM, filtered[0].VmInstanceUuid)
+			}
+		})
 	}
-	if filtered[0].PrimaryStorageUUID != "ps-2" {
-		t.Fatalf("expected ps-2, got %s", filtered[0].PrimaryStorageUUID)
+}
+
+func TestFilterResourceResolvesVolumeSnapshotFieldsByJSONTag(t *testing.T) {
+	resources := []filterTestVolumeSnapshot{
+		{ParentUuid: "parent-1", PrimaryStorageUuid: "ps-1", TreeUuid: "tree-1", VolumeUuid: "vol-1"},
+		{ParentUuid: "parent-2", PrimaryStorageUuid: "ps-2", TreeUuid: "tree-2", VolumeUuid: "vol-2"},
+	}
+
+	tests := []struct {
+		name      string
+		filterKey string
+		value     string
+		wantVol   string
+	}{
+		{name: "parent uuid", filterKey: "parent_uuid", value: "parent-2", wantVol: "vol-2"},
+		{name: "primary storage uuid", filterKey: "primary_storage_uuid", value: "ps-2", wantVol: "vol-2"},
+		{name: "tree uuid", filterKey: "tree_uuid", value: "tree-2", wantVol: "vol-2"},
+		{name: "volume uuid", filterKey: "volume_uuid", value: "vol-2", wantVol: "vol-2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered, diags := FilterResource(context.Background(), resources, map[string][]string{
+				tt.filterKey: {tt.value},
+			}, "volume_snapshot")
+			if diags.HasError() {
+				t.Fatalf("FilterResource returned diagnostics: %v", diags)
+			}
+
+			if len(filtered) != 1 {
+				t.Fatalf("expected 1 filtered resource, got %d", len(filtered))
+			}
+			if filtered[0].VolumeUuid != tt.wantVol {
+				t.Fatalf("expected %s, got %s", tt.wantVol, filtered[0].VolumeUuid)
+			}
+		})
 	}
 }
 
