@@ -117,6 +117,67 @@ func TestNormalizeAffinityGroupType(t *testing.T) {
 	}
 }
 
+func TestNormalizeAffinityGroupPolicy(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   types.String
+		apiValue string
+		want     types.String
+	}{
+		{
+			name:     "preserves configured antiSoft when API returns uppercase",
+			config:   types.StringValue("antiSoft"),
+			apiValue: "ANTISOFT",
+			want:     types.StringValue("antiSoft"),
+		},
+		{
+			name:     "normalizes imported uppercase antiSoft",
+			config:   types.StringNull(),
+			apiValue: "ANTISOFT",
+			want:     types.StringValue("antiSoft"),
+		},
+		{
+			name:     "normalizes uppercase antiHard",
+			config:   types.StringNull(),
+			apiValue: "ANTIHARD",
+			want:     types.StringValue("antiHard"),
+		},
+		{
+			name:     "normalizes uppercase proSoft",
+			config:   types.StringNull(),
+			apiValue: "PROSOFT",
+			want:     types.StringValue("proSoft"),
+		},
+		{
+			name:     "normalizes uppercase proHard",
+			config:   types.StringNull(),
+			apiValue: "PROHARD",
+			want:     types.StringValue("proHard"),
+		},
+		{
+			name:     "uses null when config is unknown and API value is empty",
+			config:   types.StringUnknown(),
+			apiValue: "",
+			want:     types.StringNull(),
+		},
+		{
+			name:     "keeps unknown server value unchanged",
+			config:   types.StringNull(),
+			apiValue: "OTHER",
+			want:     types.StringValue("OTHER"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeAffinityGroupPolicy(tt.config, tt.apiValue)
+			if !got.Equal(tt.want) {
+				t.Fatalf("normalizeAffinityGroupPolicy() = %s, want %s", got.String(), tt.want.String())
+			}
+		})
+	}
+}
+
 func TestAccAffinityGroupResource(t *testing.T) {
 	_ = loadEnvData(t)
 	name := testAccName("affinity-group")

@@ -176,10 +176,7 @@ func (r *affinityGroupResource) Create(ctx context.Context, req resource.CreateR
 	plan.Uuid = types.StringValue(affinityGroup.UUID)
 	plan.Name = types.StringValue(affinityGroup.Name)
 	plan.Description = types.StringValue(affinityGroup.Description)
-	// API may uppercase the policy (e.g. "antiSoft" -> "ANTISOFT"), preserve user input if case-insensitive match
-	if !strings.EqualFold(plan.Policy.ValueString(), affinityGroup.Policy) {
-		plan.Policy = types.StringValue(affinityGroup.Policy)
-	}
+	plan.Policy = normalizeAffinityGroupPolicy(plan.Policy, affinityGroup.Policy)
 	plan.Type = normalizeAffinityGroupType(plan.Type, affinityGroup.Type)
 	plan.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
@@ -214,10 +211,7 @@ func (r *affinityGroupResource) Read(ctx context.Context, req resource.ReadReque
 	state.Uuid = types.StringValue(affinityGroup.UUID)
 	state.Name = types.StringValue(affinityGroup.Name)
 	state.Description = types.StringValue(affinityGroup.Description)
-	// Preserve existing policy value if case-insensitive match (API uppercases)
-	if !strings.EqualFold(state.Policy.ValueString(), affinityGroup.Policy) {
-		state.Policy = types.StringValue(affinityGroup.Policy)
-	}
+	state.Policy = normalizeAffinityGroupPolicy(state.Policy, affinityGroup.Policy)
 	state.Type = normalizeAffinityGroupType(state.Type, affinityGroup.Type)
 	state.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
@@ -271,9 +265,7 @@ func (r *affinityGroupResource) Update(ctx context.Context, req resource.UpdateR
 	plan.Uuid = types.StringValue(affinityGroup.UUID)
 	plan.Name = types.StringValue(affinityGroup.Name)
 	plan.Description = types.StringValue(affinityGroup.Description)
-	if !strings.EqualFold(plan.Policy.ValueString(), affinityGroup.Policy) {
-		plan.Policy = types.StringValue(affinityGroup.Policy)
-	}
+	plan.Policy = normalizeAffinityGroupPolicy(plan.Policy, affinityGroup.Policy)
 	plan.Type = normalizeAffinityGroupType(plan.Type, affinityGroup.Type)
 	plan.State = types.StringValue(affinityGroup.State)
 	if affinityGroup.ZoneUuid != "" {
@@ -322,6 +314,34 @@ func normalizeAffinityGroupType(config types.String, apiValue string) types.Stri
 	switch strings.ToLower(apiValue) {
 	case "host":
 		return types.StringValue("host")
+	default:
+		return types.StringValue(apiValue)
+	}
+}
+
+func normalizeAffinityGroupPolicy(config types.String, apiValue string) types.String {
+	if apiValue == "" {
+		if config.IsUnknown() {
+			return types.StringNull()
+		}
+		return config
+	}
+
+	if !config.IsNull() && !config.IsUnknown() && config.ValueString() != "" {
+		if strings.EqualFold(config.ValueString(), apiValue) {
+			return config
+		}
+	}
+
+	switch strings.ToLower(apiValue) {
+	case "antisoft":
+		return types.StringValue("antiSoft")
+	case "antihard":
+		return types.StringValue("antiHard")
+	case "prosoft":
+		return types.StringValue("proSoft")
+	case "prohard":
+		return types.StringValue("proHard")
 	default:
 		return types.StringValue(apiValue)
 	}
