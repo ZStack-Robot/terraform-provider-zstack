@@ -255,3 +255,52 @@ resource "zstack_affinity_group" "test_disappears" {
 		},
 	})
 }
+
+func TestAccAffinityGroupsDataSourceFilterByZoneUuid(t *testing.T) {
+	_ = loadEnvData(t)
+	name := testAccName("ag-filter-zone")
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAffinityGroupDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: providerConfig() + fmt.Sprintf(`
+data "zstack_zone" "enabled" {
+  filter {
+    name   = "state"
+    values = ["Enabled"]
+  }
+}
+
+resource "zstack_affinity_group" "test" {
+  name        = %q
+  description = "acceptance affinity group for zone filter"
+  policy      = "antiSoft"
+  type        = "host"
+  zone_uuid   = data.zstack_zone.enabled.zones[0].uuid
+}
+
+data "zstack_affinity_groups" "created" {
+  depends_on = [zstack_affinity_group.test]
+
+  filter {
+    name   = "zone_uuid"
+    values = [data.zstack_zone.enabled.zones[0].uuid]
+  }
+
+  filter {
+    name   = "uuid"
+    values = [zstack_affinity_group.test.uuid]
+  }
+}
+`, name),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_affinity_groups.created", tfjsonpath.New("affinity_groups"), knownvalue.ListSizeExact(1)),
+					statecheck.ExpectKnownValue("data.zstack_affinity_groups.created", tfjsonpath.New("affinity_groups").AtSliceIndex(0).AtMapKey("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("data.zstack_affinity_groups.created", tfjsonpath.New("affinity_groups").AtSliceIndex(0).AtMapKey("zone_uuid"), knownvalue.NotNull()),
+				},
+			},
+		},
+	})
+}
