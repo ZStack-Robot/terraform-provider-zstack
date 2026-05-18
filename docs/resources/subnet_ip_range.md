@@ -42,7 +42,7 @@ output "zstack_subnet_ip_range" {
 
 ### Optional
 
-- `ip_range_type` (String) The type of IP range. Possible values depend on the ZStack configuration (e.g., 'Normal' or 'Reserved').
+- `ip_range_type` (String) The type of IP range. Possible values are `Normal` or `AddressPool`. When omitted, the provider does not send `ipRangeType` and the backend decides the default.
 
 ### Read-Only
 
