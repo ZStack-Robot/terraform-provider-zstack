@@ -125,12 +125,12 @@ func (r *subnetResource) Schema(_ context.Context, request resource.SchemaReques
 			},
 			"ip_range_type": schema.StringAttribute{
 				Optional:    true,
-				Description: "The type of IP range. Possible values depend on the ZStack configuration (e.g., 'Normal' or 'Reserved').",
+				Description: "The type of IP range. Possible values are 'Normal' or 'AddressPool'. When omitted, the field is not sent and the backend decides the default.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 				Validators: []validator.String{
-					stringvalidator.OneOf("Normal", "Reserved"),
+					stringvalidator.OneOf("Normal", "AddressPool"),
 				},
 			},
 		},
@@ -150,21 +150,10 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 		return
 	}
 
-	p := param.AddIpRangeParam{
-		BaseParam: param.BaseParam{},
-		Params: param.AddIpRangeParamDetail{
-			Name:        plan.Name.ValueString(),
-			StartIp:     plan.StartIp.ValueString(),
-			EndIp:       plan.EndIp.ValueString(),
-			Netmask:     plan.Netmask.ValueString(),
-			Gateway:     stringPtr(plan.Gateway.ValueString()),
-			IpRangeType: stringPtr(plan.IpRangeType.ValueString()),
-		},
-	}
+	p := subnetAddIpRangeParam(plan)
 
 	subnet, err := r.client.AddIpRange(plan.L3NetworkUuid.ValueString(), p)
 
-	//AddReservedIpRange(plan.Uuid.String().L3NetworkUuid.ValueString(), p)
 	if err != nil {
 		response.Diagnostics.AddError(
 			"Error creating Subnet IP Range",
@@ -188,6 +177,25 @@ func (r *subnetResource) Create(ctx context.Context, request resource.CreateRequ
 
 }
 
+func subnetAddIpRangeParam(plan subnetModel) param.AddIpRangeParam {
+	p := param.AddIpRangeParam{
+		BaseParam: param.BaseParam{},
+		Params: param.AddIpRangeParamDetail{
+			Name:    plan.Name.ValueString(),
+			StartIp: plan.StartIp.ValueString(),
+			EndIp:   plan.EndIp.ValueString(),
+			Netmask: plan.Netmask.ValueString(),
+			Gateway: stringPtr(plan.Gateway.ValueString()),
+		},
+	}
+
+	if !plan.IpRangeType.IsNull() && !plan.IpRangeType.IsUnknown() && plan.IpRangeType.ValueString() != "" {
+		p.Params.IpRangeType = stringPtr(plan.IpRangeType.ValueString())
+	}
+
+	return p
+}
+
 func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest, response *resource.ReadResponse) {
 	var state subnetModel
 	diags := request.State.Get(ctx, &state)
@@ -209,6 +217,13 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 		return
 	}
 
+	ipRangeType := state.IpRangeType
+	if subnet.IpRangeType != "" {
+		ipRangeType = types.StringValue(subnet.IpRangeType)
+	} else if ipRangeType.IsUnknown() || ipRangeType.ValueString() == "" {
+		ipRangeType = types.StringNull()
+	}
+
 	state = subnetModel{
 		Uuid:          types.StringValue(subnet.UUID),
 		Name:          types.StringValue(subnet.Name),
@@ -217,8 +232,7 @@ func (r *subnetResource) Read(ctx context.Context, request resource.ReadRequest,
 		Netmask:       types.StringValue(subnet.Netmask),
 		Gateway:       types.StringValue(subnet.Gateway),
 		L3NetworkUuid: types.StringValue(subnet.L3NetworkUuid),
-		// BUG-063: map ip_range_type back to state (previously missing → drift on 2nd plan)
-		IpRangeType: types.StringValue(subnet.IpRangeType),
+		IpRangeType:   ipRangeType,
 	}
 
 	diags = response.State.Set(ctx, &state)
@@ -242,7 +256,6 @@ func (r *subnetResource) Delete(ctx context.Context, request resource.DeleteRequ
 	if response.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DeleteIpRange(state.Uuid.ValueString(), param.DeleteModePermissive)
 
