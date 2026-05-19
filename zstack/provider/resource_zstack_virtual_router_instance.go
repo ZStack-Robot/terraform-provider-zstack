@@ -91,6 +91,18 @@ func (r *virtualRouterInstanceResource) Create(ctx context.Context, req resource
 		virtualRouterInstanceParam.Params.Description = stringPtr(plan.Description.ValueString())
 	}
 
+	if !plan.ZoneUuid.IsNull() {
+		virtualRouterInstanceParam.Params.ZoneUuid = plan.ZoneUuid.ValueStringPointer()
+	}
+
+	if !plan.ClusterUUID.IsNull() {
+		virtualRouterInstanceParam.Params.ClusterUuid = plan.ClusterUUID.ValueStringPointer()
+	}
+
+	if !plan.HostUuid.IsNull() {
+		virtualRouterInstanceParam.Params.HostUuid = plan.HostUuid.ValueStringPointer()
+	}
+
 	if !plan.PrimaryStorageUuidForRootVolume.IsNull() {
 		virtualRouterInstanceParam.Params.PrimaryStorageUuidForRootVolume = plan.PrimaryStorageUuidForRootVolume.ValueStringPointer()
 	}
@@ -130,7 +142,6 @@ func (r *virtualRouterInstanceResource) Delete(ctx context.Context, req resource
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 
 	err := r.client.DestroyVmInstance(state.Uuid.ValueString(), param.DeleteModeEnforcing)
 
