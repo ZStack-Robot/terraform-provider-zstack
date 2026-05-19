@@ -89,7 +89,7 @@ func (r *vpcFirewallResource) Schema(_ context.Context, request resource.SchemaR
 			},
 			"vpc_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "The UUID of the VPC.",
+				Description: "The UUID of the VPC virtual router instance. Use zstack_virtual_router_instance.<name>.uuid, not zstack_vpc.<name>.uuid.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -111,12 +111,38 @@ func (r *vpcFirewallResource) Create(ctx context.Context, request resource.Creat
 		return
 	}
 
+	vpcUuid := plan.VpcUuid.ValueString()
+	virtualRouter, err := findResourceByGet(r.client.GetVirtualRouterVm, vpcUuid)
+	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			response.Diagnostics.AddError(
+				"Invalid VPC Firewall vpc_uuid",
+				"The vpc_uuid field must be a virtual router instance UUID, such as zstack_virtual_router_instance.<name>.uuid. "+
+					"The API does not accept zstack_vpc.<name>.uuid (L3 VPC network UUID).",
+			)
+			return
+		}
+		response.Diagnostics.AddError(
+			"Error validating VPC Firewall vpc_uuid",
+			"Could not validate virtual router instance UUID "+vpcUuid+": "+err.Error(),
+		)
+		return
+	}
+	if virtualRouter.UUID == "" {
+		response.Diagnostics.AddError(
+			"Invalid VPC Firewall vpc_uuid",
+			"The vpc_uuid field must be a virtual router instance UUID, such as zstack_virtual_router_instance.<name>.uuid. "+
+				"The API returned an empty virtual router inventory for UUID "+vpcUuid+".",
+		)
+		return
+	}
+
 	p := param.CreateVpcFirewallParam{
 		BaseParam: param.BaseParam{},
 		Params: param.CreateVpcFirewallParamDetail{
 			Name:        plan.Name.ValueString(),
 			Description: stringPtrOrNil(plan.Description.ValueString()),
-			VpcUuid:     plan.VpcUuid.ValueString(),
+			VpcUuid:     vpcUuid,
 		},
 	}
 
@@ -234,7 +260,7 @@ func (r *vpcFirewallResource) ImportState(ctx context.Context, req resource.Impo
 		resp.Diagnostics.AddError(
 			"Invalid import ID format",
 			"Expected format: <uuid>:<vpc_uuid> (e.g. abc123:def456). "+
-				"The 'vpc_uuid' field is not returned by the API and must be supplied at import time.",
+				"The 'vpc_uuid' field is the VPC virtual router instance UUID, is not returned by the API, and must be supplied at import time.",
 		)
 		return
 	}
