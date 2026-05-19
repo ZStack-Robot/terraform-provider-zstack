@@ -18,7 +18,7 @@ This resource allows you to manage VPC firewalls in ZStack. A VPC firewall provi
 ### Required
 
 - `name` (String) The name of the VPC firewall.
-- `vpc_uuid` (String) The UUID of the VPC.
+- `vpc_uuid` (String) The UUID of the VPC virtual router instance. Use `zstack_virtual_router_instance.<name>.uuid`, not `zstack_vpc.<name>.uuid`.
 
 ### Optional
 
