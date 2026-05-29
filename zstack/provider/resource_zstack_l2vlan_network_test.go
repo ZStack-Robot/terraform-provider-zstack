@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -62,14 +63,13 @@ func TestL2VlanNetworkResource_Metadata(t *testing.T) {
 }
 
 func TestAccL2VlanNetworkResource_disappears(t *testing.T) {
-	env := loadEnvData(t)
-
-	if len(env.Zones) == 0 {
-		t.Skip("no zones in env.json, skipping L2 VLAN network acceptance test")
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
 	}
 
-	zoneUuid := envStr(env.Zones[0], "uuid")
+	_, zoneUuid := testAccLiveCluster(t)
 	name := testAccName("l2vlan-disappears")
+	vlan := testAccFreeL2Vlan(t, zoneUuid, "eth0")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -79,11 +79,11 @@ func TestAccL2VlanNetworkResource_disappears(t *testing.T) {
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vlan_network" "test" {
   name              = %q
-  vlan              = 3999
+  vlan              = %d
   zone_uuid         = %q
   physical_interface = "eth0"
 }
-`, name, zoneUuid),
+`, name, vlan, zoneUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					stateCheckL2VlanNetworkDisappears("zstack_l2vlan_network.test"),
 				},
@@ -94,15 +94,14 @@ resource "zstack_l2vlan_network" "test" {
 }
 
 func TestAccL2VlanNetworkResource(t *testing.T) {
-	env := loadEnvData(t)
-
-	if len(env.Zones) == 0 {
-		t.Skip("no zones in env.json, skipping L2 VLAN network acceptance test")
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
 	}
 
-	zoneUuid := envStr(env.Zones[0], "uuid")
+	_, zoneUuid := testAccLiveCluster(t)
 	name := testAccName("l2vlan")
 	updatedName := name + "-updated"
+	vlan := testAccFreeL2Vlan(t, zoneUuid, "eth0")
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -113,16 +112,16 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 resource "zstack_l2vlan_network" "test" {
   name              = %q
   description       = "acceptance l2 vlan network"
-  vlan              = 3999
+  vlan              = %d
   zone_uuid         = %q
   physical_interface = "eth0"
 }
-`, name, zoneUuid),
+`, name, vlan, zoneUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network")),
-					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.StringExact("3999")),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.Int64Exact(int64(vlan))),
 				},
 			},
 			{
@@ -130,15 +129,15 @@ resource "zstack_l2vlan_network" "test" {
 resource "zstack_l2vlan_network" "test" {
   name              = %q
   description       = "acceptance l2 vlan network updated"
-  vlan              = 3999
+  vlan              = %d
   zone_uuid         = %q
   physical_interface = "eth0"
 }
-`, updatedName, zoneUuid),
+`, updatedName, vlan, zoneUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network updated")),
-					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.StringExact("3999")),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.Int64Exact(int64(vlan))),
 				},
 			},
 			{

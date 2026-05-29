@@ -58,34 +58,11 @@ func TestEIPResource_Metadata(t *testing.T) {
 func TestAccEIPResource(t *testing.T) {
 	env := loadEnvData(t)
 
-	// Find a VIP that is available (use_for == "")
-	var vipUUID string
-	for _, vip := range env.Vips {
-		if envStr(vip, "use_for") == "" {
-			vipUUID = envStr(vip, "uuid")
-			break
-		}
-	}
-	if vipUUID == "" {
-		t.Skip("no available VIP (use_for=\"\") in env.json, skipping EIP acceptance test")
+	vipUUID, vmNicUUID, skipReason := selectEIPFixture(env)
+	if skipReason != "" {
+		t.Skip(skipReason)
 	}
 
-	// Find a vm_nic on the same L3 as the VIP
-	var vmNicUUID string
-	for _, nic := range env.VmNics {
-		vmNicUUID = envStr(nic, "uuid")
-		if vmNicUUID != "" {
-			break
-		}
-	}
-	if vmNicUUID == "" {
-		t.Skip("no vm_nics in env.json, skipping EIP acceptance test")
-	}
-
-	// EIP requires the VIP's L3 network to have the EIP network service enabled.
-	// In the test environment, the L3 network (c420aa3f) does not have EIP enabled.
-	// This is an environment constraint — skip gracefully.
-	t.Skip("EIP network service not enabled on the L3 network in this env; skipping EIP acceptance test")
 	name := testAccName("eip")
 	updatedName := name + "-updated"
 
@@ -135,4 +112,100 @@ resource "zstack_eip" "test" {
 			},
 		},
 	})
+}
+
+func selectEIPFixture(env *EnvData) (string, string, string) {
+	for _, vip := range env.Vips {
+		if !isAvailableEIPVip(env, vip) {
+			continue
+		}
+		vipL3UUID := envStr(vip, "l3_network_uuid")
+		if vmNicUUID := selectEIPVmNic(env, vipL3UUID); vmNicUUID != "" {
+			return envStr(vip, "uuid"), vmNicUUID, ""
+		}
+	}
+
+	return "", "", "no available EIP fixture in env.json: need an unused VIP on an L3 with Eip service and an unbound VM NIC on an Eip-enabled compatible non-Public L3 (Public VIP -> non-Public NIC; non-Public VIP -> different non-Public NIC)"
+}
+
+func isAvailableEIPVip(env *EnvData, vip map[string]interface{}) bool {
+	l3UUID := envStr(vip, "l3_network_uuid")
+	return envStr(vip, "use_for") == "" && l3HasNetworkService(env, l3UUID, "Eip")
+}
+
+func selectEIPVmNic(env *EnvData, vipL3UUID string) string {
+	var fallback string
+	for _, nic := range env.VmNics {
+		nicUUID := envStr(nic, "uuid")
+		nicL3UUID := envStr(nic, "l3_network_uuid")
+		if !isCompatibleEIPVmNic(env, vipL3UUID, nicL3UUID, nicUUID) {
+			continue
+		}
+		if l3Category(env, nicL3UUID) == "Private" {
+			return nicUUID
+		}
+		if fallback == "" {
+			fallback = nicUUID
+		}
+	}
+	return fallback
+}
+
+func isCompatibleEIPVmNic(env *EnvData, vipL3UUID, nicL3UUID, nicUUID string) bool {
+	if nicUUID == "" || nicL3UUID == "" {
+		return false
+	}
+	if !l3HasNetworkService(env, nicL3UUID, "Eip") || vmNicHasEip(env, nicUUID) {
+		return false
+	}
+	if l3Category(env, nicL3UUID) == "Public" {
+		return false
+	}
+	if l3Category(env, vipL3UUID) != "Public" && nicL3UUID == vipL3UUID {
+		return false
+	}
+	return true
+}
+
+func l3Category(env *EnvData, l3UUID string) string {
+	for _, l3 := range env.L3Networks {
+		if envStr(l3, "uuid") == l3UUID {
+			return envStr(l3, "category")
+		}
+	}
+	return ""
+}
+
+func l3HasNetworkService(env *EnvData, l3UUID, serviceType string) bool {
+	if l3UUID == "" {
+		return false
+	}
+	for _, l3 := range env.L3Networks {
+		if envStr(l3, "uuid") != l3UUID {
+			continue
+		}
+		services, ok := l3["network_services"].([]interface{})
+		if !ok {
+			return false
+		}
+		for _, service := range services {
+			serviceMap, ok := service.(map[string]interface{})
+			if ok && envStr(serviceMap, "network_service_type") == serviceType {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func vmNicHasEip(env *EnvData, vmNicUUID string) bool {
+	if vmNicUUID == "" {
+		return false
+	}
+	for _, eip := range env.Eips {
+		if envStr(eip, "vm_nic_uuid") == vmNicUUID {
+			return true
+		}
+	}
+	return false
 }

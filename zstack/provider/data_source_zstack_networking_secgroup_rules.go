@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sort"
 	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -112,7 +113,7 @@ func (d *networkingSecGroupRuleDataSource) Read(ctx context.Context, req datasou
 		return
 	}
 
-	secGroupMap := make(map[string][]rulesModel)
+	state.Rules = make([]rulesModel, 0, len(securityGroupRules))
 	for _, rule := range securityGroupRules {
 		ruleModel := rulesModel{
 			Uuid:              types.StringValue(rule.UUID),
@@ -136,15 +137,25 @@ func (d *networkingSecGroupRuleDataSource) Read(ctx context.Context, req datasou
 		if rule.DstIpRange != "" {
 			ruleModel.DstIpRange = types.StringValue(rule.DstIpRange)
 		}
-		secGroupMap[rule.SecurityGroupUuid] = append(secGroupMap[rule.SecurityGroupUuid], ruleModel)
+		state.Rules = append(state.Rules, ruleModel)
 	}
 
-	state.Rules = state.Rules[:0]
-	for _, rules := range secGroupMap {
-		state.Rules = append(state.Rules, rules...)
-	}
+	sortSecurityGroupRules(state.Rules)
+
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
+}
+
+func sortSecurityGroupRules(rules []rulesModel) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		leftGroup := rules[i].SecurityGroupUuid.ValueString()
+		rightGroup := rules[j].SecurityGroupUuid.ValueString()
+		if leftGroup != rightGroup {
+			return leftGroup < rightGroup
+		}
+
+		return rules[i].Uuid.ValueString() < rules[j].Uuid.ValueString()
+	})
 }
 
 // Schema implements datasource.DataSourceWithConfigure.

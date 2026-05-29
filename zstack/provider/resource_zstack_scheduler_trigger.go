@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -20,9 +21,10 @@ import (
 )
 
 var (
-	_ resource.Resource                = &schedulerTriggerResource{}
-	_ resource.ResourceWithConfigure   = &schedulerTriggerResource{}
-	_ resource.ResourceWithImportState = &schedulerTriggerResource{}
+	_ resource.Resource                   = &schedulerTriggerResource{}
+	_ resource.ResourceWithConfigure      = &schedulerTriggerResource{}
+	_ resource.ResourceWithImportState    = &schedulerTriggerResource{}
+	_ resource.ResourceWithValidateConfig = &schedulerTriggerResource{}
 )
 
 type schedulerTriggerResource struct {
@@ -63,6 +65,45 @@ func (r *schedulerTriggerResource) Configure(ctx context.Context, request resour
 
 func (r *schedulerTriggerResource) Metadata(_ context.Context, request resource.MetadataRequest, response *resource.MetadataResponse) {
 	response.TypeName = request.ProviderTypeName + "_scheduler_trigger"
+}
+
+func (r *schedulerTriggerResource) ValidateConfig(ctx context.Context, request resource.ValidateConfigRequest, response *resource.ValidateConfigResponse) {
+	var config schedulerTriggerResourceModel
+	diags := request.Config.Get(ctx, &config)
+	response.Diagnostics.Append(diags...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	if config.SchedulerType.IsNull() || config.SchedulerType.IsUnknown() {
+		return
+	}
+
+	if config.Cron.IsUnknown() {
+		return
+	}
+
+	cron := strings.TrimSpace(config.Cron.ValueString())
+	if config.SchedulerType.ValueString() == "cron" && (config.Cron.IsNull() || cron == "") {
+		response.Diagnostics.AddAttributeError(
+			path.Root("cron"),
+			"Missing Cron Expression",
+			`The "cron" attribute is required when scheduler_type is "cron". ZStack scheduler triggers use Quartz cron format, for example "0 0 0/2 * * ?".`,
+		)
+		return
+	}
+
+	if config.Cron.IsNull() || cron == "" {
+		return
+	}
+
+	if err := validateSchedulerTriggerCronExpression(cron); err != nil {
+		response.Diagnostics.AddAttributeError(
+			path.Root("cron"),
+			"Invalid Cron Expression",
+			err.Error(),
+		)
+	}
 }
 
 func (r *schedulerTriggerResource) Schema(_ context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
@@ -116,7 +157,7 @@ func (r *schedulerTriggerResource) Schema(_ context.Context, request resource.Sc
 			"cron": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "The cron expression for cron-type triggers.",
+				Description: `The cron expression for cron-type triggers. ZStack uses Quartz cron format with 6 or 7 fields, for example "0 0 0/2 * * ?".`,
 			},
 			"stop_time": schema.Int64Attribute{
 				Computed:    true,
@@ -124,6 +165,15 @@ func (r *schedulerTriggerResource) Schema(_ context.Context, request resource.Sc
 			},
 		},
 	}
+}
+
+func validateSchedulerTriggerCronExpression(cron string) error {
+	fieldCount := len(strings.Fields(cron))
+	if fieldCount != 6 && fieldCount != 7 {
+		return fmt.Errorf("ZStack scheduler trigger cron expressions must use Quartz format with 6 or 7 fields, got %d fields. For every 2 hours, use %q instead of a 5-field Unix cron expression like %q.", fieldCount, "0 0 0/2 * * ?", "0 */2 * * *")
+	}
+
+	return nil
 }
 
 func (r *schedulerTriggerResource) Create(ctx context.Context, request resource.CreateRequest, response *resource.CreateResponse) {

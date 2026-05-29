@@ -122,7 +122,7 @@ func (d *l3NetworkDataSource) Read(ctx context.Context, req datasource.ReadReque
 		filters[filter.Name.ValueString()] = values
 	}
 
-	filterL3Networks, filterDiags := utils.FilterResource(ctx, l3networks, filters, "l2network")
+	filterL3Networks, filterDiags := utils.FilterResource(ctx, l3networks, filters, "l3network")
 	resp.Diagnostics.Append(filterDiags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -191,12 +191,12 @@ func (d *l3NetworkDataSource) Schema(ctx context.Context, req datasource.SchemaR
 			"name": schema.StringAttribute{
 				Description: "Exact name for searching L3 Network.",
 				Optional:    true,
-		},
-		"name_pattern": schema.StringAttribute{
-			Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
-			Optional:    true,
-		},
-		"l3networks": schema.ListNestedAttribute{
+			},
+			"name_pattern": schema.StringAttribute{
+				Description: "Pattern for fuzzy name search, similar to MySQL LIKE. Use % for multiple characters and _ for exactly one character.",
+				Optional:    true,
+			},
+			"l3networks": schema.ListNestedAttribute{
 				Description: "List of L3 networks matching the specified filters.",
 				Computed:    true,
 				NestedObject: schema.NestedAttributeObject{

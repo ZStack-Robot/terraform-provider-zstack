@@ -22,6 +22,7 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 
 	var mu sync.Mutex
 	deleted := false
+	var createdParams map[string]interface{}
 
 	// Setup generic login route
 	mux.HandleFunc("/zstack/v1/accounts/login", func(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,17 @@ func TestAccZStackVirtualRouterInstance_Create(t *testing.T) {
 
 	// Setup mock route for creating Virtual Router Instance
 	mux.HandleFunc("/zstack/v1/vpc/virtual-routers", func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Params map[string]interface{} `json:"params"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		mu.Lock()
+		createdParams = payload.Params
+		mu.Unlock()
+
 		w.Header().Set("Content-Type", "application/json")
 		res := map[string]interface{}{
 			"inventory": map[string]interface{}{
@@ -115,9 +127,13 @@ provider "zstack" {
 }
 
 resource "zstack_virtual_router_instance" "foo" {
-  name                        = "test-mock-vr"
-  description                 = "mock vr created via test"
+  name                         = "test-mock-vr"
+  description                  = "mock vr created via test"
   virtual_router_offering_uuid = "mock-offering-uuid"
+  zone_uuid                    = "mock-zone-uuid"
+  cluster_uuid                 = "mock-cluster-uuid"
+  host_uuid                    = "mock-host-uuid"
+  primary_storage_uuid_for_rootvolume = "mock-primary-storage-uuid"
 }
 `, hostParts[0], hostParts[1]),
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -126,8 +142,28 @@ resource "zstack_virtual_router_instance" "foo" {
 					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("state"), knownvalue.StringExact("Running")),
 					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("description"), knownvalue.StringExact("mock vr created via test")),
 					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("virtual_router_offering_uuid"), knownvalue.StringExact("mock-offering-uuid")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("zone_uuid"), knownvalue.StringExact("mock-zone-uuid")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("cluster_uuid"), knownvalue.StringExact("mock-cluster-uuid")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("host_uuid"), knownvalue.StringExact("mock-host-uuid")),
+					statecheck.ExpectKnownValue("zstack_virtual_router_instance.foo", tfjsonpath.New("primary_storage_uuid_for_rootvolume"), knownvalue.StringExact("mock-primary-storage-uuid")),
 				},
 			},
 		},
 	})
+
+	mu.Lock()
+	params := createdParams
+	mu.Unlock()
+	expectedParams := map[string]string{
+		"zoneUuid":                        "mock-zone-uuid",
+		"clusterUuid":                     "mock-cluster-uuid",
+		"hostUuid":                        "mock-host-uuid",
+		"primaryStorageUuidForRootVolume": "mock-primary-storage-uuid",
+		"virtualRouterOfferingUuid":       "mock-offering-uuid",
+	}
+	for key, want := range expectedParams {
+		if got, ok := params[key].(string); !ok || got != want {
+			t.Fatalf("expected create request params[%q] = %q, got %#v", key, want, params[key])
+		}
+	}
 }

@@ -23,7 +23,7 @@ This resource allows you to manage affinity groups in ZStack. An affinity group 
 ### Optional
 
 - `description` (String) A description of the affinity group.
-- `type` (String) The type of affinity group. Defaults to 'host'.
+- `type` (String) The type of affinity group. Must be `host` when specified. Defaults to `host`.
 - `zone_uuid` (String) The UUID of the zone for this affinity group.
 
 ### Read-Only

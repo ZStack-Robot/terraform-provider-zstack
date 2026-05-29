@@ -44,6 +44,7 @@ resource "zstack_instance" "example_vm" {
   ]
   memory_size = 4096
   cpu_num     = 4
+  # cpu_mode   = "host-passthrough"
   expunge     = true
 }
 
@@ -64,6 +65,7 @@ output "zstack_instance" {
 
 - `architecture` (String) The CPU architecture of the guest (`x86_64`, `aarch64`, `mips64el`, etc.). Inherited from the image when unset. Changing it requires the VM to be replaced.
 - `cluster_uuid` (String) The UUID of the cluster where the VM instance is deployed.
+- `cpu_mode` (String) The KVM CPU mode for the VM instance. Must be one of: `none`, `host-model`, or `host-passthrough`. Changing it requires the VM to be replaced.
 - `cpu_num` (Number) The number of CPUs allocated to the VM instance.  When used together with `memory_size`, the `instance_offering_uuid` is not required.
 - `data_disks` (Attributes List) The configuration for additional data disks. (see [below for nested schema](#nestedatt--data_disks))
 - `description` (String) A description of the VM instance.

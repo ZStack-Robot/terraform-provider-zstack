@@ -93,14 +93,14 @@ func TestAccVolumeBackupResource(t *testing.T) {
 	const ttylinuxUUID = "dfc919110d734009bea2f04a5e8ac9ef"
 	var imageUUID string
 	for _, img := range env.Images {
-		if envStr(img, "uuid") == ttylinuxUUID && envStr(img, "status") == "Ready" {
+		if envStr(img, "uuid") == ttylinuxUUID && envStr(img, "status") == "Ready" && !envBool(img, "system") {
 			imageUUID = ttylinuxUUID
 			break
 		}
 	}
 	if imageUUID == "" {
 		for _, img := range env.Images {
-			if envStr(img, "status") == "Ready" {
+			if envStr(img, "status") == "Ready" && !envBool(img, "system") {
 				imageUUID = envStr(img, "uuid")
 				break
 			}

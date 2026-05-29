@@ -222,6 +222,7 @@ func main() {
 				"platform":      img.Platform,
 				"architecture":  img.Architecture,
 				"guest_os_type": img.GuestOsType,
+				"system":        img.System,
 			})
 		}
 	} else {
@@ -323,14 +324,23 @@ func main() {
 	// L3 Networks
 	if l3s, err := cli.QueryL3Network(q()); err == nil {
 		for _, l3 := range l3s {
+			var networkServices []map[string]interface{}
+			for _, ns := range l3.NetworkServices {
+				networkServices = append(networkServices, map[string]interface{}{
+					"l3_network_uuid":               ns.L3NetworkUuid,
+					"network_service_provider_uuid": ns.NetworkServiceProviderUuid,
+					"network_service_type":          ns.NetworkServiceType,
+				})
+			}
 			data.L3Networks = append(data.L3Networks, map[string]interface{}{
-				"name":            l3.Name,
-				"uuid":            l3.UUID,
-				"type":            l3.Type,
-				"category":        l3.Category,
-				"system":          l3.System,
-				"l2_network_uuid": l3.L2NetworkUuid,
-				"zone_uuid":       l3.ZoneUuid,
+				"name":             l3.Name,
+				"uuid":             l3.UUID,
+				"type":             l3.Type,
+				"category":         l3.Category,
+				"system":           l3.System,
+				"l2_network_uuid":  l3.L2NetworkUuid,
+				"zone_uuid":        l3.ZoneUuid,
+				"network_services": networkServices,
 			})
 		}
 	} else {

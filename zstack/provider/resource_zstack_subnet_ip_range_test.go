@@ -4,10 +4,15 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	rschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -45,6 +50,87 @@ func TestSubnetIpRangeResource_Schema(t *testing.T) {
 	}
 }
 
+func TestSubnetIpRangeResource_IpRangeTypeValidator(t *testing.T) {
+	var r subnetResource
+	resp := &resource.SchemaResponse{}
+	r.Schema(context.Background(), resource.SchemaRequest{}, resp)
+
+	attr, ok := resp.Schema.Attributes["ip_range_type"].(rschema.StringAttribute)
+	if !ok {
+		t.Fatal("ip_range_type should be a string attribute")
+	}
+	if !attr.Optional {
+		t.Fatal("ip_range_type should be optional")
+	}
+	if len(attr.Validators) == 0 {
+		t.Fatal("ip_range_type should have validators")
+	}
+
+	tests := []struct {
+		value       string
+		expectError bool
+	}{
+		{value: "Normal"},
+		{value: "AddressPool"},
+		{value: "Reserved", expectError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			req := validator.StringRequest{ConfigValue: types.StringValue(tt.value)}
+			res := validator.StringResponse{}
+			attr.Validators[0].ValidateString(context.Background(), req, &res)
+
+			if res.Diagnostics.HasError() != tt.expectError {
+				t.Fatalf("unexpected diagnostics for %q: %v", tt.value, res.Diagnostics)
+			}
+		})
+	}
+}
+
+func TestSubnetAddIpRangeParamOmitsNullIpRangeType(t *testing.T) {
+	plan := subnetModel{
+		Name:        types.StringValue("test-subnet"),
+		StartIp:     types.StringValue("192.168.50.2"),
+		EndIp:       types.StringValue("192.168.50.254"),
+		Netmask:     types.StringValue("255.255.255.0"),
+		Gateway:     types.StringValue("192.168.50.1"),
+		IpRangeType: types.StringNull(),
+	}
+
+	p := subnetAddIpRangeParam(plan)
+	if p.Params.IpRangeType != nil {
+		t.Fatalf("expected nil ipRangeType, got %q", *p.Params.IpRangeType)
+	}
+
+	payload, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal param: %v", err)
+	}
+	if strings.Contains(string(payload), "ipRangeType") {
+		t.Fatalf("expected ipRangeType to be omitted from JSON, got %s", payload)
+	}
+}
+
+func TestSubnetAddIpRangeParamIncludesConfiguredIpRangeType(t *testing.T) {
+	plan := subnetModel{
+		Name:        types.StringValue("test-subnet"),
+		StartIp:     types.StringValue("192.168.50.2"),
+		EndIp:       types.StringValue("192.168.50.254"),
+		Netmask:     types.StringValue("255.255.255.0"),
+		Gateway:     types.StringValue("192.168.50.1"),
+		IpRangeType: types.StringValue("AddressPool"),
+	}
+
+	p := subnetAddIpRangeParam(plan)
+	if p.Params.IpRangeType == nil {
+		t.Fatal("expected ipRangeType to be set")
+	}
+	if *p.Params.IpRangeType != "AddressPool" {
+		t.Fatalf("unexpected ipRangeType: %q", *p.Params.IpRangeType)
+	}
+}
+
 func TestSubnetIpRangeResource_Metadata(t *testing.T) {
 	var r subnetResource
 	resp := &resource.MetadataResponse{}
@@ -78,10 +164,8 @@ func TestAccSubnetIpRangeResource(t *testing.T) {
 		CheckDestroy:             testAccCheckSubnetIpRangeDestroy,
 		Steps: []tfresource.TestStep{
 			// Step 1: Create (all attrs are ForceNew, no update step).
-			// NOTE: ip_range_type must be set to avoid API validation error (the resource
-			// sends "" when null). However the Read func does not restore ip_range_type
-			// from prior state, causing a non-empty refresh plan — this is a provider bug.
-			// ExpectNonEmptyPlan acknowledges that known issue.
+			// The backend may omit ipRangeType from QueryIpRange; the provider should keep
+			// the configured value in state to avoid a replacement-only refresh plan.
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l3network" "for_subnet" {
@@ -109,16 +193,15 @@ resource "zstack_subnet_ip_range" "test" {
 					statecheck.ExpectKnownValue("zstack_subnet_ip_range.test", tfjsonpath.New("netmask"), knownvalue.StringExact("255.255.255.0")),
 					statecheck.ExpectKnownValue("zstack_subnet_ip_range.test", tfjsonpath.New("gateway"), knownvalue.StringExact("192.168.50.1")),
 				},
-				ExpectNonEmptyPlan: true,
 			},
 			// Step 2: Import (ip_range_type is not returned by API, skip verify)
 			{
-				ResourceName:                        "zstack_subnet_ip_range.test",
-				ImportState:                         true,
-				ImportStateIdFunc:                   importStateIdFromUUID("zstack_subnet_ip_range.test"),
-				ImportStateVerify:                   true,
+				ResourceName:                         "zstack_subnet_ip_range.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID("zstack_subnet_ip_range.test"),
+				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerifyIgnore:             []string{"ip_range_type"},
+				ImportStateVerifyIgnore:              []string{"ip_range_type"},
 			},
 		},
 	})
