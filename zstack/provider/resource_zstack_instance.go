@@ -516,6 +516,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 	var dataDisksPlan []diskModel
 
 	var primaryStorageUuidForRootVolume *string
+	var rootDiskSizeBytes *int64
 	hostUuid := ""
 	clusterUuid := ""
 	zoneUuid := ""
@@ -556,9 +557,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 			rootDiskSystemTags = append(rootDiskSystemTags, fmt.Sprintf("ceph::rootPoolName::%s", rootDiskPlan.CephPoolName.ValueString()))
 		}
 
-		if !rootDiskPlan.Size.IsNull() && !rootDiskPlan.Size.IsUnknown() {
-			rootDiskPlan.Size = types.Int64Value(utils.GBToBytes(rootDiskPlan.Size.ValueInt64()))
-		}
+		rootDiskSizeBytes = rootDiskSizeBytesForCreate(rootDiskPlan.Size)
 	}
 
 	// SET DATA DISK
@@ -819,7 +818,7 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 			L3NetworkUuids:                  l3NetworkUuids,
 			Type:                            stringPtr("UserVm"),
 			RootDiskOfferingUuid:            stringPtrOrNil(rootDiskPlan.OfferingUuid.ValueString()),
-			RootDiskSize:                    rootDiskPlan.Size.ValueInt64Pointer(),
+			RootDiskSize:                    rootDiskSizeBytes,
 			PrimaryStorageUuidForRootVolume: primaryStorageUuidForRootVolume,
 			DataDiskSizes:                   dataDiskSizes,
 			DataDiskOfferingUuids:           dataDiskOfferingUuids,
@@ -1123,6 +1122,7 @@ func (r *instanceResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	if updateVm {
+		preserveInstanceNameForUpdate(&updateVmInstanceParam, plan.Name)
 		if _, err := r.client.UpdateVmInstance(uuid, updateVmInstanceParam); err != nil {
 			resp.Diagnostics.AddError(
 				"Error updating VM Instance",
@@ -1269,6 +1269,21 @@ func syncInstanceDataDisksFromVM(ctx context.Context, state vmInstanceDataSource
 	}
 	state.DataDisks = listValue
 	return state, nil
+}
+
+func preserveInstanceNameForUpdate(update *param.UpdateVmInstanceParam, name types.String) {
+	if update.Params.Name != "" || name.IsNull() || name.IsUnknown() {
+		return
+	}
+	update.Params.Name = name.ValueString()
+}
+
+func rootDiskSizeBytesForCreate(size types.Int64) *int64 {
+	if size.IsNull() || size.IsUnknown() {
+		return nil
+	}
+	bytes := utils.GBToBytes(size.ValueInt64())
+	return &bytes
 }
 
 func normalizeNetworkInterfacesFromVM(vm *view.VmInstanceInventoryView) []NetworkInterfaceModel {
