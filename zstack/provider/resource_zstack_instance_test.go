@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -166,6 +167,121 @@ resource "zstack_instance" "test" {
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore:              []string{"expunge", "network_interfaces", "instance_offering_uuid"},
+			},
+		},
+	})
+}
+
+func TestAccInstanceResourceRootDiskSizeState(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	imageName := os.Getenv("ZSTACK_TEST_IMAGE_NAME")
+	l3Name := os.Getenv("ZSTACK_TEST_L3_NAME")
+	if (imageName == "") != (l3Name == "") {
+		t.Fatal("ZSTACK_TEST_IMAGE_NAME and ZSTACK_TEST_L3_NAME must be set together")
+	}
+
+	var lookupConfig, imageRef, l3Ref string
+	if imageName != "" && l3Name != "" {
+		lookupConfig = fmt.Sprintf(`
+data "zstack_images" "test" {
+  name = %q
+}
+
+data "zstack_l3networks" "test" {
+  name = %q
+}
+`, imageName, l3Name)
+		imageRef = "data.zstack_images.test.images[0].uuid"
+		l3Ref = "data.zstack_l3networks.test.l3networks[0].uuid"
+	} else {
+		env := loadEnvData(t)
+		if len(env.Images) == 0 {
+			t.Skip("no images in env data")
+		}
+		if len(env.L3Networks) == 0 {
+			t.Skip("no l3_networks in env data")
+		}
+
+		var imageUUID string
+		if len(env.VmInstances) > 0 {
+			imageUUID = envStr(env.VmInstances[0], "image_uuid")
+		}
+		if imageUUID == "" {
+			for _, img := range env.Images {
+				if envStr(img, "status") == "Ready" {
+					imageUUID = envStr(img, "uuid")
+					break
+				}
+			}
+		}
+		if imageUUID == "" {
+			t.Skip("no suitable images in env data")
+		}
+
+		var l3UUID string
+		for _, l3 := range env.L3Networks {
+			if envStr(l3, "category") == "Public" {
+				l3UUID = envStr(l3, "uuid")
+				break
+			}
+		}
+		if l3UUID == "" {
+			l3UUID = envStr(env.L3Networks[0], "uuid")
+		}
+
+		imageRef = fmt.Sprintf("%q", imageUUID)
+		l3Ref = fmt.Sprintf("%q", l3UUID)
+	}
+
+	name := testAccName("instance-root-disk")
+	config := func(description string) string {
+		return providerConfig() + lookupConfig + fmt.Sprintf(`
+resource "zstack_instance" "test" {
+  name          = %q
+  description   = %q
+  image_uuid    = %s
+  cpu_num       = 1
+  memory_size   = 2048
+  strategy      = "CreateStopped"
+  expunge       = true
+
+  network_interfaces = [
+    {
+      l3_network_uuid = %s
+      default_l3      = true
+    }
+  ]
+
+  root_disk = {
+    size = 50
+  }
+}
+`, name, description, imageRef, l3Ref)
+	}
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckInstanceDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config("zstac-86122 initial"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("description"), knownvalue.StringExact("zstac-86122 initial")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("root_disk").AtMapKey("size"), knownvalue.Int64Exact(50)),
+				},
+			},
+			{
+				Config: config("zstac-86122 updated"),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("description"), knownvalue.StringExact("zstac-86122 updated")),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("root_disk").AtMapKey("size"), knownvalue.Int64Exact(50)),
+				},
 			},
 		},
 	})

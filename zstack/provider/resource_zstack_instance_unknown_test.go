@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 // TestInstanceUpdateGuardsUnknownValues verifies that Unknown values in plan
@@ -154,6 +155,75 @@ func TestInstanceUpdateGuardsUnknownValues(t *testing.T) {
 		// Verify that Unknown.IsUnknown() is true (the guard we're testing)
 		if !gpuNumber.IsUnknown() {
 			t.Errorf("GpuNumber: Test validation failed - Unknown.IsUnknown() should return true")
+		}
+	})
+}
+
+func TestRootDiskSizeBytesForCreate(t *testing.T) {
+	t.Run("ConvertsGBForAPIWithoutChangingTerraformValue", func(t *testing.T) {
+		size := types.Int64Value(50)
+
+		got := rootDiskSizeBytesForCreate(size)
+		if got == nil {
+			t.Fatalf("expected root disk size bytes, got nil")
+		}
+		if *got != 53687091200 {
+			t.Fatalf("expected 50GB to be converted to 53687091200 bytes, got %d", *got)
+		}
+		if size.ValueInt64() != 50 {
+			t.Fatalf("expected Terraform root_disk.size to remain 50GB, got %d", size.ValueInt64())
+		}
+	})
+
+	t.Run("OmitsNullAndUnknown", func(t *testing.T) {
+		if got := rootDiskSizeBytesForCreate(types.Int64Null()); got != nil {
+			t.Fatalf("expected null size to be omitted, got %d", *got)
+		}
+		if got := rootDiskSizeBytesForCreate(types.Int64Unknown()); got != nil {
+			t.Fatalf("expected unknown size to be omitted, got %d", *got)
+		}
+	})
+}
+
+func TestPreserveInstanceNameForUpdate(t *testing.T) {
+	t.Run("SetsCurrentNameWhenOnlyOtherFieldsChange", func(t *testing.T) {
+		update := param.UpdateVmInstanceParam{
+			Params: param.UpdateVmInstanceParamDetail{
+				Description: stringPtr("updated"),
+			},
+		}
+
+		preserveInstanceNameForUpdate(&update, types.StringValue("vm-name"))
+
+		if update.Params.Name != "vm-name" {
+			t.Fatalf("expected update to preserve vm name, got %q", update.Params.Name)
+		}
+	})
+
+	t.Run("KeepsExplicitNameChange", func(t *testing.T) {
+		update := param.UpdateVmInstanceParam{
+			Params: param.UpdateVmInstanceParamDetail{
+				Name: "new-name",
+			},
+		}
+
+		preserveInstanceNameForUpdate(&update, types.StringValue("old-name"))
+
+		if update.Params.Name != "new-name" {
+			t.Fatalf("expected explicit name update to be preserved, got %q", update.Params.Name)
+		}
+	})
+
+	t.Run("OmitsNullAndUnknownName", func(t *testing.T) {
+		update := param.UpdateVmInstanceParam{}
+		preserveInstanceNameForUpdate(&update, types.StringNull())
+		if update.Params.Name != "" {
+			t.Fatalf("expected null name to be omitted, got %q", update.Params.Name)
+		}
+
+		preserveInstanceNameForUpdate(&update, types.StringUnknown())
+		if update.Params.Name != "" {
+			t.Fatalf("expected unknown name to be omitted, got %q", update.Params.Name)
 		}
 	})
 }
