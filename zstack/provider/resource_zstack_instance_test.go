@@ -46,7 +46,7 @@ func TestVMResource_Schema(t *testing.T) {
 		}
 	}
 
-	optional := []string{"cpu_mode"}
+	optional := []string{"cpu_mode", "hostname"}
 	for _, attr := range optional {
 		a, ok := resp.Schema.Attributes[attr]
 		if !ok {
@@ -281,6 +281,63 @@ resource "zstack_instance" "test" {
 					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("description"), knownvalue.StringExact("zstac-86122 updated")),
 					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("root_disk").AtMapKey("size"), knownvalue.Int64Exact(50)),
+				},
+			},
+		},
+	})
+}
+
+func TestAccInstanceResourceHostnameState(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	imageName := os.Getenv("ZSTACK_TEST_IMAGE_NAME")
+	l3Name := os.Getenv("ZSTACK_TEST_L3_NAME")
+	if imageName == "" || l3Name == "" {
+		t.Skip("ZSTACK_TEST_IMAGE_NAME and ZSTACK_TEST_L3_NAME must be set for hostname acceptance test")
+	}
+
+	hostname := testAccName("guest-host")
+	name := testAccName("instance-hostname")
+	config := providerConfig() + fmt.Sprintf(`
+data "zstack_images" "test" {
+  name = %q
+}
+
+data "zstack_l3networks" "test" {
+  name = %q
+}
+
+resource "zstack_instance" "test" {
+  name        = %q
+  hostname    = %q
+  description = "zstac-86125 hostname test"
+  image_uuid  = data.zstack_images.test.images[0].uuid
+  cpu_num     = 1
+  memory_size = 2048
+  strategy    = "CreateStopped"
+  expunge     = true
+
+  network_interfaces = [
+    {
+      l3_network_uuid = data.zstack_l3networks.test.l3networks[0].uuid
+      default_l3      = true
+    }
+  ]
+}
+`, imageName, l3Name, name, hostname)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckInstanceDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
+					statecheck.ExpectKnownValue("zstack_instance.test", tfjsonpath.New("hostname"), knownvalue.StringExact(hostname)),
 				},
 			},
 		},

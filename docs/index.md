@@ -53,6 +53,7 @@ data "zstack_instance_offerings" "offer" {
 
 # Create a new virtual machine instance in ZStack Cloud.
 # - `name`: The name of the virtual machine.
+# - `hostname`: The guest hostname to set during virtual machine creation. Requires DHCP on the VM L3 network. Do not duplicate it in user_data; user_data takes precedence. Windows VMs do not support creation-time hostname setting.
 # - `image_uuid`: The UUID of the image to use for the virtual machine.
 # - `l3_network_uuids`: A list of L3 network UUIDs to attach to the virtual machine.
 # - `description`: A description of the virtual machine.
@@ -63,6 +64,7 @@ data "zstack_instance_offerings" "offer" {
 # - `root_disk`: Configuration for the root disk of the virtual machine.
 resource "zstack_instance" "example_vm" {
   name       = "moexample-v"
+  hostname   = "moexample-v"
   image_uuid = data.zstack_images.centos.images[0].uuid
   #  l3_network_uuids       = [data.zstack_l3networks.l3networks.l3networks[0].uuid]
   description            = "Example VM instance"
@@ -130,5 +132,4 @@ UUID lookup is now supported on **all 38 list-style data sources** (Phase A: 5 c
 - `account_password` (String, Sensitive) Password for ZStack API. May also be provided via ZSTACK_ACCOUNT_PASSWORD environment variable.Required if using Account authentication.  Only supports the platform administrator account (`admin`). Mutually exclusive with `access_key_id` and `access_key_secret`. Using `access_key_id` and `access_key_secret` is the recommended approach for authentication, as it provides more flexibility and security.
 - `host` (String) ZStack Cloud MN HOST ip address. May also be provided via ZSTACK_HOST environment variable.
 - `port` (Number) ZStack Cloud MN API port. May also be provided via ZSTACK_PORT environment variable.
-
 
