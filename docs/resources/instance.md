@@ -26,6 +26,7 @@ data "zstack_instance_offerings" "offer" {
 
 resource "zstack_instance" "example_vm" {
   name       = "example-v"
+  hostname   = "example-v"
   image_uuid = data.zstack_images.centos.images[0].uuid
   # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
   description = "jumper server"
@@ -75,6 +76,7 @@ output "zstack_instance" {
 - `guest_os_type` (String) The guest OS type / distribution (free-form string, e.g. `CentOS 7`, `Windows Server 2019`). Server reports it back after Create. Updatable in place via `UpdateVmInstance`.
 - `hook_script` (String) The uuid of hook script. Create Instance with custom xml Hook.
 - `host_uuid` (String) The UUID of the host where the VM instance is running.
+- `hostname` (String) The guest hostname to set during VM creation. When set, the provider sends the ZStack system tag `hostname::<hostname>`. The VM's L3 network must have DHCP service enabled. Do not set the hostname again in user_data; if both are set, user_data takes precedence. Windows VMs do not support setting the hostname during creation; set it after creation and guest tools installation instead. For Linux guests, a non-empty hostname must be 2-60 characters, contain only letters, digits, and hyphens, must not contain consecutive hyphens, and must not start or end with a hyphen. Changing this value requires the VM instance to be replaced.
 - `instance_offering_uuid` (String) The UUID of the instance offering used by the VM. Required if using instance offering uuid to create instances.   Mutually exclusive with `cpu_num` and `memory_size`.
 - `marketplace` (Boolean) Indicates whether the VM instance is a marketplace instance.
 - `memory_size` (Number) The memory size allocated to the VM instance in megabytes (MB). When used together with `cpu_num`, the `instance_offering_uuid` is not required.

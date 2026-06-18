@@ -12,6 +12,7 @@ data "zstack_instance_offerings" "offer" {
 
 resource "zstack_instance" "example_vm" {
   name       = "example-v"
+  hostname   = "example-v"
   image_uuid = data.zstack_images.centos.images[0].uuid
   # l3_network_uuids = [data.zstack_l3networks.l3networks.l3networks[0].uuid] # Removed use of deprecated `l3_network_uuids` in favor of `network_interfaces`
   description = "jumper server"

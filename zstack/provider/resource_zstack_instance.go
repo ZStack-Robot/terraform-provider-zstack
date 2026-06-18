@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"terraform-provider-zstack/zstack/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -32,6 +34,29 @@ type gpuDeviceType string
 
 type instanceResource struct {
 	client *client.ZSClient
+}
+
+type noConsecutiveHyphenValidator struct{}
+
+func (v noConsecutiveHyphenValidator) Description(context.Context) string {
+	return "must not contain consecutive hyphens"
+}
+
+func (v noConsecutiveHyphenValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v noConsecutiveHyphenValidator) ValidateString(ctx context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	if strings.Contains(req.ConfigValue.ValueString(), "--") {
+		resp.Diagnostics.AddAttributeError(
+			req.Path,
+			"Invalid Hostname",
+			"The hostname must not contain consecutive hyphens.",
+		)
+	}
 }
 
 var (
@@ -75,6 +100,7 @@ type gpuSpecModel struct {
 type vmInstanceDataSourceModel struct {
 	Uuid                 types.String `tfsdk:"uuid"`
 	Name                 types.String `tfsdk:"name"`
+	Hostname             types.String `tfsdk:"hostname"`
 	ImageUuid            types.String `tfsdk:"image_uuid"`
 	NetworkInterfaces    types.List   `tfsdk:"network_interfaces"`
 	RootDisk             types.Object `tfsdk:"root_disk"`
@@ -159,6 +185,26 @@ func (r *instanceResource) Schema(ctx context.Context, _ resource.SchemaRequest,
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the VM instance.",
+			},
+			"hostname": schema.StringAttribute{
+				Optional: true,
+				Description: "The guest hostname to set during VM creation. " +
+					"When set, the provider sends the ZStack system tag `hostname::<hostname>`. " +
+					"The VM's L3 network must have DHCP service enabled. " +
+					"Do not set the hostname again in user_data; if both are set, user_data takes precedence. " +
+					"Windows VMs do not support setting the hostname during creation; set it after creation and guest tools installation instead. " +
+					"For Linux guests, a non-empty hostname must be 2-60 characters, contain only letters, digits, and hyphens, must not contain consecutive hyphens, and must not start or end with a hyphen. " +
+					"Changing this value requires the VM instance to be replaced.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^$|[A-Za-z0-9][A-Za-z0-9-]{0,58}[A-Za-z0-9]$`),
+						"must be empty or a valid Linux hostname: 2-60 characters, letters, digits, and hyphens only; must not start or end with a hyphen",
+					),
+					noConsecutiveHyphenValidator{},
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"network_interfaces": schema.ListNestedAttribute{
 				Optional:    true,
@@ -715,6 +761,10 @@ func (r *instanceResource) Create(ctx context.Context, req resource.CreateReques
 
 	if !plan.CPUMode.IsNull() && !plan.CPUMode.IsUnknown() && plan.CPUMode.ValueString() != "" {
 		systemTags = append(systemTags, fmt.Sprintf("resourceConfig::kvm::vm.cpuMode::%s", plan.CPUMode.ValueString()))
+	}
+
+	if hostnameTag := hostnameSystemTagForCreate(plan.Hostname); hostnameTag != "" {
+		systemTags = append(systemTags, hostnameTag)
 	}
 
 	if !plan.UserData.IsNull() && plan.UserData.ValueString() != "" {
@@ -1284,6 +1334,13 @@ func rootDiskSizeBytesForCreate(size types.Int64) *int64 {
 	}
 	bytes := utils.GBToBytes(size.ValueInt64())
 	return &bytes
+}
+
+func hostnameSystemTagForCreate(hostname types.String) string {
+	if hostname.IsNull() || hostname.IsUnknown() || hostname.ValueString() == "" {
+		return ""
+	}
+	return fmt.Sprintf("hostname::%s", hostname.ValueString())
 }
 
 func normalizeNetworkInterfacesFromVM(vm *view.VmInstanceInventoryView) []NetworkInterfaceModel {
