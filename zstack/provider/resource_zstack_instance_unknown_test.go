@@ -185,6 +185,27 @@ func TestRootDiskSizeBytesForCreate(t *testing.T) {
 	})
 }
 
+func TestHostnameSystemTagForCreate(t *testing.T) {
+	t.Run("BuildsHostnameSystemTag", func(t *testing.T) {
+		got := hostnameSystemTagForCreate(types.StringValue("obs-demo-01"))
+		if got != "hostname::obs-demo-01" {
+			t.Fatalf("expected hostname system tag, got %q", got)
+		}
+	})
+
+	t.Run("OmitsUnsetHostname", func(t *testing.T) {
+		if got := hostnameSystemTagForCreate(types.StringNull()); got != "" {
+			t.Fatalf("expected null hostname to be omitted, got %q", got)
+		}
+		if got := hostnameSystemTagForCreate(types.StringUnknown()); got != "" {
+			t.Fatalf("expected unknown hostname to be omitted, got %q", got)
+		}
+		if got := hostnameSystemTagForCreate(types.StringValue("")); got != "" {
+			t.Fatalf("expected empty hostname to be omitted, got %q", got)
+		}
+	})
+}
+
 func TestPreserveInstanceNameForUpdate(t *testing.T) {
 	t.Run("SetsCurrentNameWhenOnlyOtherFieldsChange", func(t *testing.T) {
 		update := param.UpdateVmInstanceParam{
