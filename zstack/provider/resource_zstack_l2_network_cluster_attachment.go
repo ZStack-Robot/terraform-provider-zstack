@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -30,9 +31,11 @@ type l2NetworkClusterAttachmentResource struct {
 }
 
 type l2NetworkClusterAttachmentModel struct {
-	ID            types.String `tfsdk:"id"`
-	L2NetworkUuid types.String `tfsdk:"l2_network_uuid"`
-	ClusterUuid   types.String `tfsdk:"cluster_uuid"`
+	ID             types.String `tfsdk:"id"`
+	L2NetworkUuid  types.String `tfsdk:"l2_network_uuid"`
+	ClusterUuid    types.String `tfsdk:"cluster_uuid"`
+	L2ProviderType types.String `tfsdk:"l2_provider_type"`
+	SystemTags     types.List   `tfsdk:"system_tags"`
 }
 
 func L2NetworkClusterAttachmentResource() resource.Resource {
@@ -84,6 +87,21 @@ func (r *l2NetworkClusterAttachmentResource) Schema(_ context.Context, _ resourc
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"l2_provider_type": schema.StringAttribute{
+				Optional:    true,
+				Description: "The L2 provider type sent at the top level of the attach request. VXLAN pool attachments commonly require this value.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"system_tags": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "System tags sent at the top level of the attach request. Use these for VXLAN VTEP CIDR tags when required.",
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
+				},
+			},
 		},
 	}
 }
@@ -115,10 +133,7 @@ func (r *l2NetworkClusterAttachmentResource) Create(ctx context.Context, req res
 	}
 
 	if !attached {
-		_, err = r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, param.AttachL2NetworkToClusterParam{
-			BaseParam: param.BaseParam{},
-			Params:    param.AttachL2NetworkToClusterParamDetail{},
-		})
+		_, err = r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, l2NetworkClusterAttachParam(plan))
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error creating L2 Network Cluster Attachment",
@@ -261,4 +276,21 @@ func parseL2NetworkClusterAttachmentID(id string) (string, string, error) {
 		return "", "", fmt.Errorf("expected l2_network_uuid:cluster_uuid")
 	}
 	return parts[0], parts[1], nil
+}
+
+func l2NetworkClusterAttachParam(plan l2NetworkClusterAttachmentModel) param.AttachL2NetworkToClusterParam {
+	var l2ProviderType *string
+	if !plan.L2ProviderType.IsNull() && !plan.L2ProviderType.IsUnknown() {
+		l2ProviderType = stringPtr(plan.L2ProviderType.ValueString())
+	}
+	return attachL2NetworkToClusterParam(l2ProviderType, listToStringSlice(plan.SystemTags))
+}
+
+func attachL2NetworkToClusterParam(l2ProviderType *string, systemTags []string) param.AttachL2NetworkToClusterParam {
+	return param.AttachL2NetworkToClusterParam{
+		BaseParam: param.BaseParam{SystemTags: systemTags},
+		Params: param.AttachL2NetworkToClusterParamDetail{
+			L2ProviderType: l2ProviderType,
+		},
+	}
 }

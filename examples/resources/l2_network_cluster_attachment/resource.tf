@@ -6,8 +6,9 @@ resource "zstack_l2vlan_network" "example" {
 }
 
 resource "zstack_l2_network_cluster_attachment" "example" {
-  l2_network_uuid = zstack_l2vlan_network.example.uuid
-  cluster_uuid    = "cluster-uuid"
+  l2_network_uuid  = zstack_l2vlan_network.example.uuid
+  cluster_uuid     = "cluster-uuid"
+  l2_provider_type = "LinuxBridge"
 }
 
 output "zstack_l2_network_cluster_attachment" {

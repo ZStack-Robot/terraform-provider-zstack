@@ -98,10 +98,21 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 		t.Skip("acceptance test skipped unless TF_ACC is set")
 	}
 
-	_, zoneUuid := testAccLiveCluster(t)
+	clusterUuid := os.Getenv("ZSTACK_TEST_L2_CLUSTER_UUID")
+	var zoneUuid string
+	if clusterUuid == "" {
+		clusterUuid, zoneUuid = testAccLiveCluster(t)
+	} else {
+		cluster, err := testAccClientLoggedIn().GetCluster(clusterUuid)
+		if err != nil {
+			t.Fatalf("get configured L2 test cluster %s: %v", clusterUuid, err)
+		}
+		zoneUuid = cluster.ZoneUuid
+	}
+	physicalInterface := getEnvOrDefault("ZSTACK_TEST_L2_PHYSICAL_INTERFACE", "eth0")
 	name := testAccName("l2vlan")
 	updatedName := name + "-updated"
-	vlan := testAccFreeL2Vlan(t, zoneUuid, "eth0")
+	vlan := testAccFreeL2Vlan(t, zoneUuid, physicalInterface)
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -110,34 +121,45 @@ func TestAccL2VlanNetworkResource(t *testing.T) {
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vlan_network" "test" {
-  name              = %q
-  description       = "acceptance l2 vlan network"
-  vlan              = %d
-  zone_uuid         = %q
-  physical_interface = "eth0"
+  name                   = %q
+  description            = "acceptance l2 vlan network"
+  vlan                   = %d
+  zone_uuid              = %q
+  physical_interface     = %q
+  vswitch_type           = "LinuxBridge"
+  attached_cluster_uuids = [%q]
 }
-`, name, vlan, zoneUuid),
+`, name, vlan, zoneUuid, physicalInterface, clusterUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(name)),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network")),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.Int64Exact(int64(vlan))),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vswitch_type"), knownvalue.StringExact("LinuxBridge")),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("attached_cluster_uuids"), knownvalue.ListExact([]knownvalue.Check{
+						knownvalue.StringExact(clusterUuid),
+					})),
 				},
 			},
 			{
 				Config: providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vlan_network" "test" {
-  name              = %q
-  description       = "acceptance l2 vlan network updated"
-  vlan              = %d
-  zone_uuid         = %q
-  physical_interface = "eth0"
+  name                   = %q
+  description            = "acceptance l2 vlan network updated"
+  vlan                   = %d
+  zone_uuid              = %q
+  physical_interface     = %q
+  vswitch_type           = "LinuxBridge"
+  attached_cluster_uuids = [%q]
 }
-`, updatedName, vlan, zoneUuid),
+`, updatedName, vlan, zoneUuid, physicalInterface, clusterUuid),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("name"), knownvalue.StringExact(updatedName)),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("description"), knownvalue.StringExact("acceptance l2 vlan network updated")),
 					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("vlan"), knownvalue.Int64Exact(int64(vlan))),
+					statecheck.ExpectKnownValue("zstack_l2vlan_network.test", tfjsonpath.New("attached_cluster_uuids"), knownvalue.ListExact([]knownvalue.Check{
+						knownvalue.StringExact(clusterUuid),
+					})),
 				},
 			},
 			{

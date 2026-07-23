@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
@@ -41,6 +42,16 @@ func TestL2NetworkClusterAttachmentResource_Schema(t *testing.T) {
 	if !id.IsComputed() {
 		t.Error("attribute \"id\" should be computed")
 	}
+
+	for _, attr := range []string{"l2_provider_type", "system_tags"} {
+		a, ok := resp.Schema.Attributes[attr]
+		if !ok {
+			t.Fatalf("schema missing optional attribute %q", attr)
+		}
+		if !a.IsOptional() {
+			t.Errorf("attribute %q should be optional", attr)
+		}
+	}
 }
 
 func TestL2NetworkClusterAttachmentResource_Metadata(t *testing.T) {
@@ -66,6 +77,20 @@ func TestParseL2NetworkClusterAttachmentID(t *testing.T) {
 		if _, _, err := parseL2NetworkClusterAttachmentID(id); err == nil {
 			t.Fatalf("expected error for invalid id %q", id)
 		}
+	}
+}
+
+func TestL2NetworkClusterAttachParam(t *testing.T) {
+	attachParam := l2NetworkClusterAttachParam(l2NetworkClusterAttachmentModel{
+		L2ProviderType: types.StringValue("LinuxBridge"),
+		SystemTags:     stringSliceToList([]string{"vtep-cidr-tag"}),
+	})
+
+	if attachParam.Params.L2ProviderType == nil || *attachParam.Params.L2ProviderType != "LinuxBridge" {
+		t.Fatalf("l2ProviderType was not passed: %#v", attachParam.Params.L2ProviderType)
+	}
+	if len(attachParam.SystemTags) != 1 || attachParam.SystemTags[0] != "vtep-cidr-tag" {
+		t.Fatalf("system tags were not passed: %#v", attachParam.SystemTags)
 	}
 }
 

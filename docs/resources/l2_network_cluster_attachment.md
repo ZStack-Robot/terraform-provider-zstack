@@ -22,8 +22,9 @@ resource "zstack_l2vlan_network" "example" {
 }
 
 resource "zstack_l2_network_cluster_attachment" "example" {
-  l2_network_uuid = zstack_l2vlan_network.example.uuid
-  cluster_uuid    = "cluster-uuid"
+  l2_network_uuid  = zstack_l2vlan_network.example.uuid
+  cluster_uuid     = "cluster-uuid"
+  l2_provider_type = "LinuxBridge"
 }
 
 output "zstack_l2_network_cluster_attachment" {
@@ -38,6 +39,11 @@ output "zstack_l2_network_cluster_attachment" {
 
 - `cluster_uuid` (String) The UUID of the cluster to attach the L2 network to.
 - `l2_network_uuid` (String) The UUID of the L2 network to attach.
+
+### Optional
+
+- `l2_provider_type` (String) The L2 provider type sent at the top level of the attach request. VXLAN pool attachments commonly require this value.
+- `system_tags` (List of String) System tags sent at the top level of the attach request. Use these for VXLAN VTEP CIDR tags when required.
 
 ### Read-Only
 
