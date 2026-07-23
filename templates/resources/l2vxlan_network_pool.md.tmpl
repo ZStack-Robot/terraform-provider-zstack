@@ -1,0 +1,16 @@
+{{ .Name }} (Resource)
+=====================
+
+{{ .Description }}
+
+## Example Usage
+
+{{tffile "examples/resources/l2vxlan_network_pool/resource.tf"}}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+```shell
+terraform import zstack_l2vxlan_network_pool.example <uuid>
+```

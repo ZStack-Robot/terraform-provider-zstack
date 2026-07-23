@@ -204,7 +204,7 @@ func (r *l2VlanNetworkResource) Create(ctx context.Context, req resource.CreateR
 	// Attach to clusters if specified
 	desiredClusters := listToStringSlice(plan.AttachedClusterUuids)
 	for _, clusterUuid := range desiredClusters {
-		if err := r.attachCluster(l2Network.UUID, clusterUuid); err != nil {
+		if err := r.attachCluster(l2Network.UUID, clusterUuid, l2Network.VSwitchType); err != nil {
 			resp.Diagnostics.AddError(
 				"Error attaching Cluster to L2 VLAN Network",
 				fmt.Sprintf("Could not attach cluster %s to L2 VLAN network: %s", clusterUuid, err.Error()),
@@ -279,7 +279,7 @@ func (r *l2VlanNetworkResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	// Reconcile cluster attachments
-	if err := r.reconcileClusterAttachments(uuid, state.AttachedClusterUuids, plan.AttachedClusterUuids); err != nil {
+	if err := r.reconcileClusterAttachments(uuid, state.AttachedClusterUuids, plan.AttachedClusterUuids, plan.VSwitchType.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error updating L2 VLAN Network Cluster Attachments", "Could not update L2 VLAN network cluster attachments, unexpected error: "+err.Error())
 		return
 	}
@@ -329,11 +329,8 @@ func (r *l2VlanNetworkResource) readL2VlanNetwork(uuid string) (l2VlanNetworkRes
 	return l2VlanNetworkModelFromView(l2Network), nil
 }
 
-func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string) error {
-	attachParam := param.AttachL2NetworkToClusterParam{
-		BaseParam: param.BaseParam{},
-		Params:    param.AttachL2NetworkToClusterParamDetail{},
-	}
+func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid, l2ProviderType string) error {
+	attachParam := attachL2NetworkToClusterParam(stringPtrOrNil(l2ProviderType), nil)
 
 	if _, err := r.client.AttachL2NetworkToCluster(l2NetworkUuid, clusterUuid, attachParam); err != nil {
 		return err
@@ -341,7 +338,7 @@ func (r *l2VlanNetworkResource) attachCluster(l2NetworkUuid, clusterUuid string)
 	return nil
 }
 
-func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current, desired types.List) error {
+func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current, desired types.List, l2ProviderType string) error {
 	if desired.IsNull() || desired.IsUnknown() {
 		return nil
 	}
@@ -368,7 +365,7 @@ func (r *l2VlanNetworkResource) reconcileClusterAttachments(uuid string, current
 	// Attach clusters that are newly desired
 	for clusterUuid := range desiredSet {
 		if !currentSet[clusterUuid] {
-			if err := r.attachCluster(uuid, clusterUuid); err != nil {
+			if err := r.attachCluster(uuid, clusterUuid, l2ProviderType); err != nil {
 				return fmt.Errorf("failed to attach cluster %s: %w", clusterUuid, err)
 			}
 		}

@@ -1,0 +1,16 @@
+{{ .Name }} (Resource)
+=====================
+
+{{ .Description }}
+
+## Example Usage
+
+{{tffile "examples/resources/vni_range/resource.tf"}}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+```shell
+terraform import zstack_vni_range.example <uuid>
+```
