@@ -8,3 +8,7 @@
 {{tffile "examples/resources/l2_network_cluster_attachment/resource.tf"}}
 
 {{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import uses `<l2_network_uuid>:<cluster_uuid>`. For VXLAN pool attachments, import also restores the pool's `l2_provider_type` and the matching cluster VTEP CIDR `system_tags`, so the original configuration can plan as a no-op.

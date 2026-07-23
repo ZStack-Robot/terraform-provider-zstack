@@ -23,17 +23,37 @@ import (
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
-const maxVni = 16777215
+const (
+	maxVni            = 16777214
+	vniRangePageSize  = 500
+	vniRangeQueryPath = "v1/l2-networks/vxlan-pool/vni-range"
+)
 
 var (
 	_ resource.Resource                   = &vniRangeResource{}
 	_ resource.ResourceWithConfigure      = &vniRangeResource{}
 	_ resource.ResourceWithImportState    = &vniRangeResource{}
+	_ resource.ResourceWithModifyPlan     = &vniRangeResource{}
 	_ resource.ResourceWithValidateConfig = &vniRangeResource{}
 )
 
 type vniRangeResource struct {
+	client            *client.ZSClient
+	vniRangePageQuery vniRangePageQuery
+}
+
+type vniRangePageQuery interface {
+	PageVniRanges(context.Context, *param.QueryParam) ([]view.VniRangeInventoryView, int, error)
+}
+
+type zstackVniRangePageQuery struct {
 	client *client.ZSClient
+}
+
+func (q zstackVniRangePageQuery) PageVniRanges(ctx context.Context, query *param.QueryParam) ([]view.VniRangeInventoryView, int, error) {
+	var ranges []view.VniRangeInventoryView
+	total, err := q.client.ZSHttpClient.Page(ctx, vniRangeQueryPath, query, &ranges)
+	return ranges, total, err
 }
 
 type vniRangeResourceModel struct {
@@ -66,6 +86,7 @@ func (r *vniRangeResource) Configure(_ context.Context, req resource.ConfigureRe
 		return
 	}
 	r.client = configuredClient
+	r.vniRangePageQuery = zstackVniRangePageQuery{client: configuredClient}
 }
 
 func (r *vniRangeResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -101,7 +122,7 @@ func (r *vniRangeResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"start_vni": schema.Int64Attribute{
 				Required:    true,
-				Description: "The first VNI in the range.",
+				Description: "The first VNI in the range (1-16777214 for software SDN).",
 				Validators: []validator.Int64{
 					int64validator.Between(1, maxVni),
 				},
@@ -111,7 +132,7 @@ func (r *vniRangeResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"end_vni": schema.Int64Attribute{
 				Required:    true,
-				Description: "The last VNI in the range.",
+				Description: "The last VNI in the range (1-16777214 for software SDN).",
 				Validators: []validator.Int64{
 					int64validator.Between(1, maxVni),
 				},
@@ -172,6 +193,180 @@ func (r *vniRangeResource) ValidateConfig(ctx context.Context, req resource.Vali
 			"Invalid VNI range",
 			"start_vni must be less than or equal to end_vni.",
 		)
+	}
+}
+
+func (r *vniRangeResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan vniRangeResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() ||
+		plan.StartVni.IsNull() || plan.StartVni.IsUnknown() ||
+		plan.EndVni.IsNull() || plan.EndVni.IsUnknown() ||
+		plan.PoolUuid.IsNull() || plan.PoolUuid.IsUnknown() {
+		return
+	}
+
+	startVni := plan.StartVni.ValueInt64()
+	endVni := plan.EndVni.ValueInt64()
+	if startVni < 1 || startVni > maxVni || endVni < 1 || endVni > maxVni || startVni > endVni {
+		return
+	}
+
+	currentUuid := ""
+	if !req.State.Raw.IsNull() {
+		var state vniRangeResourceModel
+		resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		if !state.Uuid.IsNull() && !state.Uuid.IsUnknown() {
+			currentUuid = state.Uuid.ValueString()
+		}
+	}
+
+	if r.vniRangePageQuery == nil {
+		resp.Diagnostics.AddError(
+			"Unable to validate VNI range availability",
+			"The ZStack client is not configured, so existing VNI ranges cannot be checked.",
+		)
+		return
+	}
+
+	conflict, err := r.findOverlappingVniRange(
+		ctx,
+		plan.PoolUuid.ValueString(),
+		startVni,
+		endVni,
+		currentUuid,
+	)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to validate VNI range availability",
+			fmt.Sprintf("Could not query all VNI ranges in pool %s: %s", plan.PoolUuid.ValueString(), err.Error()),
+		)
+		return
+	}
+	if conflict == nil {
+		return
+	}
+
+	resp.Diagnostics.AddAttributeError(
+		path.Root("start_vni"),
+		"Overlapping VNI range",
+		fmt.Sprintf(
+			"Requested VNI range [%d, %d] overlaps existing range %q (%s) [%d, %d] in pool %s.",
+			startVni,
+			endVni,
+			conflict.Name,
+			conflict.UUID,
+			conflict.StartVni,
+			conflict.EndVni,
+			plan.PoolUuid.ValueString(),
+		),
+	)
+}
+
+func (r *vniRangeResource) findOverlappingVniRange(
+	ctx context.Context,
+	poolUuid string,
+	startVni, endVni int64,
+	currentUuid string,
+) (*view.VniRangeInventoryView, error) {
+	ranges, err := r.queryAllVniRanges(ctx, poolUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return findVniRangeOverlap(ranges, startVni, endVni, currentUuid), nil
+}
+
+func findVniRangeOverlap(
+	ranges []view.VniRangeInventoryView,
+	startVni, endVni int64,
+	currentUuid string,
+) *view.VniRangeInventoryView {
+	for i := range ranges {
+		existing := &ranges[i]
+		if existing.UUID == currentUuid {
+			continue
+		}
+		if startVni <= int64(existing.EndVni) && endVni >= int64(existing.StartVni) {
+			return existing
+		}
+	}
+	return nil
+}
+
+func (r *vniRangeResource) queryAllVniRanges(ctx context.Context, poolUuid string) ([]view.VniRangeInventoryView, error) {
+	return queryAllVniRanges(ctx, r.vniRangePageQuery, poolUuid)
+}
+
+func queryAllVniRanges(ctx context.Context, pageQuery vniRangePageQuery, poolUuid string) ([]view.VniRangeInventoryView, error) {
+	if pageQuery == nil {
+		return nil, errors.New("VNI range page query is not configured")
+	}
+
+	ranges := make([]view.VniRangeInventoryView, 0)
+	seenUuids := make(map[string]struct{})
+	expectedTotal := -1
+
+	for start := 0; ; start = len(ranges) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		query := param.NewQueryParam()
+		query.AddQ(fmt.Sprintf("l2NetworkUuid=%s", poolUuid))
+		query.Start(start).Limit(vniRangePageSize).ReplyWithCount(true)
+
+		page, total, err := pageQuery.PageVniRanges(ctx, &query)
+		if err != nil {
+			return nil, err
+		}
+		if total < 0 {
+			return nil, fmt.Errorf("VNI range query returned invalid total %d", total)
+		}
+		if expectedTotal == -1 {
+			expectedTotal = total
+		} else if total != expectedTotal {
+			return nil, fmt.Errorf("VNI range query total changed during pagination: expected %d, got %d", expectedTotal, total)
+		}
+
+		if len(page) == 0 {
+			if len(ranges) != expectedTotal {
+				return nil, fmt.Errorf("incomplete VNI range query: received %d of %d records", len(ranges), expectedTotal)
+			}
+			return ranges, nil
+		}
+
+		for _, existing := range page {
+			if existing.L2NetworkUuid != poolUuid {
+				return nil, fmt.Errorf(
+					"VNI range query for pool %s returned range %s from pool %s",
+					poolUuid,
+					existing.UUID,
+					existing.L2NetworkUuid,
+				)
+			}
+			if existing.UUID != "" {
+				if _, exists := seenUuids[existing.UUID]; exists {
+					return nil, fmt.Errorf("VNI range query returned duplicate range %s", existing.UUID)
+				}
+				seenUuids[existing.UUID] = struct{}{}
+			}
+			ranges = append(ranges, existing)
+		}
+
+		if len(ranges) > expectedTotal {
+			return nil, fmt.Errorf("VNI range query returned %d records, exceeding total %d", len(ranges), expectedTotal)
+		}
+		if len(ranges) == expectedTotal {
+			return ranges, nil
+		}
 	}
 }
 

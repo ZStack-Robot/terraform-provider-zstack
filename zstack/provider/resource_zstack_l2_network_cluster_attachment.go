@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -18,7 +19,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
+
+const attachmentSystemTagPageSize = 500
 
 var (
 	_ resource.Resource                = &l2NetworkClusterAttachmentResource{}
@@ -250,6 +254,37 @@ func (r *l2NetworkClusterAttachmentResource) ImportState(ctx context.Context, re
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), l2NetworkClusterAttachmentID(l2NetworkUuid, clusterUuid))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("l2_network_uuid"), l2NetworkUuid)...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("cluster_uuid"), clusterUuid)...)
+	if resp.Diagnostics.HasError() || r.client == nil {
+		return
+	}
+
+	vxlanPool, err := findResourceByGet(r.client.GetL2VxlanNetworkPool, l2NetworkUuid)
+	if err != nil {
+		if errors.Is(err, ErrResourceNotFound) {
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Error importing L2 Network Cluster Attachment",
+			fmt.Sprintf("Could not query VXLAN pool %s: %s", l2NetworkUuid, err.Error()),
+		)
+		return
+	}
+
+	if vxlanPool.VSwitchType != "" {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("l2_provider_type"), vxlanPool.VSwitchType)...)
+	}
+
+	systemTags, err := queryVxlanAttachmentSystemTags(ctx, r.client, l2NetworkUuid, clusterUuid)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error importing L2 Network Cluster Attachment",
+			fmt.Sprintf("Could not query VXLAN attachment system tags: %s", err.Error()),
+		)
+		return
+	}
+	if len(systemTags) > 0 {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("system_tags"), systemTags)...)
+	}
 }
 
 func (r *l2NetworkClusterAttachmentResource) isL2NetworkAttachedToCluster(l2NetworkUuid, clusterUuid string) (bool, error) {
@@ -276,6 +311,71 @@ func parseL2NetworkClusterAttachmentID(id string) (string, string, error) {
 		return "", "", fmt.Errorf("expected l2_network_uuid:cluster_uuid")
 	}
 	return parts[0], parts[1], nil
+}
+
+func queryVxlanAttachmentSystemTags(
+	ctx context.Context,
+	zstackClient *client.ZSClient,
+	l2NetworkUuid, clusterUuid string,
+) ([]string, error) {
+	query := param.NewQueryParam()
+	query.AddQ("resourceUuid=" + l2NetworkUuid)
+	query.Limit(attachmentSystemTagPageSize).ReplyWithCount(true)
+
+	expectedPrefix := fmt.Sprintf(
+		"l2NetworkUuid::%s::clusterUuid::%s::cidr::{",
+		l2NetworkUuid,
+		clusterUuid,
+	)
+	offset := 0
+	expectedTotal := -1
+	seenUuids := make(map[string]struct{})
+	matchedTags := make([]string, 0)
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		query.Start(offset)
+
+		var page []view.SystemTagInventoryView
+		total, err := zstackClient.ZSHttpClient.Page(ctx, "v1/system-tags", &query, &page)
+		if err != nil {
+			return nil, err
+		}
+		if total < 0 || total < offset+len(page) {
+			return nil, fmt.Errorf("invalid system tag pagination total %d at offset %d with %d results", total, offset, len(page))
+		}
+		if expectedTotal == -1 {
+			expectedTotal = total
+		} else if total != expectedTotal {
+			return nil, fmt.Errorf("system tag pagination total changed from %d to %d", expectedTotal, total)
+		}
+
+		for _, systemTag := range page {
+			if systemTag.UUID == "" {
+				return nil, fmt.Errorf("system tag query returned an item without a UUID")
+			}
+			if _, exists := seenUuids[systemTag.UUID]; exists {
+				return nil, fmt.Errorf("system tag query returned duplicate UUID %s", systemTag.UUID)
+			}
+			seenUuids[systemTag.UUID] = struct{}{}
+			if systemTag.ResourceUuid == l2NetworkUuid && strings.HasPrefix(systemTag.Tag, expectedPrefix) {
+				matchedTags = append(matchedTags, systemTag.Tag)
+			}
+		}
+
+		offset += len(page)
+		if offset >= expectedTotal {
+			break
+		}
+		if len(page) == 0 {
+			return nil, fmt.Errorf("system tag pagination ended at %d of %d results", offset, expectedTotal)
+		}
+	}
+
+	sort.Strings(matchedTags)
+	return matchedTags, nil
 }
 
 func l2NetworkClusterAttachParam(plan l2NetworkClusterAttachmentModel) param.AttachL2NetworkToClusterParam {

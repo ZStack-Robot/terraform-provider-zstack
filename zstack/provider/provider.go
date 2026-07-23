@@ -263,6 +263,7 @@ func (p *ZStackProvider) DataSources(ctx context.Context) []func() datasource.Da
 		ZStackLicenseAuthorizedNodeDataSource,
 		ZStackLicenseAuthorizedCapacityDataSource,
 		ZStackGlobalConfigsDataSource,
+		ZStackVxlanPreflightDataSource,
 	}
 
 }
