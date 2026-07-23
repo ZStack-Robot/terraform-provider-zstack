@@ -9,7 +9,9 @@ description: |-
 
 {{ .Description }}
 
-All input values must be known for Terraform to run the checks during planning. If an input depends on a resource being created in the same operation, Terraform may defer the data source read until apply.
+All input values must be known for Terraform to run the checks during planning. The VXLAN pool must exist and its zone and physical interface must match the requested values.
+
+For a target `zstack_vni_range`, preallocate a UUID and pass the same value to its `resource_uuid` and this data source's `exclude_vni_range_uuid`. This prevents the target range from conflicting with itself on later plans. Make the target range depend on the preflight data source so creation cannot race the check.
 
 ## Example Usage
 

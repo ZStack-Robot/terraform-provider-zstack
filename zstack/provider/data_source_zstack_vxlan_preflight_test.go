@@ -41,6 +41,10 @@ func TestVxlanPreflightDataSourceSchema(t *testing.T) {
 			t.Errorf("attribute %q should be required", name)
 		}
 	}
+	exclude, ok := resp.Schema.Attributes["exclude_vni_range_uuid"]
+	if !ok || !exclude.IsOptional() {
+		t.Error("exclude_vni_range_uuid should be optional")
+	}
 	for _, name := range []string{"ready", "hosts", "connectivity", "evidence_digest"} {
 		attribute, ok := resp.Schema.Attributes[name]
 		if !ok || !attribute.IsComputed() {
@@ -213,14 +217,15 @@ func TestValidateVxlanPreflightConnectivity(t *testing.T) {
 
 func TestVxlanPreflightEvidenceDigestDeterministic(t *testing.T) {
 	evidence := vxlanPreflightEvidence{
-		Version:           vxlanPreflightEvidenceVersion,
-		ZoneUuid:          "zone-uuid",
-		ClusterUuid:       "cluster-uuid",
-		PoolUuid:          "pool-uuid",
-		PhysicalInterface: "ens3",
-		VtepCidr:          "172.26.0.0/16",
-		StartVni:          100,
-		EndVni:            200,
+		Version:             vxlanPreflightEvidenceVersion,
+		ZoneUuid:            "zone-uuid",
+		ClusterUuid:         "cluster-uuid",
+		PoolUuid:            "pool-uuid",
+		PhysicalInterface:   "ens3",
+		VtepCidr:            "172.26.0.0/16",
+		StartVni:            100,
+		EndVni:              200,
+		ExcludeVniRangeUuid: "target-range-uuid",
 		Hosts: []vxlanPreflightHostEvidence{
 			{HostUuid: "host-1", HostName: "first", VtepIp: "172.26.0.11"},
 		},
@@ -237,10 +242,18 @@ func TestVxlanPreflightEvidenceDigestDeterministic(t *testing.T) {
 	if first != second || len(first) != 64 {
 		t.Fatalf("unexpected evidence digests: %q %q", first, second)
 	}
+	evidence.ExcludeVniRangeUuid = ""
+	withoutExclusion, err := vxlanPreflightEvidenceDigest(evidence)
+	if err != nil {
+		t.Fatalf("digest without exclusion: %v", err)
+	}
+	if first == withoutExclusion {
+		t.Fatal("exclude_vni_range_uuid must affect the evidence digest")
+	}
 }
 
 func TestVxlanPreflightDataSourceRead(t *testing.T) {
-	server := newVxlanPreflightServer(t, false)
+	server := newVxlanPreflightServer(t, vxlanPreflightServerOptions{})
 	defer server.Close()
 
 	tfresource.UnitTest(t, tfresource.TestCase{
@@ -265,7 +278,7 @@ func TestVxlanPreflightDataSourceRead(t *testing.T) {
 }
 
 func TestVxlanPreflightDataSourceBlocksAPIFailure(t *testing.T) {
-	server := newVxlanPreflightServer(t, true)
+	server := newVxlanPreflightServer(t, vxlanPreflightServerOptions{failReachability: true})
 	defer server.Close()
 
 	tfresource.UnitTest(t, tfresource.TestCase{
@@ -279,9 +292,144 @@ func TestVxlanPreflightDataSourceBlocksAPIFailure(t *testing.T) {
 	})
 }
 
-func newVxlanPreflightServer(t *testing.T, failReachability bool) *httptest.Server {
+func TestVxlanPreflightDataSourceRejectsInvalidPool(t *testing.T) {
+	testCases := map[string]struct {
+		options vxlanPreflightServerOptions
+		error   *regexp.Regexp
+	}{
+		"not found": {
+			options: vxlanPreflightServerOptions{poolStatus: http.StatusNotFound},
+			error:   regexp.MustCompile(`(?s)VXLAN preflight pool query failed.*pool-uuid`),
+		},
+		"identity mismatch": {
+			options: vxlanPreflightServerOptions{poolUuid: "different-pool-uuid"},
+			error:   regexp.MustCompile(`(?s)VXLAN preflight pool identity mismatch.*different-pool-uuid`),
+		},
+		"zone mismatch": {
+			options: vxlanPreflightServerOptions{poolZoneUuid: "different-zone-uuid"},
+			error:   regexp.MustCompile(`(?s)VXLAN pool is not in the requested zone.*different-zone-uuid`),
+		},
+		"physical interface mismatch": {
+			options: vxlanPreflightServerOptions{poolPhysicalInterface: "bond0"},
+			error:   regexp.MustCompile(`(?s)VXLAN pool uses a different physical interface.*bond0.*ens3`),
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			server := newVxlanPreflightServer(t, testCase.options)
+			defer server.Close()
+
+			tfresource.UnitTest(t, tfresource.TestCase{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Steps: []tfresource.TestStep{
+					{
+						Config:      vxlanPreflightTestConfig(t, server),
+						ExpectError: testCase.error,
+					},
+				},
+			})
+		})
+	}
+}
+
+func TestVxlanPreflightDataSourceExcludesTargetRangeAndRemainsNoop(t *testing.T) {
+	server := newVxlanPreflightServer(t, vxlanPreflightServerOptions{
+		ranges: []view.VniRangeInventoryView{{
+			BaseInfoView:  view.BaseInfoView{UUID: "target-range-uuid", Name: "target"},
+			StartVni:      100,
+			EndVni:        200,
+			L2NetworkUuid: "pool-uuid",
+		}},
+	})
+	defer server.Close()
+
+	config := vxlanPreflightTestConfigWithExclude(t, server, "target-range-uuid")
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("data.zstack_vxlan_preflight.test", tfjsonpath.New("ready"), knownvalue.Bool(true)),
+					statecheck.ExpectKnownValue(
+						"data.zstack_vxlan_preflight.test",
+						tfjsonpath.New("exclude_vni_range_uuid"),
+						knownvalue.StringExact("target-range-uuid"),
+					),
+				},
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func TestVxlanPreflightDataSourceDoesNotExcludeOtherRange(t *testing.T) {
+	server := newVxlanPreflightServer(t, vxlanPreflightServerOptions{
+		ranges: []view.VniRangeInventoryView{{
+			BaseInfoView:  view.BaseInfoView{UUID: "other-range-uuid", Name: "other"},
+			StartVni:      100,
+			EndVni:        200,
+			L2NetworkUuid: "pool-uuid",
+		}},
+	})
+	defer server.Close()
+
+	tfresource.UnitTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{
+				Config:      vxlanPreflightTestConfigWithExclude(t, server, "target-range-uuid"),
+				ExpectError: regexp.MustCompile(`(?s)VXLAN preflight found an overlapping VNI range.*other-range-uuid`),
+			},
+		},
+	})
+}
+
+type vxlanPreflightServerOptions struct {
+	failReachability      bool
+	poolStatus            int
+	poolUuid              string
+	poolZoneUuid          string
+	poolPhysicalInterface string
+	ranges                []view.VniRangeInventoryView
+}
+
+func newVxlanPreflightServer(t *testing.T, options vxlanPreflightServerOptions) *httptest.Server {
 	t.Helper()
+	poolUuid := options.poolUuid
+	if poolUuid == "" {
+		poolUuid = "pool-uuid"
+	}
+	poolZoneUuid := options.poolZoneUuid
+	if poolZoneUuid == "" {
+		poolZoneUuid = "zone-uuid"
+	}
+	poolPhysicalInterface := options.poolPhysicalInterface
+	if poolPhysicalInterface == "" {
+		poolPhysicalInterface = "ens3"
+	}
+
 	mux := http.NewServeMux()
+	mux.HandleFunc("/zstack/v1/l2-networks/vxlan-pool/pool-uuid", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("unexpected VXLAN pool method: %s", req.Method)
+		}
+		if options.poolStatus != 0 {
+			http.Error(w, "mock VXLAN pool failure", options.poolStatus)
+			return
+		}
+		writeVxlanPreflightResponse(t, w, map[string]any{
+			"inventories": []view.L2VxlanNetworkPoolInventoryView{{
+				BaseInfoView:      view.BaseInfoView{UUID: poolUuid, Name: "pool"},
+				ZoneUuid:          poolZoneUuid,
+				PhysicalInterface: poolPhysicalInterface,
+			}},
+		})
+	})
 	mux.HandleFunc("/zstack/v1/clusters/cluster-uuid", func(w http.ResponseWriter, req *http.Request) {
 		writeVxlanPreflightResponse(t, w, map[string]any{
 			"inventories": []view.ClusterInventoryView{{
@@ -313,10 +461,10 @@ func newVxlanPreflightServer(t *testing.T, failReachability bool) *httptest.Serv
 		if got := req.URL.Query().Get("q"); got != "l2NetworkUuid=pool-uuid" {
 			t.Fatalf("unexpected VNI query: %q", got)
 		}
-		writeVxlanPreflightResponse(t, w, map[string]any{"inventories": []any{}, "total": 0})
+		writeVxlanPreflightResponse(t, w, map[string]any{"inventories": options.ranges, "total": len(options.ranges)})
 	})
 	mux.HandleFunc("/zstack/v1/zops/check/network", func(w http.ResponseWriter, req *http.Request) {
-		if failReachability {
+		if options.failReachability {
 			http.Error(w, "mock reachability failure", http.StatusServiceUnavailable)
 			return
 		}
@@ -340,10 +488,18 @@ func newVxlanPreflightServer(t *testing.T, failReachability bool) *httptest.Serv
 }
 
 func vxlanPreflightTestConfig(t *testing.T, server *httptest.Server) string {
+	return vxlanPreflightTestConfigWithExclude(t, server, "")
+}
+
+func vxlanPreflightTestConfigWithExclude(t *testing.T, server *httptest.Server, excludeVniRangeUuid string) string {
 	t.Helper()
 	host, port, err := net.SplitHostPort(server.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("split mock server address: %v", err)
+	}
+	excludeConfig := ""
+	if excludeVniRangeUuid != "" {
+		excludeConfig = fmt.Sprintf("  exclude_vni_range_uuid = %q\n", excludeVniRangeUuid)
 	}
 	return fmt.Sprintf(`
 provider "zstack" {
@@ -361,8 +517,9 @@ data "zstack_vxlan_preflight" "test" {
   vtep_cidr          = "172.26.0.0/16"
   start_vni          = 100
   end_vni            = 200
+%s
 }
-`, host, port)
+`, host, port, excludeConfig)
 }
 
 func writeVxlanPreflightResponse(t *testing.T, w http.ResponseWriter, response any) {

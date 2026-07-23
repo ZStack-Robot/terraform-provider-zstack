@@ -42,6 +42,7 @@ type vxlanPreflightDataSource struct {
 type vxlanPreflightAPI interface {
 	vniRangePageQuery
 	GetCluster(context.Context, string) (*view.ClusterInventoryView, error)
+	GetVxlanPool(context.Context, string) (*view.L2VxlanNetworkPoolInventoryView, error)
 	PageHosts(context.Context, *param.QueryParam) ([]view.HostInventoryView, int, error)
 	GetClusterHostNetworkFacts(context.Context, string) (*view.GetClusterHostNetworkFactsView, error)
 	CheckNetworkReachable(context.Context, []string, []string) (*view.CheckNetworkReachableView, error)
@@ -57,6 +58,17 @@ func (a zstackVxlanPreflightAPI) GetCluster(ctx context.Context, uuid string) (*
 		return nil, err
 	}
 	return &cluster, nil
+}
+
+func (a zstackVxlanPreflightAPI) GetVxlanPool(
+	ctx context.Context,
+	uuid string,
+) (*view.L2VxlanNetworkPoolInventoryView, error) {
+	var pool view.L2VxlanNetworkPoolInventoryView
+	if err := a.client.ZSHttpClient.Get(ctx, "v1/l2-networks/vxlan-pool", uuid, nil, &pool); err != nil {
+		return nil, err
+	}
+	return &pool, nil
 }
 
 func (a zstackVxlanPreflightAPI) PageHosts(ctx context.Context, query *param.QueryParam) ([]view.HostInventoryView, int, error) {
@@ -114,17 +126,18 @@ func (a zstackVxlanPreflightAPI) PageVniRanges(
 }
 
 type vxlanPreflightDataSourceModel struct {
-	ZoneUuid          types.String                      `tfsdk:"zone_uuid"`
-	ClusterUuid       types.String                      `tfsdk:"cluster_uuid"`
-	PoolUuid          types.String                      `tfsdk:"pool_uuid"`
-	PhysicalInterface types.String                      `tfsdk:"physical_interface"`
-	VtepCidr          types.String                      `tfsdk:"vtep_cidr"`
-	StartVni          types.Int64                       `tfsdk:"start_vni"`
-	EndVni            types.Int64                       `tfsdk:"end_vni"`
-	Ready             types.Bool                        `tfsdk:"ready"`
-	Hosts             []vxlanPreflightHostModel         `tfsdk:"hosts"`
-	Connectivity      []vxlanPreflightConnectivityModel `tfsdk:"connectivity"`
-	EvidenceDigest    types.String                      `tfsdk:"evidence_digest"`
+	ZoneUuid            types.String                      `tfsdk:"zone_uuid"`
+	ClusterUuid         types.String                      `tfsdk:"cluster_uuid"`
+	PoolUuid            types.String                      `tfsdk:"pool_uuid"`
+	PhysicalInterface   types.String                      `tfsdk:"physical_interface"`
+	VtepCidr            types.String                      `tfsdk:"vtep_cidr"`
+	StartVni            types.Int64                       `tfsdk:"start_vni"`
+	EndVni              types.Int64                       `tfsdk:"end_vni"`
+	ExcludeVniRangeUuid types.String                      `tfsdk:"exclude_vni_range_uuid"`
+	Ready               types.Bool                        `tfsdk:"ready"`
+	Hosts               []vxlanPreflightHostModel         `tfsdk:"hosts"`
+	Connectivity        []vxlanPreflightConnectivityModel `tfsdk:"connectivity"`
+	EvidenceDigest      types.String                      `tfsdk:"evidence_digest"`
 }
 
 type vxlanPreflightHostModel struct {
@@ -152,16 +165,17 @@ type vxlanPreflightConnectivityEvidence struct {
 }
 
 type vxlanPreflightEvidence struct {
-	Version           string                               `json:"version"`
-	ZoneUuid          string                               `json:"zoneUuid"`
-	ClusterUuid       string                               `json:"clusterUuid"`
-	PoolUuid          string                               `json:"poolUuid"`
-	PhysicalInterface string                               `json:"physicalInterface"`
-	VtepCidr          string                               `json:"vtepCidr"`
-	StartVni          int64                                `json:"startVni"`
-	EndVni            int64                                `json:"endVni"`
-	Hosts             []vxlanPreflightHostEvidence         `json:"hosts"`
-	Connectivity      []vxlanPreflightConnectivityEvidence `json:"connectivity"`
+	Version             string                               `json:"version"`
+	ZoneUuid            string                               `json:"zoneUuid"`
+	ClusterUuid         string                               `json:"clusterUuid"`
+	PoolUuid            string                               `json:"poolUuid"`
+	PhysicalInterface   string                               `json:"physicalInterface"`
+	VtepCidr            string                               `json:"vtepCidr"`
+	StartVni            int64                                `json:"startVni"`
+	EndVni              int64                                `json:"endVni"`
+	ExcludeVniRangeUuid string                               `json:"excludeVniRangeUuid"`
+	Hosts               []vxlanPreflightHostEvidence         `json:"hosts"`
+	Connectivity        []vxlanPreflightConnectivityEvidence `json:"connectivity"`
 }
 
 func ZStackVxlanPreflightDataSource() datasource.DataSource {
@@ -231,6 +245,11 @@ func (d *vxlanPreflightDataSource) Schema(_ context.Context, _ datasource.Schema
 				Validators: []validator.Int64{
 					int64validator.Between(1, maxVni),
 				},
+			},
+			"exclude_vni_range_uuid": schema.StringAttribute{
+				Optional:    true,
+				Description: "UUID of the target VNI range to exclude from overlap detection. Use the same preallocated UUID as zstack_vni_range.resource_uuid for a stable pre-create check.",
+				Validators:  nonEmptyString,
 			},
 			"ready": schema.BoolAttribute{
 				Computed:    true,
@@ -329,6 +348,46 @@ func (d *vxlanPreflightDataSource) Read(ctx context.Context, req datasource.Read
 	}
 	vtepPrefix = vtepPrefix.Masked()
 
+	poolUuid := state.PoolUuid.ValueString()
+	pool, err := d.api.GetVxlanPool(ctx, poolUuid)
+	if err != nil {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("pool_uuid"),
+			"VXLAN preflight pool query failed",
+			fmt.Sprintf("Could not query VXLAN pool %s: %s", poolUuid, err.Error()),
+		)
+		return
+	}
+	if pool.UUID == "" || pool.UUID != poolUuid {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("pool_uuid"),
+			"VXLAN preflight pool identity mismatch",
+			fmt.Sprintf("Requested VXLAN pool %s, but ZStack returned pool %s.", poolUuid, pool.UUID),
+		)
+		return
+	}
+	if pool.ZoneUuid != state.ZoneUuid.ValueString() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("pool_uuid"),
+			"VXLAN pool is not in the requested zone",
+			fmt.Sprintf("VXLAN pool %s belongs to zone %s, not %s.", poolUuid, pool.ZoneUuid, state.ZoneUuid.ValueString()),
+		)
+		return
+	}
+	if pool.PhysicalInterface != state.PhysicalInterface.ValueString() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("physical_interface"),
+			"VXLAN pool uses a different physical interface",
+			fmt.Sprintf(
+				"VXLAN pool %s uses physical interface %q, not %q.",
+				poolUuid,
+				pool.PhysicalInterface,
+				state.PhysicalInterface.ValueString(),
+			),
+		)
+		return
+	}
+
 	cluster, err := d.api.GetCluster(ctx, state.ClusterUuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("VXLAN preflight cluster query failed", err.Error())
@@ -374,12 +433,21 @@ func (d *vxlanPreflightDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	ranges, err := queryAllVniRanges(ctx, d.api, state.PoolUuid.ValueString())
+	ranges, err := queryAllVniRanges(ctx, d.api, poolUuid)
 	if err != nil {
 		resp.Diagnostics.AddError("VXLAN preflight VNI query failed", err.Error())
 		return
 	}
-	if conflict := findVniRangeOverlap(ranges, state.StartVni.ValueInt64(), state.EndVni.ValueInt64(), ""); conflict != nil {
+	excludeVniRangeUuid := ""
+	if !state.ExcludeVniRangeUuid.IsNull() && !state.ExcludeVniRangeUuid.IsUnknown() {
+		excludeVniRangeUuid = state.ExcludeVniRangeUuid.ValueString()
+	}
+	if conflict := findVniRangeOverlap(
+		ranges,
+		state.StartVni.ValueInt64(),
+		state.EndVni.ValueInt64(),
+		excludeVniRangeUuid,
+	); conflict != nil {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("start_vni"),
 			"VXLAN preflight found an overlapping VNI range",
@@ -391,7 +459,7 @@ func (d *vxlanPreflightDataSource) Read(ctx context.Context, req datasource.Read
 				conflict.UUID,
 				conflict.StartVni,
 				conflict.EndVni,
-				state.PoolUuid.ValueString(),
+				poolUuid,
 			),
 		)
 		return
@@ -409,16 +477,17 @@ func (d *vxlanPreflightDataSource) Read(ctx context.Context, req datasource.Read
 	}
 
 	evidence := vxlanPreflightEvidence{
-		Version:           vxlanPreflightEvidenceVersion,
-		ZoneUuid:          state.ZoneUuid.ValueString(),
-		ClusterUuid:       state.ClusterUuid.ValueString(),
-		PoolUuid:          state.PoolUuid.ValueString(),
-		PhysicalInterface: state.PhysicalInterface.ValueString(),
-		VtepCidr:          vtepPrefix.String(),
-		StartVni:          state.StartVni.ValueInt64(),
-		EndVni:            state.EndVni.ValueInt64(),
-		Hosts:             hostEvidence,
-		Connectivity:      connectivityEvidence,
+		Version:             vxlanPreflightEvidenceVersion,
+		ZoneUuid:            state.ZoneUuid.ValueString(),
+		ClusterUuid:         state.ClusterUuid.ValueString(),
+		PoolUuid:            state.PoolUuid.ValueString(),
+		PhysicalInterface:   state.PhysicalInterface.ValueString(),
+		VtepCidr:            vtepPrefix.String(),
+		StartVni:            state.StartVni.ValueInt64(),
+		EndVni:              state.EndVni.ValueInt64(),
+		ExcludeVniRangeUuid: excludeVniRangeUuid,
+		Hosts:               hostEvidence,
+		Connectivity:        connectivityEvidence,
 	}
 	digest, err := vxlanPreflightEvidenceDigest(evidence)
 	if err != nil {
