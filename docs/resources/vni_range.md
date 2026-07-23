@@ -37,10 +37,10 @@ output "vni_range" {
 
 ### Required
 
-- `end_vni` (Number) The last VNI in the range.
+- `end_vni` (Number) The last VNI in the range (1-16777214 for software SDN).
 - `name` (String) The name of the VNI range.
 - `pool_uuid` (String) The UUID of the L2 VXLAN network pool that owns the range.
-- `start_vni` (Number) The first VNI in the range.
+- `start_vni` (Number) The first VNI in the range (1-16777214 for software SDN).
 
 ### Optional
 

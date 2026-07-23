@@ -122,7 +122,24 @@ func TestAccL2VxlanNetworkPoolAndVniRange(t *testing.T) {
 	poolUuidUnchanged := statecheck.CompareValue(compare.ValuesSame())
 	rangeUuidUnchanged := statecheck.CompareValue(compare.ValuesSame())
 
-	config := func(poolResourceName, rangeResourceName string) string {
+	config := func(poolResourceName, rangeResourceName string, includeAttachment bool) string {
+		attachmentConfig := ""
+		if includeAttachment {
+			attachmentConfig = fmt.Sprintf(`
+resource "zstack_l2_network_cluster_attachment" "test" {
+  l2_network_uuid  = zstack_l2vxlan_network_pool.test.uuid
+  cluster_uuid     = %q
+  l2_provider_type = "LinuxBridge"
+  system_tags = [format(
+    "l2NetworkUuid::%%s::clusterUuid::%%s::cidr::{%%s}",
+    zstack_l2vxlan_network_pool.test.uuid,
+    %q,
+    %q,
+  )]
+}
+`, clusterUuid, clusterUuid, vtepCidr)
+		}
+
 		return providerConfig() + fmt.Sprintf(`
 resource "zstack_l2vxlan_network_pool" "test" {
   name               = %q
@@ -140,18 +157,7 @@ resource "zstack_vni_range" "test" {
   pool_uuid   = zstack_l2vxlan_network_pool.test.uuid
 }
 
-resource "zstack_l2_network_cluster_attachment" "test" {
-  l2_network_uuid  = zstack_l2vxlan_network_pool.test.uuid
-  cluster_uuid     = %q
-  l2_provider_type = "LinuxBridge"
-  system_tags = [format(
-    "l2NetworkUuid::%%s::clusterUuid::%%s::cidr::{%%s}",
-    zstack_l2vxlan_network_pool.test.uuid,
-    %q,
-    %q,
-  )]
-}
-`, poolResourceName, zoneUuid, physicalInterface, rangeResourceName, startVni, endVni, clusterUuid, clusterUuid, vtepCidr)
+`, poolResourceName, zoneUuid, physicalInterface, rangeResourceName, startVni, endVni) + attachmentConfig
 	}
 
 	tfresource.ParallelTest(t, tfresource.TestCase{
@@ -159,7 +165,12 @@ resource "zstack_l2_network_cluster_attachment" "test" {
 		CheckDestroy:             testAccCheckVxlanPoolAndRangeDestroy,
 		Steps: []tfresource.TestStep{
 			{
-				Config: config(poolName, rangeName),
+				Config: config(poolName, rangeName, true),
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("zstack_l2vxlan_network_pool.test", tfjsonpath.New("uuid"), knownvalue.NotNull()),
 					poolUuidUnchanged.AddStateValue("zstack_l2vxlan_network_pool.test", tfjsonpath.New("uuid")),
@@ -172,12 +183,15 @@ resource "zstack_l2_network_cluster_attachment" "test" {
 				},
 			},
 			{
-				Config: config(poolName+"-updated", rangeName+"-updated"),
+				Config: config(poolName+"-updated", rangeName+"-updated", true),
 				ConfigPlanChecks: tfresource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectResourceAction("zstack_l2vxlan_network_pool.test", plancheck.ResourceActionUpdate),
 						plancheck.ExpectResourceAction("zstack_vni_range.test", plancheck.ResourceActionUpdate),
 						plancheck.ExpectResourceAction("zstack_l2_network_cluster_attachment.test", plancheck.ResourceActionNoop),
+					},
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
 					},
 				},
 				ConfigStateChecks: []statecheck.StateCheck{
@@ -202,6 +216,186 @@ resource "zstack_l2_network_cluster_attachment" "test" {
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerifyIgnore:              []string{"resource_uuid", "tag_uuids", "system_tags"},
+			},
+			{
+				ResourceName:                         "zstack_l2_network_cluster_attachment.test",
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdL2NetworkClusterAttachment("zstack_l2_network_cluster_attachment.test"),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "id",
+			},
+			{
+				Config: config(poolName+"-updated", rangeName+"-updated", false),
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("zstack_l2vxlan_network_pool.test", plancheck.ResourceActionNoop),
+						plancheck.ExpectResourceAction("zstack_vni_range.test", plancheck.ResourceActionNoop),
+						plancheck.ExpectResourceAction("zstack_l2_network_cluster_attachment.test", plancheck.ResourceActionDestroy),
+					},
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				Check: testAccCheckVxlanAttachmentDeletedSafely(
+					"zstack_l2vxlan_network_pool.test",
+					"zstack_vni_range.test",
+					clusterUuid,
+				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					poolUuidUnchanged.AddStateValue("zstack_l2vxlan_network_pool.test", tfjsonpath.New("uuid")),
+					rangeUuidUnchanged.AddStateValue("zstack_vni_range.test", tfjsonpath.New("uuid")),
+				},
+			},
+		},
+	})
+}
+
+func TestAccL2VxlanNetworkPoolImportPlanNoop(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	zoneUuid := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_ZONE_UUID")
+	clusterUuid := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_CLUSTER_UUID")
+	physicalInterface := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_PHYSICAL_INTERFACE")
+	vtepCidr := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_VTEP_CIDR")
+	startVni, endVni := testAccFreeVniRange(t, 100)
+	poolName := testAccName("vxlan-import")
+	rangeName := testAccName("vni-import")
+	description := "Terraform VXLAN import acceptance test"
+
+	cli := testAccClientLoggedIn()
+	pool, err := cli.CreateL2VxlanNetworkPool(param.CreateL2VxlanNetworkPoolParam{
+		Params: param.CreateL2VxlanNetworkPoolParamDetail{
+			Name:              poolName,
+			Description:       stringPtr(description),
+			ZoneUuid:          zoneUuid,
+			PhysicalInterface: stringPtr(physicalInterface),
+			VSwitchType:       stringPtr("LinuxBridge"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("create VXLAN pool import fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cli.DeleteL2Network(pool.UUID, param.DeleteModePermissive)
+	})
+
+	vniRange, err := cli.CreateVniRange(pool.UUID, param.CreateVniRangeParam{
+		Params: param.CreateVniRangeParamDetail{
+			Name:        rangeName,
+			Description: stringPtr(description),
+			StartVni:    startVni,
+			EndVni:      endVni,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create VNI range import fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cli.DeleteVniRange(vniRange.UUID, param.DeleteModePermissive)
+	})
+
+	attachmentSystemTag := fmt.Sprintf(
+		"l2NetworkUuid::%s::clusterUuid::%s::cidr::{%s}",
+		pool.UUID,
+		clusterUuid,
+		vtepCidr,
+	)
+	if _, err := cli.AttachL2NetworkToCluster(
+		pool.UUID,
+		clusterUuid,
+		attachL2NetworkToClusterParam(stringPtr("LinuxBridge"), []string{attachmentSystemTag}),
+	); err != nil {
+		t.Fatalf("create VXLAN attachment import fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cli.DetachL2NetworkFromCluster(pool.UUID, clusterUuid, param.DeleteModePermissive)
+	})
+
+	config := providerConfig() + fmt.Sprintf(`
+import {
+  to = zstack_l2vxlan_network_pool.test
+  id = %q
+}
+
+import {
+  to = zstack_vni_range.test
+  id = %q
+}
+
+import {
+  to = zstack_l2_network_cluster_attachment.test
+  id = %q
+}
+
+resource "zstack_l2vxlan_network_pool" "test" {
+  name               = %q
+  description        = %q
+  zone_uuid          = %q
+  physical_interface = %q
+  vswitch_type       = "LinuxBridge"
+}
+
+resource "zstack_vni_range" "test" {
+  name        = %q
+  description = %q
+  start_vni   = %d
+  end_vni     = %d
+  pool_uuid   = zstack_l2vxlan_network_pool.test.uuid
+}
+
+resource "zstack_l2_network_cluster_attachment" "test" {
+  l2_network_uuid  = zstack_l2vxlan_network_pool.test.uuid
+  cluster_uuid     = %q
+  l2_provider_type = "LinuxBridge"
+  system_tags      = [%q]
+}
+`,
+		pool.UUID,
+		vniRange.UUID,
+		l2NetworkClusterAttachmentID(pool.UUID, clusterUuid),
+		poolName,
+		description,
+		zoneUuid,
+		physicalInterface,
+		rangeName,
+		description,
+		startVni,
+		endVni,
+		clusterUuid,
+		attachmentSystemTag,
+	)
+
+	tfresource.ParallelTest(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckVxlanPoolAndRangeDestroy,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config,
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("zstack_l2vxlan_network_pool.test", tfjsonpath.New("uuid"), knownvalue.StringExact(pool.UUID)),
+					statecheck.ExpectKnownValue("zstack_vni_range.test", tfjsonpath.New("uuid"), knownvalue.StringExact(vniRange.UUID)),
+					statecheck.ExpectKnownValue(
+						"zstack_l2_network_cluster_attachment.test",
+						tfjsonpath.New("id"),
+						knownvalue.StringExact(l2NetworkClusterAttachmentID(pool.UUID, clusterUuid)),
+					),
+				},
+			},
+			{
+				Config:   config,
+				PlanOnly: true,
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
 			},
 		},
 	})
@@ -270,4 +464,40 @@ func testAccCheckVxlanPoolAndRangeDestroy(state *terraform.State) error {
 		}
 	}
 	return nil
+}
+
+func testAccCheckVxlanAttachmentDeletedSafely(
+	poolResourceName, rangeResourceName, clusterUuid string,
+) tfresource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		poolState, ok := state.RootModule().Resources[poolResourceName]
+		if !ok {
+			return fmt.Errorf("VXLAN pool %s is missing from Terraform state", poolResourceName)
+		}
+		rangeState, ok := state.RootModule().Resources[rangeResourceName]
+		if !ok {
+			return fmt.Errorf("VNI range %s is missing from Terraform state", rangeResourceName)
+		}
+
+		poolUuid := poolState.Primary.Attributes["uuid"]
+		rangeUuid := rangeState.Primary.Attributes["uuid"]
+		cli := testAccClientLoggedIn()
+
+		pool, err := cli.GetL2VxlanNetworkPool(poolUuid)
+		if err != nil {
+			return fmt.Errorf("VXLAN pool %s was affected while deleting its attachment: %w", poolUuid, err)
+		}
+		for _, attachedClusterUuid := range pool.AttachedClusterUuids {
+			if attachedClusterUuid == clusterUuid {
+				return fmt.Errorf("VXLAN pool %s is still attached to cluster %s", poolUuid, clusterUuid)
+			}
+		}
+		if _, err := cli.GetVniRange(rangeUuid); err != nil {
+			return fmt.Errorf("VNI range %s was affected while deleting its attachment: %w", rangeUuid, err)
+		}
+		if _, err := cli.GetCluster(clusterUuid); err != nil {
+			return fmt.Errorf("cluster %s was affected while deleting the attachment: %w", clusterUuid, err)
+		}
+		return nil
+	}
 }

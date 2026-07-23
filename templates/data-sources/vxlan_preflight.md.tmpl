@@ -1,0 +1,20 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  {{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description }}
+
+All input values must be known for Terraform to run the checks during planning. The VXLAN pool must exist and its zone and physical interface must match the requested values.
+
+For a target `zstack_vni_range`, preallocate a UUID and pass the same value to its `resource_uuid` and this data source's `exclude_vni_range_uuid`. This prevents the target range from conflicting with itself on later plans. Make the target range depend on the preflight data source so creation cannot race the check.
+
+## Example Usage
+
+{{tffile "examples/data-sources/vxlan_preflight/data-source.tf"}}
+
+{{ .SchemaMarkdown | trimspace }}

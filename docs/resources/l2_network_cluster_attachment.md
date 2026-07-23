@@ -56,3 +56,5 @@ Import is supported using the following syntax:
 ```shell
 terraform import zstack_l2_network_cluster_attachment.example <l2_network_uuid>:<cluster_uuid>
 ```
+
+For VXLAN pool attachments, import also restores the pool's `l2_provider_type` and the matching cluster VTEP CIDR `system_tags`, so the original configuration can plan as a no-op.
