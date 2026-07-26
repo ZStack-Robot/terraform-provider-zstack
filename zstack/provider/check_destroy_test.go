@@ -44,6 +44,11 @@ var testAccCheckImageDestroy = testAccCheckResourceDestroyByGet("zstack_image", 
 	return err
 })
 
+var testAccCheckImageGroupDestroy = testAccCheckResourceDestroyByGet("zstack_image_group", func(cli *client.ZSClient, id string) error {
+	_, err := cli.GetImageGroup(id)
+	return err
+})
+
 var testAccCheckVolumeDestroy = testAccCheckResourceDestroyByGet("zstack_volume", func(cli *client.ZSClient, id string) error {
 	_, err := cli.GetVolume(id)
 	return err
