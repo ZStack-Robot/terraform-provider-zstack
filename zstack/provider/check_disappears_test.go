@@ -102,6 +102,12 @@ func stateCheckImageDisappears(resourceAddress string) statecheck.StateCheck {
 	})
 }
 
+func stateCheckImageGroupDisappears(resourceAddress string) statecheck.StateCheck {
+	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
+		return cli.ExpungeImageGroup(id)
+	})
+}
+
 func stateCheckVolumeDisappears(resourceAddress string) statecheck.StateCheck {
 	return stateCheckDisappears(resourceAddress, func(cli *client.ZSClient, id string) error {
 		return cli.DeleteDataVolume(id, param.DeleteModePermissive)

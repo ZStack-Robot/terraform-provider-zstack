@@ -278,6 +278,7 @@ func (p *ZStackProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 func (p *ZStackProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		ImageResource,
+		ImageGroupResource,
 		InstanceResource,
 		InstanceStateResource,
 		ReservedIpResource,
