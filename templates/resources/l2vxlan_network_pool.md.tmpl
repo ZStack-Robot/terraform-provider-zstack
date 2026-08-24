@@ -1,5 +1,11 @@
-{{ .Name }} (Resource)
-=====================
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  {{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
 
 {{ .Description }}
 
@@ -7,9 +13,15 @@
 
 {{tffile "examples/resources/l2vxlan_network_pool/resource.tf"}}
 
+## Physical Interface Selection
+
+`physical_interface` is optional. When omitted, ZStack discovers the host interface from the VTEP CIDR when the pool is attached to a cluster. Set it explicitly, for example to `bond0` or `zsn0`, only when the VXLAN pool must use a fixed interface. Changing an explicitly configured interface recreates the pool.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import
+
+Import is supported using the following syntax:
 
 ```shell
 terraform import zstack_l2vxlan_network_pool.example <uuid>
