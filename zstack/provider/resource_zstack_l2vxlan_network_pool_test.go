@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	rschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	tfresource "github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -26,7 +29,7 @@ func TestL2VxlanNetworkPoolResourceSchema(t *testing.T) {
 	resp := &resource.SchemaResponse{}
 	r.Schema(context.Background(), resource.SchemaRequest{}, resp)
 
-	for _, name := range []string{"name", "zone_uuid", "physical_interface"} {
+	for _, name := range []string{"name", "zone_uuid"} {
 		attribute, ok := resp.Schema.Attributes[name]
 		if !ok {
 			t.Fatalf("schema missing required attribute %q", name)
@@ -34,6 +37,55 @@ func TestL2VxlanNetworkPoolResourceSchema(t *testing.T) {
 		if !attribute.IsRequired() {
 			t.Errorf("attribute %q should be required", name)
 		}
+	}
+	physicalInterface, ok := resp.Schema.Attributes["physical_interface"].(rschema.StringAttribute)
+	if !ok {
+		t.Fatal("physical_interface should be a string attribute")
+	}
+	if !physicalInterface.IsOptional() || !physicalInterface.IsComputed() {
+		t.Error("physical_interface should be optional and computed")
+	}
+	if len(physicalInterface.Validators) == 0 {
+		t.Fatal("physical_interface should reject an explicitly configured empty string")
+	}
+	if len(physicalInterface.PlanModifiers) != 2 {
+		t.Fatalf("physical_interface should have replace-if-configured and use-state plan modifiers, got %d", len(physicalInterface.PlanModifiers))
+	}
+
+	for _, testCase := range []struct {
+		name        string
+		value       types.String
+		expectError bool
+	}{
+		{name: "omitted", value: types.StringNull()},
+		{name: "non-empty", value: types.StringValue("bond0")},
+		{name: "empty", value: types.StringValue(""), expectError: true},
+	} {
+		t.Run("physical_interface_"+testCase.name, func(t *testing.T) {
+			request := validator.StringRequest{ConfigValue: testCase.value}
+			response := validator.StringResponse{}
+			physicalInterface.Validators[0].ValidateString(context.Background(), request, &response)
+			if response.Diagnostics.HasError() != testCase.expectError {
+				t.Fatalf("unexpected validator diagnostics for %s: %v", testCase.name, response.Diagnostics)
+			}
+		})
+	}
+
+	removeRequest := planmodifier.StringRequest{
+		ConfigValue: types.StringNull(),
+		StateValue:  types.StringValue("bond0"),
+		PlanValue:   types.StringUnknown(),
+	}
+	replaceResponse := planmodifier.StringResponse{}
+	physicalInterface.PlanModifiers[0].PlanModifyString(context.Background(), removeRequest, &replaceResponse)
+	if replaceResponse.RequiresReplace {
+		t.Fatal("removing physical_interface from configuration should stop managing it without replacing the pool")
+	}
+
+	useStateResponse := planmodifier.StringResponse{}
+	physicalInterface.PlanModifiers[1].PlanModifyString(context.Background(), removeRequest, &useStateResponse)
+	if !useStateResponse.PlanValue.Equal(removeRequest.StateValue) {
+		t.Fatalf("removing physical_interface should preserve its state value, got %#v", useStateResponse.PlanValue)
 	}
 
 	for _, name := range []string{"uuid", "virtual_network_id", "attached_cluster_uuids"} {
@@ -87,6 +139,17 @@ func TestL2VxlanNetworkPoolModelFromViewPreservesCreateOnlyFields(t *testing.T) 
 	}
 }
 
+func TestL2VxlanNetworkPoolModelFromViewNormalizesEmptyPhysicalInterface(t *testing.T) {
+	state := l2VxlanNetworkPoolModelFromView(&view.L2VxlanNetworkPoolInventoryView{
+		BaseInfoView: view.BaseInfoView{UUID: "pool-uuid", Name: "pool"},
+		ZoneUuid:     "zone-uuid",
+	}, l2VxlanNetworkPoolResourceModel{})
+
+	if !state.PhysicalInterface.IsNull() {
+		t.Fatalf("empty physicalInterface should be normalized to null, got %#v", state.PhysicalInterface)
+	}
+}
+
 func TestL2VxlanNetworkPoolCreateParam(t *testing.T) {
 	createParam := l2VxlanNetworkPoolCreateParam(l2VxlanNetworkPoolResourceModel{
 		Name:              types.StringValue("pool"),
@@ -105,6 +168,111 @@ func TestL2VxlanNetworkPoolCreateParam(t *testing.T) {
 	if len(createParam.SystemTags) != 1 || createParam.SystemTags[0] != "system-tag" {
 		t.Fatalf("system tags were not passed: %#v", createParam.SystemTags)
 	}
+}
+
+func TestL2VxlanNetworkPoolCreateParamOmitsAutomaticPhysicalInterface(t *testing.T) {
+	createParam := l2VxlanNetworkPoolCreateParam(l2VxlanNetworkPoolResourceModel{
+		Name:              types.StringValue("pool"),
+		ZoneUuid:          types.StringValue("zone-uuid"),
+		PhysicalInterface: types.StringNull(),
+	})
+	if createParam.Params.PhysicalInterface != nil {
+		t.Fatalf("automatic physicalInterface should be omitted: %#v", createParam.Params.PhysicalInterface)
+	}
+}
+
+func TestAccL2VxlanNetworkPoolAutomaticPhysicalInterface(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	zoneUuid := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_ZONE_UUID")
+	resourceName := "zstack_l2vxlan_network_pool.test"
+	config := providerConfig() + fmt.Sprintf(`
+resource "zstack_l2vxlan_network_pool" "test" {
+  name      = %q
+  zone_uuid = %q
+}
+`, testAccName("vxlan-pool-auto-interface"), zoneUuid)
+
+	tfresource.Test(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config,
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("uuid"), knownvalue.NotNull()),
+				},
+			},
+			{
+				ResourceName:                         resourceName,
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID(resourceName),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIgnore:              []string{"resource_uuid", "tag_uuids", "system_tags", "attached_cluster_uuids"},
+			},
+			{
+				Config: config,
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(resourceName, plancheck.ResourceActionNoop),
+					},
+				},
+			},
+		},
+	})
+}
+
+func TestAccL2VxlanNetworkPoolExplicitPhysicalInterface(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance test skipped unless TF_ACC is set")
+	}
+
+	zoneUuid := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_ZONE_UUID")
+	physicalInterface := requireAcceptanceEnv(t, "ZSTACK_TEST_VXLAN_PHYSICAL_INTERFACE")
+	resourceName := "zstack_l2vxlan_network_pool.test"
+	config := providerConfig() + fmt.Sprintf(`
+resource "zstack_l2vxlan_network_pool" "test" {
+  name               = %q
+  zone_uuid          = %q
+  physical_interface = %q
+}
+`, testAccName("vxlan-pool-explicit-interface"), zoneUuid, physicalInterface)
+
+	tfresource.Test(t, tfresource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []tfresource.TestStep{
+			{
+				Config: config,
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("uuid"), knownvalue.NotNull()),
+					statecheck.ExpectKnownValue(resourceName, tfjsonpath.New("physical_interface"), knownvalue.StringExact(physicalInterface)),
+				},
+			},
+			{
+				ResourceName:                         resourceName,
+				ImportState:                          true,
+				ImportStateIdFunc:                    importStateIdFromUUID(resourceName),
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIgnore:              []string{"resource_uuid", "tag_uuids", "system_tags", "attached_cluster_uuids"},
+			},
+			{
+				Config: config,
+				ConfigPlanChecks: tfresource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(resourceName, plancheck.ResourceActionNoop),
+					},
+				},
+			},
+		},
+	})
 }
 
 func TestAccL2VxlanNetworkPoolAndVniRange(t *testing.T) {

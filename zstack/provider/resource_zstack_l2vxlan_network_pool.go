@@ -107,10 +107,12 @@ func (r *l2VxlanNetworkPoolResource) Schema(_ context.Context, _ resource.Schema
 				},
 			},
 			"physical_interface": schema.StringAttribute{
-				Required:    true,
-				Description: "The physical network interface used by the VXLAN pool, for example `bond0`.",
+				Optional:    true,
+				Computed:    true,
+				Description: "The physical network interface used by the VXLAN pool, for example `bond0`. Omit it to let ZStack select the interface from the VTEP CIDR when the pool is attached.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.RequiresReplaceIfConfigured(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
@@ -302,7 +304,7 @@ func l2VxlanNetworkPoolModelFromView(pool *view.L2VxlanNetworkPoolInventoryView,
 		Name:                 types.StringValue(pool.Name),
 		Description:          stringValueOrNull(pool.Description),
 		ZoneUuid:             types.StringValue(pool.ZoneUuid),
-		PhysicalInterface:    types.StringValue(pool.PhysicalInterface),
+		PhysicalInterface:    stringValueOrNull(pool.PhysicalInterface),
 		Type:                 stringValueOrNull(pool.Type),
 		VSwitchType:          stringValueOrNull(pool.VSwitchType),
 		VirtualNetworkId:     types.Int64Value(int64(pool.VirtualNetworkId)),
@@ -319,11 +321,13 @@ func l2VxlanNetworkPoolCreateParam(plan l2VxlanNetworkPoolResourceModel) param.C
 	createParam := param.CreateL2VxlanNetworkPoolParam{
 		BaseParam: param.BaseParam{SystemTags: listToStringSlice(plan.SystemTags)},
 		Params: param.CreateL2VxlanNetworkPoolParamDetail{
-			Name:              plan.Name.ValueString(),
-			ZoneUuid:          plan.ZoneUuid.ValueString(),
-			PhysicalInterface: stringPtr(plan.PhysicalInterface.ValueString()),
-			TagUuids:          listToStringSlice(plan.TagUuids),
+			Name:     plan.Name.ValueString(),
+			ZoneUuid: plan.ZoneUuid.ValueString(),
+			TagUuids: listToStringSlice(plan.TagUuids),
 		},
+	}
+	if !plan.PhysicalInterface.IsNull() && !plan.PhysicalInterface.IsUnknown() {
+		createParam.Params.PhysicalInterface = stringPtr(plan.PhysicalInterface.ValueString())
 	}
 
 	if !plan.Description.IsNull() && !plan.Description.IsUnknown() {
