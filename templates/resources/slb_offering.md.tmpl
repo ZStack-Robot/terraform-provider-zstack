@@ -9,18 +9,18 @@ description: |-
 
 {{ .Description }}
 
-`template_content` is required and must contain the `ZStackTemplateFormatVersion` marker. The provider validates this before calling the ZStack API.
+Changing a configured offering attribute requires replacing the offering. Memory sizes are specified in mebibytes (MiB).
 
 ## Example Usage
 
-{{tffile "examples/resources/stack_template/resource.tf"}}
+{{tffile "examples/resources/slb_offering/resource.tf"}}
 
-{{ .SchemaMarkdown | trimspace }}
+{{ .SchemaMarkdown }}
 
 ## Import
 
 Import is supported using the following syntax:
 
 ```shell
-terraform import zstack_stack_template.example <uuid>
+terraform import zstack_slb_offering.example <uuid>
 ```

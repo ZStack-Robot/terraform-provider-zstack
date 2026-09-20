@@ -73,6 +73,7 @@ type EnvData struct {
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
+	SlbOfferings           []map[string]interface{} `json:"slb_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
