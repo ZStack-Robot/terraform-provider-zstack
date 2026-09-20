@@ -91,6 +91,7 @@ type EnvData struct {
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
+	SlbOfferings           []map[string]interface{} `json:"slb_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
@@ -425,6 +426,28 @@ func main() {
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "QueryVirtualRouterOffering error: %v\n", err)
+	}
+
+	// SLB Offerings (memory_size converted to MiB, matching Terraform)
+	if offers, err := cli.QuerySlbOffering(q()); err == nil {
+		for _, offer := range offers {
+			data.SlbOfferings = append(data.SlbOfferings, map[string]interface{}{
+				"name":                    offer.Name,
+				"uuid":                    offer.UUID,
+				"state":                   offer.State,
+				"cpu_num":                 offer.CpuNum,
+				"memory_size":             offer.MemorySize / (1024 * 1024), // bytes -> MiB
+				"allocator_strategy":      offer.AllocatorStrategy,
+				"type":                    offer.Type,
+				"sort_key":                offer.SortKey,
+				"image_uuid":              offer.ImageUuid,
+				"management_network_uuid": offer.ManagementNetworkUuid,
+				"zone_uuid":               offer.ZoneUuid,
+				"reserved_memory_size":    offer.ReservedMemorySize,
+			})
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "QuerySlbOffering error: %v\n", err)
 	}
 
 	// Virtual Routers
@@ -1472,6 +1495,7 @@ func main() {
 		len(data.L2Networks), len(data.L3Networks), len(data.VmInstances))
 	fmt.Printf("  SecurityGroups: %d, SecurityGroupRules: %d\n",
 		len(data.SecurityGroups), len(data.SecurityGroupRules))
+	fmt.Printf("  SlbOfferings: %d\n", len(data.SlbOfferings))
 	fmt.Printf("  VirtualRouterOfferings: %d, VirtualRouters: %d\n",
 		len(data.VirtualRouterOfferings), len(data.VirtualRouters))
 	fmt.Printf("  SdnControllers: %d, InstanceScripts: %d, MnNodes: %d\n",

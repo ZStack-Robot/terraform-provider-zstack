@@ -81,6 +81,7 @@ type EnvData struct {
 
 	// Virtual Router
 	VirtualRouterOfferings []map[string]interface{} `json:"virtual_router_offerings"`
+	SlbOfferings           []map[string]interface{} `json:"slb_offerings"`
 	VirtualRouters         []map[string]interface{} `json:"virtual_routers"`
 
 	// System / IAM
@@ -349,6 +350,7 @@ func dataSourceGenerators() []generator {
 		// Compute offerings
 		dataSimple("instance_offerings", "instance_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.InstanceOfferings }),
 		dataSimple("disk_offerings", "disk_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.DiskOfferings }),
+		dataSimple("slb_offerings", "slb_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.SlbOfferings }),
 		dataSimple("virtual_router_offerings", "virtual_router_offerings", "name", func(e *EnvData) []map[string]interface{} { return e.VirtualRouterOfferings }),
 
 		// Virtual routers + L2
@@ -513,6 +515,8 @@ func dataSourceQAGenerators() []generator {
 		{tfType: "instance_offerings", envField: "instance_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.InstanceOfferings }, listAttr: "instance_offers",
 			supportsName: true, supportsUUID: true, supportsNamePattern: true},
 		{tfType: "disk_offerings", envField: "disk_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.DiskOfferings }, listAttr: "disk_offers",
+			supportsName: true, supportsUUID: true, supportsNamePattern: true},
+		{tfType: "slb_offerings", envField: "slb_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.SlbOfferings }, listAttr: "slb_offers",
 			supportsName: true, supportsUUID: true, supportsNamePattern: true},
 		{tfType: "virtual_router_offerings", envField: "virtual_router_offerings", getList: func(e *EnvData) []map[string]interface{} { return e.VirtualRouterOfferings }, listAttr: "virtual_router_offers",
 			supportsName: true, supportsUUID: true, supportsNamePattern: true},
@@ -1205,6 +1209,33 @@ output "uuid" {
   value = zstack_virtual_router_offering.test.uuid
 }
 `, zoneUUID, mgmtUUID, pubUUID, imgUUID), true, ""
+			},
+		},
+		{
+			name: "res-slb_offering",
+			fn: func(env *EnvData) (string, bool, string) {
+				if len(env.SlbOfferings) == 0 {
+					return "", false, "slb_offerings empty (need ref data)"
+				}
+				offer := env.SlbOfferings[0]
+				zone, network, image := getStr(offer, "zone_uuid"), getStr(offer, "management_network_uuid"), getStr(offer, "image_uuid")
+				if zone == "" || network == "" || image == "" {
+					return "", false, "SLB reference offering missing zone, management network, or image"
+				}
+				return fmt.Sprintf(`resource "zstack_slb_offering" "test" {
+  name                    = "tf-batch-test-slb-offering"
+  description             = "[batch-test] SLB offering"
+  cpu_num                 = 8
+  memory_size             = 8192
+  zone_uuid               = %q
+  management_network_uuid = %q
+  image_uuid              = %q
+}
+
+output "uuid" {
+  value = zstack_slb_offering.test.uuid
+}
+`, zone, network, image), true, ""
 			},
 		},
 		{

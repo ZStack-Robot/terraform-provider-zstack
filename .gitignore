@@ -1,7 +1,10 @@
 
 dist/
-# Ignore test environment config (contains secrets)
-.env.test
+# Ignore local environment config (contains secrets); keep example templates
+.env
+.env.*
+!.env.example
+!.env.*.example
 # Ignore generated test environment data (env-specific)
 zstack/provider/testdata/env.json
 # Ignore generated binaries and test outputs from go build/run
